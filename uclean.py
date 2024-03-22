@@ -15,7 +15,16 @@ def above_one(number):
 
 args = parser.parse_args()
 
-work_path = os.path.abspath(args.input).replace(args.input, '')
+### Find parent directory of input .bam
+work_path = args.input
+
+if os.path.isabs(work_path):
+    work_path = work_path.replace(
+        work_path.split('/')[-1], ''
+    )
+else:
+    work_path = os.path.abspath(args.input).replace(args.input, '')
+
 print(f"Working path: {work_path}")
 
 ### assign UG tag for each group of clustered UMIs
@@ -77,11 +86,21 @@ def build_onesies(input_file):
 ### Using file generated from build_onesies, 
 def remove_onesies(input_file, blacklist):
     file_to_clean = input_file
-    if not os.path.exists('cleaned/'):
-        os.mkdir('cleaned/')
-    clean_file_name = work_path + 'cleaned/' + input_file.split('.bam')[0] + '_cleaned.bam'
-    clean_cmd = 'samtools view -h -D UG:' + blacklist + ' ' + file_to_clean + ' > ' + clean_file_name
-    subprocess.call(clean_cmd, shell = True)
+
+    if os.path.isabs(input_file):
+        input_file = input_file.split('/')[-1]
+
+
+    output_dir = work_path + 'cleaned'
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+    clean_file_name = output_dir  + '/' + input_file.split('.bam')[0] + '_cleaned.bam'
+
+    try:
+        clean_cmd = 'samtools view -h -D UG:' + blacklist + ' ' + file_to_clean + ' > ' + clean_file_name
+        subprocess.call(clean_cmd, shell = True)
+    except BaseException:
+        print("PATH IS FUCKED")
 
     # CLEAN
 
