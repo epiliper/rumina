@@ -1,9 +1,8 @@
 import argparse 
-import binsearch
 import pysam
 from collections import Counter
 import subprocess
-
+import os
 
 parser = argparse.ArgumentParser()
 
@@ -16,14 +15,20 @@ def above_one(number):
 
 args = parser.parse_args()
 
+work_path = os.path.abspath(args.input).replace(args.input, '')
+print(f"Working path: {work_path}")
+
 ### assign UG tag for each group of clustered UMIs
 def tag_bam(input_file):
-    
+
     tagged_file_name = input_file.split('.bam')[0] + '_tagged.bam'
     tag_cmd = 'umi_tools group -I ' + input_file + " --output-bam --umi-separator=':' --paired -S " + tagged_file_name.split('.bam')[0] + '_temp.bam' 
     subprocess.call(tag_cmd, shell = True)
     filter_cmd = 'samtools view -h -b -d UG ' + tagged_file_name.split('.bam')[0] + '_temp.bam > ' + tagged_file_name
     subprocess.call(filter_cmd, shell = True)
+
+    # CLEAN 
+    os.remove(tagged_file_name.split('.bam')[0] + '_temp.bam')
 
     return(tagged_file_name)
 
@@ -63,19 +68,26 @@ def build_onesies(input_file):
 
     name_of_txt = input_file.split('.bam')[0] + '_onesies.txt'
 
-
     with open(name_of_txt, "w") as filter_file:
         for key in filtered_list.keys():
             filter_file.write(key + "\n")
 
-
     return input_file, name_of_txt
 
+### Using file generated from build_onesies, 
 def remove_onesies(input_file, blacklist):
     file_to_clean = input_file
-    clean_file_name = input_file.split('.bam')[0] + '_cleaned.bam'
+    if not os.path.exists('cleaned/'):
+        os.mkdir('cleaned/')
+    clean_file_name = work_path + 'cleaned/' + input_file.split('.bam')[0] + '_cleaned.bam'
     clean_cmd = 'samtools view -h -D UG:' + blacklist + ' ' + file_to_clean + ' > ' + clean_file_name
     subprocess.call(clean_cmd, shell = True)
+
+    # CLEAN
+
+    os.remove(file_to_clean)
+    os.remove(blacklist)
+
 
 # driver code
 tagged_bam = tag_bam(args.input)
