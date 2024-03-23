@@ -53,7 +53,6 @@ def build_onesies(input_file):
     iter = samfile.fetch(until_eof = True)
 
     ug_list = []
-
     n = 0
     for read in iter:
         # tag_report = {"UG":read.tags["UG"]}
@@ -90,7 +89,6 @@ def remove_onesies(input_file, blacklist):
     if os.path.isabs(input_file):
         input_file = input_file.split('/')[-1]
 
-
     output_dir = work_path + 'cleaned'
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
@@ -103,13 +101,66 @@ def remove_onesies(input_file, blacklist):
         print("PATH IS FUCKED")
 
     # CLEAN
-
     os.remove(file_to_clean)
     os.remove(blacklist)
 
+    return clean_file_name
+
+### check cleaned files to ensure no onesies remain
+def check_cleaned(input_file):
+    print("Checking...")
+
+    samfile = pysam.AlignmentFile(input_file, 'rb')
+    iter = samfile.fetch(until_eof = True)
+
+    ug_list = []
+    for read in iter:
+        ug = str(dict(read.tags)['UG'])
+
+        ug_list.append(ug)
+        print(ug)
+
+    count_list = Counter(ug_list)
+    print(count_list)
+
+    qc = ''
+    if 1 in count_list.keys():
+        print('ERROR ERROR ERROR ERROR: ONESIE DETECTED, FILTERING FAILED! File name prefixed with "FAILED"')
+
+        qc = 'FAIL'
+    else:
+        print("Filtering successful; no onesies detected.")
+        qc = 'PASS'
+
+    return input_file, qc
+
+# Combine `samtools coverage` output and QC check into 1 csv
+def make_report(input_file, qc):
+    
+    coverage_cmd = 'samtools coverage '
+    report_file = input_file.split('.bam')[0] + '_report.tsv'
+
+    subprocess.call(coverage_cmd + input_file + ' > ' + report_file, shell = True)
+
+    with open(report_file, 'r+') as report:
+        line1 = report.readline().split('\n')[0]
+        line2 = report.readline().split('\n')[0]
+
+        line1 = line1 + '\tFilteringPassed?\n'
+        line2 = line2 + '\t' + qc + '\n'
+        
+        report.seek(0)
+        report.truncate()
+
+        report.write(line1)
+        report.write(line2)
+
+    print('report generated!')
 
 # driver code
 tagged_bam = tag_bam(args.input)
 bam_to_clean, blacklist = build_onesies(tagged_bam)
-remove_onesies(bam_to_clean, blacklist)
+clean_file = remove_onesies(bam_to_clean, blacklist)
+file_to_report, file_qc = check_cleaned(clean_file)
+make_report(file_to_report, file_qc)
 
