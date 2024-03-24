@@ -11,10 +11,16 @@ parser.add_argument(
     'input'
 )
 
+parser.add_argument(
+    '--delete_temps',
+    action = 'store_true'
+)
+
+args = parser.parse_args()
+
 def above_one(number):
     return number > 1
 
-args = parser.parse_args()
 
 ### Find parent directory of input .bam
 work_path = args.input
@@ -34,11 +40,12 @@ def tag_bam(input_file):
     tagged_file_name = input_file.split('.bam')[0] + '_tagged.bam'
     tag_cmd = 'umi_tools group -I ' + input_file + " --output-bam --umi-separator=':' --paired -S " + tagged_file_name.split('.bam')[0] + '_temp.bam' 
     subprocess.call(tag_cmd, shell = True)
-    filter_cmd = 'samtools view -h -b -d UG ' + tagged_file_name.split('.bam')[0] + '_temp.bam > ' + tagged_file_name
+    filter_cmd = 'samtools view -@ 6 -h -b -d UG ' + tagged_file_name.split('.bam')[0] + '_temp.bam > ' + tagged_file_name
     subprocess.call(filter_cmd, shell = True)
 
     # CLEAN 
-    os.remove(tagged_file_name.split('.bam')[0] + '_temp.bam')
+    if args.delete_temps:
+        os.remove(tagged_file_name.split('.bam')[0] + '_temp.bam')
 
     return(tagged_file_name)
 
@@ -49,37 +56,42 @@ def build_onesies(input_file):
 
     print(f"TAGGED BAM: {input_file}")
 
-    samfile = pysam.AlignmentFile(input_file, 'rb')
-
-    iter = samfile.fetch(until_eof = True)
-
-    ug_list = []
-    n = 0
-    for read in iter:
-        # tag_report = {"UG":read.tags["UG"]}
-        ug = str(dict(read.tags)["UG"])
-
-        ug_list.append(ug)
-
-        print(ug)
-        print(n)
-        n += 1
-        
-    count_list = Counter(ug_list)
-
-    # filtered_list = dict(filter(above_one, ug_list))
-    filtered_list = dict(
-        filter(lambda x: x[1] > 1, count_list.items())
-    )
-
-    print(f"Length of unfiltered bam: {len(count_list)}")
-    print(f"Length of bam with once-observed UMI groups removed: {len(filtered_list)}")
+    onesie_cmd = 'onesie_remover '
+    onesie_cmd = onesie_cmd + input_file
 
     name_of_txt = input_file.split('.bam')[0] + '_onesies.txt'
 
-    with open(name_of_txt, "w") as filter_file:
-        for key in filtered_list.keys():
-            filter_file.write(key + "\n")
+    # samfile = pysam.AlignmentFile(input_file, 'rb')
+
+    # iter = samfile.fetch(until_eof = True)
+
+    # ug_list = []
+    # n = 0
+    # for read in iter:
+    #     # tag_report = {"UG":read.tags["UG"]}
+    #     ug = str(dict(read.tags)["UG"])
+
+    #     ug_list.append(ug)
+
+    #     print(ug)
+    #     print(n)
+    #     n += 1
+        
+    # count_list = Counter(ug_list)
+
+    # # filtered_list = dict(filter(above_one, ug_list))
+    # filtered_list = dict(
+    #     filter(lambda x: x[1] > 1, count_list.items())
+    # )
+
+    # print(f"Length of unfiltered bam: {len(count_list)}")
+    # print(f"Length of bam with once-observed UMI groups removed: {len(filtered_list)}")
+
+    # name_of_txt = input_file.split('.bam')[0] + '_onesies.txt'
+
+    # with open(name_of_txt, "w") as filter_file:
+    #     for key in filtered_list.keys():
+    #         filter_file.write(key + "\n")
 
     return input_file, name_of_txt
 
@@ -96,14 +108,15 @@ def remove_onesies(input_file, blacklist):
     clean_file_name = output_dir  + '/' + input_file.split('.bam')[0] + '_cleaned.bam'
 
     try:
-        clean_cmd = 'samtools view -b -h -D UG:' + blacklist + ' ' + file_to_clean + ' > ' + clean_file_name
+        clean_cmd = 'samtools view -b -@ 6 -h -D UG:' + blacklist + ' ' + file_to_clean + ' > ' + clean_file_name
         subprocess.call(clean_cmd, shell = True)
     except BaseException:
         print("PATH IS FUCKED")
 
     # CLEAN
-    os.remove(file_to_clean)
-    os.remove(blacklist)
+    if args.delete_temps: 
+        os.remove(file_to_clean)
+        os.remove(blacklist)
 
     return clean_file_name
 
