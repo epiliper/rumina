@@ -3,6 +3,7 @@ import pysam
 from collections import Counter
 import subprocess
 import os
+import time
 
 parser = argparse.ArgumentParser()
 
@@ -95,7 +96,7 @@ def remove_onesies(input_file, blacklist):
     clean_file_name = output_dir  + '/' + input_file.split('.bam')[0] + '_cleaned.bam'
 
     try:
-        clean_cmd = 'samtools view -h -D UG:' + blacklist + ' ' + file_to_clean + ' > ' + clean_file_name
+        clean_cmd = 'samtools view -b -h -D UG:' + blacklist + ' ' + file_to_clean + ' > ' + clean_file_name
         subprocess.call(clean_cmd, shell = True)
     except BaseException:
         print("PATH IS FUCKED")
@@ -158,9 +159,14 @@ def make_report(input_file, qc):
     print('report generated!')
 
 # driver code
+start_time = time.time()
 tagged_bam = tag_bam(args.input)
 bam_to_clean, blacklist = build_onesies(tagged_bam)
 clean_file = remove_onesies(bam_to_clean, blacklist)
 file_to_report, file_qc = check_cleaned(clean_file)
 make_report(file_to_report, file_qc)
+end_time = time.time()
+
+execution_time = end_time - start_time
+print("Execution time: ", execution_time)
 
