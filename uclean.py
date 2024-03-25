@@ -16,6 +16,11 @@ parser.add_argument(
     action = 'store_true'
 )
 
+parser.add_argument(
+    '--report_coverage',
+    action = 'store_true'
+)
+
 args = parser.parse_args()
 
 def above_one(number):
@@ -58,6 +63,7 @@ def build_onesies(input_file):
 
     onesie_cmd = 'onesie_remover '
     onesie_cmd = onesie_cmd + input_file
+    subprocess.call(onesie_cmd, shell = True)
 
     name_of_txt = input_file.split('.bam')[0] + '_onesies.txt'
 
@@ -177,7 +183,9 @@ tagged_bam = tag_bam(args.input)
 bam_to_clean, blacklist = build_onesies(tagged_bam)
 clean_file = remove_onesies(bam_to_clean, blacklist)
 file_to_report, file_qc = check_cleaned(clean_file)
-make_report(file_to_report, file_qc)
+
+if args.report_coverage:
+    make_report(file_to_report, file_qc)
 end_time = time.time()
 
 execution_time = end_time - start_time
