@@ -127,15 +127,14 @@ start_time = time.time()
 tagged_bam = tag_bam(args.input)
 bam_to_clean, blacklist = build_onesies(tagged_bam)
 clean_file = remove_onesies(bam_to_clean, blacklist)
-# file_to_report, file_qc = check_cleaned(clean_file)
+file_to_report, file_qc = check_cleaned(clean_file)
 
 if args.report_coverage:
-    # make_report(file_to_report, file_qc)
     report_coverage(args.input, 'original')
-    # report_coverage(file_to_report, 'dedup')
+    report_coverage(file_to_report, 'dedup')
 
-    # summarize_coverage(file_to_report, 'original')
-    # summarize_coverage(file_to_report, 'dedup')
+    summarize_coverage('original')
+    summarize_coverage('dedup')
     
 
 end_time = time.time()
