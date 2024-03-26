@@ -1,9 +1,11 @@
 import argparse 
-import pysam
-from collections import Counter
-import subprocess
+import pysam 
+from collections import Counter 
+import subprocess 
 import os
 import time
+
+from cov_reporter import report_coverage, summarize_coverage
 
 parser = argparse.ArgumentParser()
 
@@ -17,8 +19,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    '--report_coverage',
-    action = 'store_true'
+    '--report_coverage', action = 'store_true'
 )
 
 args = parser.parse_args()
@@ -31,20 +32,22 @@ def above_one(number):
 work_path = args.input
 
 if os.path.isabs(work_path):
-    work_path = work_path.replace(
-        work_path.split('/')[-1], ''
-    )
+    work_path = os.dirname(work_path)
 else:
-    work_path = os.path.abspath(args.input).replace(args.input, '')
+    work_path = os.path.abspath(
+        os.path.dirname(args.input))
 
 print(f"Working path: {work_path}")
 
 ### assign UG tag for each group of clustered UMIs
 def tag_bam(input_file):
 
+    # use umi_tools group to assign unique UG tag per UMI cluster
     tagged_file_name = input_file.split('.bam')[0] + '_tagged.bam'
     tag_cmd = 'umi_tools group -I ' + input_file + " --output-bam --umi-separator=':' --paired -S " + tagged_file_name.split('.bam')[0] + '_temp.bam' 
     subprocess.call(tag_cmd, shell = True)
+
+    # filter tagged bam to get only reads with UMI tag
     filter_cmd = 'samtools view -@ 6 -h -b -d UG ' + tagged_file_name.split('.bam')[0] + '_temp.bam > ' + tagged_file_name
     subprocess.call(filter_cmd, shell = True)
 
@@ -55,8 +58,6 @@ def tag_bam(input_file):
     return(tagged_file_name)
 
 ### read tagged bam and generate a list of UG tags that only appeared once. 
-### this list represents reads that only appeared once per amplicon, once per coordinate. 
-### this list can be used to filter for reads that were observed more than once per UMI group
 def build_onesies(input_file):
 
     print(f"TAGGED BAM: {input_file}")
@@ -67,57 +68,24 @@ def build_onesies(input_file):
 
     name_of_txt = input_file.split('.bam')[0] + '_onesies.txt'
 
-    # samfile = pysam.AlignmentFile(input_file, 'rb')
-
-    # iter = samfile.fetch(until_eof = True)
-
-    # ug_list = []
-    # n = 0
-    # for read in iter:
-    #     # tag_report = {"UG":read.tags["UG"]}
-    #     ug = str(dict(read.tags)["UG"])
-
-    #     ug_list.append(ug)
-
-    #     print(ug)
-    #     print(n)
-    #     n += 1
-        
-    # count_list = Counter(ug_list)
-
-    # # filtered_list = dict(filter(above_one, ug_list))
-    # filtered_list = dict(
-    #     filter(lambda x: x[1] > 1, count_list.items())
-    # )
-
-    # print(f"Length of unfiltered bam: {len(count_list)}")
-    # print(f"Length of bam with once-observed UMI groups removed: {len(filtered_list)}")
-
-    # name_of_txt = input_file.split('.bam')[0] + '_onesies.txt'
-
-    # with open(name_of_txt, "w") as filter_file:
-    #     for key in filtered_list.keys():
-    #         filter_file.write(key + "\n")
-
     return input_file, name_of_txt
 
 ### Using file generated from build_onesies, 
+### remove singlets
 def remove_onesies(input_file, blacklist):
     file_to_clean = input_file
 
-    if os.path.isabs(input_file):
-        input_file = input_file.split('/')[-1]
+    output_file = os.path.abspath(input_file).split('/')[-1].split('.bam')[0]
 
-    output_dir = work_path + 'cleaned'
+    # save cleaned bamfiles to /cleaned folder within original bamfile directory
+    output_dir = work_path + '/cleaned'
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
-    clean_file_name = output_dir  + '/' + input_file.split('.bam')[0] + '_cleaned.bam'
+    clean_file_name = output_dir  + '/' + output_file + '_cleaned.bam'
 
-    try:
-        clean_cmd = 'samtools view -b -@ 6 -h -D UG:' + blacklist + ' ' + file_to_clean + ' > ' + clean_file_name
-        subprocess.call(clean_cmd, shell = True)
-    except BaseException:
-        print("PATH IS FUCKED")
+
+    clean_cmd = 'samtools view -b -@ 6 -h -D UG:' + blacklist + ' ' + file_to_clean + ' > ' + clean_file_name
+    subprocess.call(clean_cmd, shell = True)
 
     # CLEAN
     if args.delete_temps: 
@@ -154,38 +122,22 @@ def check_cleaned(input_file):
 
     return input_file, qc
 
-# Combine `samtools coverage` output and QC check into 1 csv
-def make_report(input_file, qc):
-    
-    coverage_cmd = 'samtools coverage '
-    report_file = input_file.split('.bam')[0] + '_report.tsv'
-
-    subprocess.call(coverage_cmd + input_file + ' > ' + report_file, shell = True)
-
-    with open(report_file, 'r+') as report:
-        line1 = report.readline().split('\n')[0]
-        line2 = report.readline().split('\n')[0]
-
-        line1 = line1 + '\tFilteringPassed?\n'
-        line2 = line2 + '\t' + qc + '\n'
-        
-        report.seek(0)
-        report.truncate()
-
-        report.write(line1)
-        report.write(line2)
-
-    print('report generated!')
-
 # driver code
 start_time = time.time()
 tagged_bam = tag_bam(args.input)
 bam_to_clean, blacklist = build_onesies(tagged_bam)
 clean_file = remove_onesies(bam_to_clean, blacklist)
-file_to_report, file_qc = check_cleaned(clean_file)
+# file_to_report, file_qc = check_cleaned(clean_file)
 
 if args.report_coverage:
-    make_report(file_to_report, file_qc)
+    # make_report(file_to_report, file_qc)
+    report_coverage(args.input, 'original')
+    # report_coverage(file_to_report, 'dedup')
+
+    # summarize_coverage(file_to_report, 'original')
+    # summarize_coverage(file_to_report, 'dedup')
+    
+
 end_time = time.time()
 
 execution_time = end_time - start_time
