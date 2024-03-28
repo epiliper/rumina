@@ -1,58 +1,17 @@
-extern crate bam;
-extern crate rust_htslib;
-
 use bam::Record;
 use std::collections::HashMap;
 use std::env;
+
+mod bottomhash;
 
 fn get_umi(record: &Record) -> String {
     let umi = String::from_utf8(record.name().to_vec());
     umi.unwrap().split(":").last().unwrap().to_string()
 }
 
-// the data structure used to cluster UMIs. These are all inserted into a bottom_level dictionary.
-// top key: PositionKey
-// bottom key: ReadsCount
-struct BottomHashMap {
-    bottom_dict: PositionKey,
-}
-
-impl BottomHashMap {
-    fn update_dict(&mut self, position: &i32, key: i32, umi: &String, read: &Record) {
-        self.bottom_dict
-            .entry((*position).into())
-            .or_default()
-            .entry((key).into())
-            .or_default()
-            .entry(umi.into())
-            .or_insert(ReadsAndCount {
-                reads: Vec::new(),
-                count: 0,
-            })
-            .up(read)
-    }
-}
-
-type PositionKey = HashMap<i32, KeyUMI>; //every position has a key
-type KeyUMI = HashMap<i32, UMIReads>; // every key has a UMI
-type UMIReads = HashMap<String, ReadsAndCount>; // every UMI has a set of reads
-
-#[derive(Debug)]
-pub struct ReadsAndCount {
-    pub reads: Vec<Record>,
-    pub count: i32,
-}
-
-impl ReadsAndCount {
-    fn up(&mut self, read: &Record) {
-        self.count += 1;
-        self.reads.push(read.clone());
-    }
-}
-
 fn main() {
     // let mut bottom_dict: PositionKey = HashMap::new();
-    let mut master_dic = BottomHashMap {
+    let mut master_dic = bottomhash::BottomHashMap {
         bottom_dict: HashMap::new(),
     };
 
