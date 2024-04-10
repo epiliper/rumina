@@ -7,32 +7,16 @@ import time
 
 from cov_reporter import report_coverage, summarize_coverage
 
-parser = argparse.ArgumentParser()
+### import args
 
-parser.add_argument(
-    'input'
-)
-
-parser.add_argument(
-    '--delete_temps',
-    action = 'store_true'
-)
-
-parser.add_argument(
-    '--report_coverage', action = 'store_true'
-)
-
-args = parser.parse_args()
-
-def above_one(number):
-    return number > 1
-
+from args import init_args
+args = init_args()
 
 ### Find parent directory of input .bam
 work_path = args.input
 
 if os.path.isabs(work_path):
-    work_path = os.dirname(work_path)
+    work_path = os.path.dirname(work_path)
 else:
     work_path = os.path.abspath(
         os.path.dirname(args.input))
@@ -59,13 +43,9 @@ def tag_bam(input_file):
 
 ### read tagged bam and generate a list of UG tags that only appeared once. 
 def build_onesies(input_file):
-
-    print(f"TAGGED BAM: {input_file}")
-
-    onesie_cmd = 'onesie_remover '
-    onesie_cmd = onesie_cmd + input_file
+    
+    onesie_cmd = 'onesie_remover ' + input_file
     subprocess.call(onesie_cmd, shell = True)
-
     name_of_txt = input_file.split('.bam')[0] + '_onesies.txt'
 
     return input_file, name_of_txt
@@ -113,8 +93,7 @@ def check_cleaned(input_file):
 
     qc = ''
     if 1 in count_list.keys():
-        print('ERROR ERROR ERROR ERROR: ONESIE DETECTED, FILTERING FAILED! File name prefixed with "FAILED"')
-
+        print('ERROR ERROR ERROR ERROR: ONESIE DETECTED, FILTERING FAILED!')
         qc = 'FAIL'
     else:
         print("Filtering successful; no onesies detected.")
@@ -122,23 +101,17 @@ def check_cleaned(input_file):
 
     return input_file, qc
 
-# driver code
-start_time = time.time()
-tagged_bam = tag_bam(args.input)
-bam_to_clean, blacklist = build_onesies(tagged_bam)
-clean_file = remove_onesies(bam_to_clean, blacklist)
-file_to_report, file_qc = check_cleaned(clean_file)
+def dedup(input_file):
 
-if args.report_coverage:
-    report_coverage(args.input, 'original')
-    report_coverage(file_to_report, 'dedup')
+    output_file = input_file.split('.bam')[0] + '_dedup.bam'
+    subprocess.call('samtools index' + input_file, shell = True)
 
-    summarize_coverage('original')
-    summarize_coverage('dedup')
-    
+    dedup_cmd = 'umi_tools dedup --buffer-whole-contig -I input_file --umi-separator=":" -S output_file'
+    dedup_cmd = dedup_cmd.replace('input_file', input_file)
+    dedup_cmd = dedup_cmd.replace('output_file', output_file)
+    subprocess.call(dedup_cmd, shell = True)
 
-end_time = time.time()
+    subprocess.call('samtools index ' + output_file, shell = True)
 
-execution_time = end_time - start_time
-print("Execution time: ", execution_time)
+    return output_file
 
