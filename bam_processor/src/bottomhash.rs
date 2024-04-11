@@ -41,14 +41,6 @@ impl<'a> Iterator for BundleIterator<'a> {
     type Item = (&'a UMIReads, i32);
 
     fn next(&mut self) -> Option<Self::Item> {
-        // if self.index < self.bottomhash.len().try_into().unwrap() {
-        //     let result = Some(&self.bottomhash[&self.index]);
-        //     self.index += 1;
-        //     result
-        // } else {
-        //     None
-        // }
-
         while self.index < self.bottomhash.len().try_into().unwrap() {
             for p in self.bottomhash.keys() {
                 for k in self.bottomhash[p].keys() {

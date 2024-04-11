@@ -11,7 +11,7 @@ fn get_umi(record: &Record) -> String {
 }
 
 fn main() {
-    let mut master_dic = bottomhash::BottomHashMap {
+    let mut bottomhash = bottomhash::BottomHashMap {
         bottom_dict: HashMap::new(),
     };
     let args: Vec<String> = env::args().collect();
@@ -28,11 +28,11 @@ fn main() {
         } else {
             let r1 = read.as_ref().unwrap();
 
-            master_dic.update_dict(&r1.start(), 0, &get_umi(&r1), &r1);
+            bottomhash.update_dict(&r1.start(), 0, &get_umi(&r1), &r1);
             n += 1;
 
             if n % 100_000 == 0 {
-                println! {"Processed {n} reads" }
+                println! {"Read in {n} reads" }
             }
         }
     }
@@ -40,7 +40,7 @@ fn main() {
     let mut counts: HashMap<String, i32> = HashMap::new();
 
     // retrieve bundles from umi list
-    for (bundle, key) in master_dic.iter() {
+    for (bundle, key) in bottomhash.iter() {
         let umis = bundle.keys();
 
         for umi in umis {
