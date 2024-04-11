@@ -29,11 +29,11 @@ def tag_bam(input_file):
     # use umi_tools group to assign unique UG tag per UMI cluster
     tagged_file_name = input_file.split('.bam')[0] + '_tagged.bam'
     tag_cmd = 'umi_tools group -I ' + input_file + " --output-bam --umi-separator=':' --paired -S " + tagged_file_name.split('.bam')[0] + '_temp.bam' 
-    subprocess.call(tag_cmd, shell = True)
+    subprocess.run(tag_cmd, shell = True)
 
     # filter tagged bam to get only reads with UMI tag
     filter_cmd = 'samtools view -@ 6 -h -b -d UG ' + tagged_file_name.split('.bam')[0] + '_temp.bam > ' + tagged_file_name
-    subprocess.call(filter_cmd, shell = True)
+    subprocess.run(filter_cmd, shell = True)
 
     # CLEAN 
     if args.delete_temps:
@@ -45,7 +45,7 @@ def tag_bam(input_file):
 def build_onesies(input_file):
     
     onesie_cmd = 'onesie_remover ' + input_file
-    subprocess.call(onesie_cmd, shell = True)
+    subprocess.run(onesie_cmd, shell = True)
     name_of_txt = input_file.split('.bam')[0] + '_onesies.txt'
 
     return input_file, name_of_txt
@@ -65,7 +65,7 @@ def remove_onesies(input_file, blacklist):
 
 
     clean_cmd = 'samtools view -b -@ 6 -h -D UG:' + blacklist + ' ' + file_to_clean + ' > ' + clean_file_name
-    subprocess.call(clean_cmd, shell = True)
+    subprocess.run(clean_cmd, shell = True)
 
     # CLEAN
     if args.delete_temps: 
@@ -104,14 +104,14 @@ def check_cleaned(input_file):
 def dedup(input_file):
 
     output_file = input_file.split('.bam')[0] + '_dedup.bam'
-    subprocess.call('samtools index' + input_file, shell = True)
+    subprocess.run('samtools index' + input_file, shell = True)
 
     dedup_cmd = 'umi_tools dedup --buffer-whole-contig -I input_file --umi-separator=":" -S output_file'
     dedup_cmd = dedup_cmd.replace('input_file', input_file)
     dedup_cmd = dedup_cmd.replace('output_file', output_file)
-    subprocess.call(dedup_cmd, shell = True)
+    subprocess.run(dedup_cmd, shell = True)
 
-    subprocess.call('samtools index ' + output_file, shell = True)
+    subprocess.run('samtools index ' + output_file, shell = True)
 
     return output_file
 
