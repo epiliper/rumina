@@ -3,11 +3,12 @@ extern crate rust_htslib;
 use crate::bottomhash::UMIReads;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::BTreeMap;
 
 pub fn edit_distance(ua: &String, ub: &String) -> i32 {
     let la = ua.len();
     let lb = ub.len();
-    let mut edit_distance: i32;
+    let mut edit_distance: i32 = 0;
 
     if la != lb {
         return i32::MAX;
@@ -90,8 +91,8 @@ impl Processor {
         let slices = Processor::get_substr_slices(umi_length, threshold + 1).unwrap();
 
         for idx in slices {
-            for u in &mut umis {
-                let u_sub = &u.split_off(idx.try_into().unwrap());
+            for u in & mut umis {
+                let u_sub = u.split_off(idx.try_into().unwrap());
                 substr_idx
                     .entry(idx)
                     .or_default()
@@ -105,7 +106,7 @@ impl Processor {
     }
 
     pub fn iter_nearest_neighbors(
-        mut umis: & mut Vec<String>,
+        mut umis: Vec<String>,
         substr_idx: HashMap<i32, HashMap<String, HashSet<String>>>,
     ) -> Option<NeighboringUMIs> {
         let old = umis.clone();
@@ -134,15 +135,18 @@ impl Processor {
     }
 
     pub fn get_adj_list_directional(
-        umis: & mut Vec<String>,
+        umis: Vec<String>,
         counts: HashMap<String, i32>,
         threshold: i32,
-    ) -> HashMap<String, HashSet<String>> {
-        let mut adj_list: HashMap<String, HashSet<String>> = HashMap::new();
+    ) -> BTreeMap<String, HashSet<String>> {
+        // let mut adj_list: HashMap<String, HashSet<String>> = HashMap::new();
+        let mut adj_list: BTreeMap<String, HashSet<String>> = BTreeMap::new();
+        // placeholder lazy clone for the sake of completion
+        // overhaul this later
         let umi_length = umis[0].len();
         let substr_idx =
-            Processor::build_substr_idx(umis, umi_length.try_into().unwrap(), threshold);
-        let iter_umi_pairs = Processor::iter_nearest_neighbors(&umis, substr_idx)
+            Processor::build_substr_idx(umis.clone(), umi_length.try_into().unwrap(), threshold);
+        let iter_umi_pairs = Processor::iter_nearest_neighbors(umis, substr_idx)
             .unwrap()
             .neighbors;
 
@@ -156,4 +160,17 @@ impl Processor {
         }
         return adj_list;
     }
+
+    pub fn get_connected_components(
+        umis:Vec<String>,
+        counts: HashMap<String, i32>,
+        adj_list: HashMap<String, HashSet<String>>,
+    ) {
+        let found: HashSet<String> = HashSet::new();
+        let components: Vec<String> = Vec::new();
+
+
+
+    }
+
 }
