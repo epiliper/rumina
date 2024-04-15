@@ -19,8 +19,8 @@ fn main() {
     let bam = bam::BamReader::from_path(&input_file, 4).unwrap();
     let mut n: i64 = 0;
 
-    // implement get_bundles()
     for read in bam {
+        // don't process unmappped or reverse strands.
         if read.as_ref().unwrap().flag().is_reverse_strand()
             | !read.as_ref().unwrap().flag().is_mapped()
         {
@@ -28,6 +28,7 @@ fn main() {
         } else {
             let r1 = read.as_ref().unwrap();
 
+            // get the Record itself, plus its UMI
             bottomhash.update_dict(&r1.start(), 0, &get_umi(&r1), &r1);
             n += 1;
 
@@ -39,12 +40,21 @@ fn main() {
 
     let mut counts: HashMap<String, i32> = HashMap::new();
 
+    let processor = processor::Processor{};
+
     // retrieve bundles from umi list
     for (bundle, key) in bottomhash.iter() {
-        let umis = bundle.keys();
+        let umis = bundle.keys().map(|x| x.to_string()).collect::<Vec<String>>();
 
-        for umi in umis {
-            counts.insert(umi.to_string(), bundle[umi].count);
+        for umi in &umis {
+            // counts.insert(umi.to_string(), bundle[umi].count);
+            counts.entry(umi.to_string()).or_insert(bundle[umi].count);
         }
+        let groupies = processor.main_grouper(umis, counts.clone());
+        println!{"{:?}", groupies};
     }
+
+
+
+
 }
