@@ -1,5 +1,6 @@
 use bam::Record;
 use std::collections::HashMap;
+use indexmap::IndexMap;
 use std::env;
 
 mod bottomhash;
@@ -12,7 +13,7 @@ fn get_umi(record: &Record) -> String {
 
 fn main() {
     let mut bottomhash = bottomhash::BottomHashMap {
-        bottom_dict: HashMap::new(),
+        bottom_dict: IndexMap::new(),
     };
     let args: Vec<String> = env::args().collect();
     let input_file = &args[1];
@@ -27,6 +28,9 @@ fn main() {
             continue;
         } else {
             let r1 = read.as_ref().unwrap();
+            if get_umi(r1).len() != 11 {
+                continue;
+            } else {
 
             // get the Record itself, plus its UMI
             bottomhash.update_dict(&r1.start(), 0, &get_umi(&r1), &r1);
@@ -35,26 +39,35 @@ fn main() {
             if n % 100_000 == 0 {
                 println! {"Read in {n} reads" }
             }
+            }
         }
     }
 
-    let mut counts: HashMap<String, i32> = HashMap::new();
-
-    let processor = processor::Processor{};
 
     // retrieve bundles from umi list
-    for (bundle, key) in bottomhash.iter() {
-        let umis = bundle.keys().map(|x| x.to_string()).collect::<Vec<String>>();
+    let mut n = 0;
+    for position in bottomhash.bottom_dict.keys() {
+        for k in bottomhash.bottom_dict[position].keys() {
+            let bundle = bottomhash.bottom_dict[position].get(k).unwrap();
+            let umis = bundle.keys().map(|x| x.to_string()).collect::<Vec<String>>();
+            let processor = processor::Processor{umis:&umis};
 
-        for umi in &umis {
-            // counts.insert(umi.to_string(), bundle[umi].count);
-            counts.entry(umi.to_string()).or_insert(bundle[umi].count);
-        }
-        let groupies = processor.main_grouper(umis, counts.clone());
-        println!{"{:?}", groupies};
+            let mut counts: HashMap<String, i32> = HashMap::new();
+            for umi in &umis {
+                // counts.insert(umi.to_string(), bundle[umi].count);
+                counts.entry(umi.to_string()).or_insert(bundle[umi].count);
+            }
+
+            println!{"length of counts {:?}", counts.len()};
+
+            let groupies = processor.main_grouper(umis.clone(), counts.clone());
+            n += 1;
+            println!{"{}", n};
+            }
+    }
+        // println!{"{:?}", groupies};
     }
 
 
 
 
-}
