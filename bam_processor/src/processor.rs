@@ -78,12 +78,26 @@ impl<'b> Processor<'b>{
             for sub in remainder {
                 if Processor::edit_distance(top, sub).unwrap() <= threshold {
                     if counts.get(top).unwrap() > &((counts.get(sub).unwrap() * 2 - 1)) {
-                        adj_list.entry(top).and_modify(|e| {
-                            e.insert(sub);
-                        });
-                        adj_list.entry(sub).and_modify(|e| {
-                            e.insert(top);
-                        });
+                        // this code is borked
+                        // adj_list.entry(top).and_modify(|e| {
+                        //     e.insert(sub);
+                        // });
+                        // adj_list.entry(sub).and_modify(|e| {
+                        //     e.insert(top);
+                        // });
+
+                        adj_list.entry(top).or_insert(HashSet::new());
+                        adj_list[top].insert(sub);
+
+                        adj_list.entry(sub).or_insert(HashSet::new());
+                        adj_list[sub].insert(top);
+
+
+
+
+                        println!{"read added!"};
+                        println!{"{:?}", adj_list};
+                        process::exit(32);
                     }
                 }
             }
@@ -156,6 +170,7 @@ impl<'b> Processor<'b>{
         if adj_list.len() > 0 {
             let clusters = self.get_connected_components(adj_list).unwrap();
             let final_umis = self.group_directional(clusters);
+            process::exit(32);
             return Some(final_umis);
 
         } else {

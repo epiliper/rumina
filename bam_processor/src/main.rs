@@ -17,13 +17,13 @@ fn main() {
     };
     let args: Vec<String> = env::args().collect();
     let input_file = &args[1];
-    let bam = bam::BamReader::from_path(&input_file, 4).unwrap();
+    let bam = bam::BamReader::from_path(&input_file, 6).unwrap();
     let mut n: i64 = 0;
 
     for read in bam {
         // don't process unmappped or reverse strands.
         if read.as_ref().unwrap().flag().is_reverse_strand()
-            | !read.as_ref().unwrap().flag().is_mapped()
+            | !(read.as_ref().unwrap().flag().is_mapped())
         {
             continue;
         } else {
