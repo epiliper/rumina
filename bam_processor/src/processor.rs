@@ -97,7 +97,6 @@ impl<'b> Processor<'b>{
 
                         println!{"read added!"};
                         println!{"{:?}", adj_list};
-                        process::exit(32);
                     }
                 }
             }
@@ -170,7 +169,6 @@ impl<'b> Processor<'b>{
         if adj_list.len() > 0 {
             let clusters = self.get_connected_components(adj_list).unwrap();
             let final_umis = self.group_directional(clusters);
-            process::exit(32);
             return Some(final_umis);
 
         } else {
