@@ -1,7 +1,6 @@
 extern crate bam;
 extern crate rust_htslib;
 use bam::Record;
-use std::collections::HashMap;
 use indexmap::IndexMap;
 
 pub struct BottomHashMap {
@@ -22,37 +21,8 @@ impl BottomHashMap {
             })
             .up(read)
     }
-
-    // pub fn iter(&self) -> BundleIterator {
-    //     BundleIterator {
-    //         bottomhash: &self.bottom_dict,
-    //         index: 0,
-    //     }
-    // }
 }
 
-// // this is the thing we iterate through
-// pub struct BundleIterator<'a> {
-//     bottomhash: &'a PositionKey,
-//     index: i32,
-// }
-
-// // this is what we return per iteration of said thing
-// impl<'a> Iterator for BundleIterator<'a> {
-//     type Item = (&'a UMIReads, i32);
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         while self.index < self.bottomhash.len().try_into().unwrap() {
-//             for p in self.bottomhash.keys() {
-//                 for k in self.bottomhash[p].keys() {
-//                     return Some((&self.bottomhash[&p][&k], k.clone()));
-//                 }
-//                 self.index += 1;
-//             }
-//         }
-//         return None;
-//     }
-// }
 
 type PositionKey = IndexMap<i32, KeyUMI>; //every position has a key
 type KeyUMI = IndexMap<i32, UMIReads>; // every key has a UMI

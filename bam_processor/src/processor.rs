@@ -7,20 +7,6 @@ use std::collections::VecDeque;
 use strsim::hamming;
 use std::process;
 
-
-// pub struct NeighboringUMIs {
-//     pub neighbors: HashMap<String, String>,
-// }
-
-// impl NeighboringUMIs {
-//     pub fn iter(&self) -> NeighborIterator {
-//         NeighborIterator {
-//             nbrs: &self.neighbors,
-//             index: 0,
-//         }
-//     }
-// }
-
 pub struct NeighborIterator<'a> {
     nbrs: &'a HashMap<String, String>,
     index: i32,
@@ -158,11 +144,6 @@ impl<'b> Processor<'b>{
         return groups;
     }
 
-    // see if this approach works for reverse sorting
-    // https://stackoverflow.com/questions/60916194/how-to-sort-a-vector-in-descending-order-in-rust
-    // adj_list.sort_by_key(|x| counts.get(&x.0));
-    // adj_list.reverse();
-    //
     pub fn main_grouper(
         &self,
         umis: Vec<String>,
