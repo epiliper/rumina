@@ -23,7 +23,6 @@ impl BottomHashMap {
     }
 }
 
-
 type PositionKey = IndexMap<i32, KeyUMI>; //every position has a key
 type KeyUMI = IndexMap<i32, UMIReads>; // every key has a UMI
 pub type UMIReads = IndexMap<String, ReadsAndCount>; // every UMI has a set of reads

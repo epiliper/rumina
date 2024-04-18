@@ -1,10 +1,11 @@
 use bam::Record;
-use std::collections::HashMap;
 use indexmap::IndexMap;
+use std::collections::HashMap;
 use std::env;
 
 mod bottomhash;
 mod processor;
+mod grouper;
 
 fn get_umi(record: &Record) -> String {
     let umi = String::from_utf8(record.name().to_vec());
@@ -31,26 +32,27 @@ fn main() {
             if get_umi(r1).len() != 11 {
                 continue;
             } else {
+                // get the Record itself, plus its UMI
+                bottomhash.update_dict(&r1.start(), 0, &get_umi(&r1), &r1);
+                n += 1;
 
-            // get the Record itself, plus its UMI
-            bottomhash.update_dict(&r1.start(), 0, &get_umi(&r1), &r1);
-            n += 1;
-
-            if n % 100_000 == 0 {
-                println! {"Read in {n} reads" }
-            }
+                if n % 100_000 == 0 {
+                    println! {"Read in {n} reads" }
+                }
             }
         }
     }
-
 
     // retrieve bundles from umi list
     let mut n = 0;
     for position in bottomhash.bottom_dict.keys() {
         for k in bottomhash.bottom_dict[position].keys() {
             let bundle = bottomhash.bottom_dict[position].get(k).unwrap();
-            let umis = bundle.keys().map(|x| x.to_string()).collect::<Vec<String>>();
-            let processor = processor::Processor{umis:&umis};
+            let umis = bundle
+                .keys()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>();
+            let processor = processor::Processor { umis: &umis };
 
             let mut counts: HashMap<String, i32> = HashMap::new();
             for umi in &umis {
@@ -58,16 +60,13 @@ fn main() {
                 counts.entry(umi.to_string()).or_insert(bundle[umi].count);
             }
 
-            println!{"length of counts {:?}", counts.len()};
+            println! {"length of counts {:?}", counts.len()};
 
-            let groupies = processor.main_grouper(umis.clone(), counts.clone());
+            let groupies = processor.main_grouper(counts.clone());
             n += 1;
-            println!{"{}", n};
-            }
+            println! {"{}", n};
+            
+        }
     }
-        // println!{"{:?}", groupies};
-    }
-
-
-
-
+    // println!{"{:?}", groupies};
+}
