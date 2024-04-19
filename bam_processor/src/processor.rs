@@ -145,8 +145,8 @@ impl<'b> Processor<'b> {
                         temp_cluster.push(node.clone());
                         observed.push(node);
                     }
-                    groups.push(temp_cluster.clone());
                 }
+                groups.push(temp_cluster.clone());
             }
         }
         return groups;
