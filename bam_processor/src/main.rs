@@ -2,6 +2,7 @@ use bam::Record;
 use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::env;
+use std::time::Instant;
 
 mod bottomhash;
 mod processor;
@@ -13,6 +14,8 @@ fn get_umi(record: &Record) -> String {
 }
 
 fn main() {
+    let now = Instant::now();
+
     let mut bottomhash = bottomhash::BottomHashMap {
         bottom_dict: IndexMap::new(),
     };
@@ -68,5 +71,7 @@ fn main() {
             
         }
     }
-    // println!{"{:?}", groupies};
+
+    let elapsed = now.elapsed();
+    println!{"Time elapsed {:.2?}", elapsed};
 }
