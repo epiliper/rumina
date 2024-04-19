@@ -3,6 +3,22 @@ extern crate rust_htslib;
 use bam::Record;
 use indexmap::IndexMap;
 
+
+/* When main function executes, this struct is populated with 
+* all information necessary for grouping/deduplicating.
+*/
+
+/* This struct is a 4-layer deep nested hashmap. 
+* This is how it's organized, from top to bottom layer:
+*
+* positition along reference genome: {
+*       key with optional metadata: { 
+*               all the umis at said position with said metadata {
+*                   number of reads, and the Records themselves 
+*               }
+*               }
+* }
+*/
 pub struct BottomHashMap {
     pub bottom_dict: PositionKey,
 }
@@ -33,6 +49,7 @@ pub struct ReadsAndCount {
     pub count: i32,
 }
 
+// when a read is added to ReadsAndCount, increase the read count at x umi
 impl ReadsAndCount {
     fn up(&mut self, read: &Record) {
         self.count += 1;
