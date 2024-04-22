@@ -30,8 +30,8 @@ pub struct Processor<'b> {
     pub umis: &'b Vec<String>,
 }
 impl<'b> Processor<'b> {
-    // for getting all unique umi keys from adjaceny list
-    // visits a UMI, gets all UMIs grouped with it, then moves onto next UMI. 
+    // for getting all unique umi keys from adjacency list
+    // visits a UMI, gets all UMIs grouped with it, then moves onto next UMI.
     // doesn't add duplicate UMIs
     pub fn depth_first_search(
         mut node: &'b String,
@@ -64,11 +64,11 @@ impl<'b> Processor<'b> {
         &self,
         counts: HashMap<String, i32>,
         threshold: usize,
-    ) -> IndexMap<&'b String, HashSet<&'b String>> {
-        println! {"{}", self.umis.len()};
+    ) -> (Vec<&'b String>, IndexMap<&'b String, HashSet<&'b String>>) {
+        // println! {"{}", self.umis.len()};
         println! {"getting adjacency list..."};
         let mut adj_list: IndexMap<&'b String, HashSet<&'b String>> = IndexMap::new();
-        let umi_length = self.umis[0].len();
+        let mut duds: Vec<&'b String> = Vec::new();
         let mut i = 0;
         while i < self.umis.len() {
             let top = &self.umis[i];
@@ -76,25 +76,31 @@ impl<'b> Processor<'b> {
             let remainder = &self.umis[i..];
             for sub in remainder {
                 // TODO: add in handling of singleton UMIs or unpaired ones
-                if Processor::edit_distance(top, sub).unwrap() <= threshold {
-                    if counts.get(top).unwrap() > &(counts.get(sub).unwrap() * 2 - 1) {
-                        adj_list.entry(top).or_insert(HashSet::new());
-                        adj_list[top].insert(sub);
+                if Processor::edit_distance(top, sub).unwrap() <= threshold
+                    && counts.get(top).unwrap() > &(counts.get(sub).unwrap() * 2 - 1)
+                {
+                    adj_list.entry(top).or_insert(HashSet::new());
+                    adj_list[top].insert(sub);
 
-                        adj_list.entry(sub).or_insert(HashSet::new());
-                        adj_list[sub].insert(top);
+                    adj_list.entry(sub).or_insert(HashSet::new());
+                    adj_list[sub].insert(top);
 
-                        println! {"read added!"};
-                        println! {"{:?}", adj_list};
-                    }
+                    println! {"{:?}", adj_list};
+                } else {
+                    duds.push(sub);
                 }
+            }
+            if !adj_list.contains_key(top) {
+
+                duds.push(top);
+                adj_list.swap_remove(top);
+
             }
         }
 
         println! {"{:?}", adj_list};
-        return adj_list;
+        return (duds, adj_list);
     }
-
 
     // return a list of lists, comprising a UMI
     // with a list of grouped UMIs.
@@ -103,7 +109,7 @@ impl<'b> Processor<'b> {
         &self,
         adj_list: IndexMap<&String, HashSet<&String>>,
     ) -> Option<Vec<VecDeque<String>>> {
-        println! {"getting connected components..."};
+        // println! {"getting connected components..."};
         let mut components: Vec<VecDeque<String>> = Vec::new();
         let mut found: Vec<&String> = Vec::new();
 
@@ -122,14 +128,13 @@ impl<'b> Processor<'b> {
             }
             return Some(components);
         } else {
-            println! {"no dice"};
             return None;
         }
     }
 
     // get a list of UMIs, each with their own list of UMIs belonging to their group
     pub fn group_directional(&self, clusters: Vec<VecDeque<String>>) -> Vec<Vec<String>> {
-        println! {"generating groups...."};
+        // println! {"generating groups...."};
         let mut observed: Vec<String> = Vec::new();
         let mut groups: Vec<Vec<String>> = Vec::new();
 
@@ -154,18 +159,15 @@ impl<'b> Processor<'b> {
 
     // driver code for directional method,
     // and UMI organization and grouping
-    pub fn main_grouper(
-        &self,
-        counts: HashMap<String, i32>,
-    ) -> Option<Vec<Vec<String>>> {
-
-        let adj_list = self.get_adj_list_directional(counts, 1);
+    pub fn main_grouper(&self, counts: HashMap<String, i32>) -> Option<Vec<Vec<String>>> {
+        let directional_output = self.get_adj_list_directional(counts, 1);
+        let singeltones = directional_output.0;
+        let adj_list = directional_output.1;
         if adj_list.len() > 0 {
             let clusters = self.get_connected_components(adj_list).unwrap();
             let final_umis = self.group_directional(clusters);
             return Some(final_umis);
         } else {
-            println! {"Insufficient Data"};
             return None;
         }
     }

@@ -3,6 +3,7 @@ use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::env;
 use std::time::Instant;
+use crate::grouper::Grouper;
 
 mod bottomhash;
 mod processor;
@@ -48,6 +49,8 @@ fn main() {
 
     // retrieve bundles from umi list
     let mut n = 0;
+    let grouper: Grouper;
+
     for position in bottomhash.bottom_dict.keys() {
         for k in bottomhash.bottom_dict[position].keys() {
             let bundle = bottomhash.bottom_dict[position].get(k).unwrap();
@@ -68,7 +71,7 @@ fn main() {
             let groupies = processor.main_grouper(counts.clone());
             n += 1;
             println! {"{}", n};
-            
+
         }
     }
 
