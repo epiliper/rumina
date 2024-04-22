@@ -14,8 +14,7 @@ fn get_umi(record: &Record) -> String {
     umi.unwrap().split(":").last().unwrap().to_string()
 }
 
-fn main() {
-    let now = Instant::now();
+fn main() { let now = Instant::now();
 
     let mut bottomhash = bottomhash::BottomHashMap {
         bottom_dict: IndexMap::new(),
@@ -71,6 +70,7 @@ fn main() {
             let groupies = processor.main_grouper(counts.clone());
             n += 1;
             println! {"{}", n};
+
 
         }
     }

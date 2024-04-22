@@ -93,6 +93,8 @@ impl<'b> Processor<'b> {
             if !adj_list.contains_key(top) {
 
                 duds.push(top);
+                // note that we're using swap_remove for performance; check this to make sure it's
+                // accurate
                 adj_list.swap_remove(top);
 
             }
@@ -159,16 +161,20 @@ impl<'b> Processor<'b> {
 
     // driver code for directional method,
     // and UMI organization and grouping
-    pub fn main_grouper(&self, counts: HashMap<String, i32>) -> Option<Vec<Vec<String>>> {
+    // pub fn main_grouper(&self, counts: HashMap<String, i32>) -> Option<Vec<Vec<String>>> {
+    pub fn main_grouper(&self, counts: HashMap<String, i32>) -> (Option<Vec<Vec<String>>>, Option<Vec<&String>>) {
         let directional_output = self.get_adj_list_directional(counts, 1);
-        let singeltones = directional_output.0;
+        let singletons = directional_output.0;
         let adj_list = directional_output.1;
+        let final_umis;
         if adj_list.len() > 0 {
             let clusters = self.get_connected_components(adj_list).unwrap();
-            let final_umis = self.group_directional(clusters);
-            return Some(final_umis);
+            final_umis = Some(self.group_directional(clusters));
         } else {
-            return None;
+            final_umis = None;
         }
+
+        return (final_umis, Some(singletons));
+
     }
 }
