@@ -10,3 +10,9 @@ rust-htslib = "0.46.0"
 bam = "0.1.4"
 indexmap = "2.2.6"
 strsim = "0.11.1"
+rand = "0.8.5"
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+
