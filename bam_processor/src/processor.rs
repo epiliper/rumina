@@ -25,6 +25,8 @@ impl<'a> Iterator for NeighborIterator<'a> {
     }
 }
 
+pub type GroupsAndSingletons <'b> = (Option<Vec<Vec<String>>>, Option<Vec<&'b String>>);
+
 // this is the struct that contains functions used to group umis per the directional method
 pub struct Processor<'b> {
     pub umis: &'b Vec<String>,
@@ -86,20 +88,15 @@ impl<'b> Processor<'b> {
                     adj_list[sub].insert(top);
 
                     println! {"{:?}", adj_list};
+                    // idk if this is correct, need to think
                 } else {
                     duds.push(sub);
                 }
             }
             if !adj_list.contains_key(top) {
-
                 duds.push(top);
-                // note that we're using swap_remove for performance; check this to make sure it's
-                // accurate
-                adj_list.swap_remove(top);
-
             }
         }
-
         println! {"{:?}", adj_list};
         return (duds, adj_list);
     }
@@ -162,7 +159,8 @@ impl<'b> Processor<'b> {
     // driver code for directional method,
     // and UMI organization and grouping
     // pub fn main_grouper(&self, counts: HashMap<String, i32>) -> Option<Vec<Vec<String>>> {
-    pub fn main_grouper(&self, counts: HashMap<String, i32>) -> (Option<Vec<Vec<String>>>, Option<Vec<&String>>) {
+    // pub fn main_grouper(&self, counts: HashMap<String, i32>) -> (Option<Vec<Vec<String>>>, Option<Vec<&String>>) {
+    pub fn main_grouper(&self, counts: HashMap<String, i32>) -> GroupsAndSingletons {
         let directional_output = self.get_adj_list_directional(counts, 1);
         let singletons = directional_output.0;
         let adj_list = directional_output.1;
