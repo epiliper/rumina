@@ -25,15 +25,17 @@ impl<'a> Iterator for NeighborIterator<'a> {
     }
 }
 
+// type returned by grouping umis
+// at every position there can be groups, singletons, both, or neither.
 pub type GroupsAndSingletons <'b> = (Option<Vec<Vec<&'b String>>>, Option<Vec<&'b String>>);
 
+// this is the struct that contains functions used to group umis per the directional method pub struct Processor<'b> { pub umis: &'b Vec<String>,
 pub struct Processor<'b> {
     pub umis: &'b Vec<String>,
 }
 
-// this is the struct that contains functions used to group umis per the directional method pub struct Processor<'b> { pub umis: &'b Vec<String>,
-
 impl<'b> Processor<'b> {
+
     // for getting all unique umi keys from adjacency list
     // visits a UMI, gets all UMIs grouped with it, then moves onto next UMI.
     // doesn't add duplicate UMIs
@@ -69,8 +71,6 @@ impl<'b> Processor<'b> {
         counts: HashMap<&String, i32>,
         threshold: usize,
     ) -> (Vec<&'b String>, IndexMap<&'b String, HashSet<&'b String>>) {
-        // println! {"{}", self.umis.len()};
-        println! {"getting adjacency list..."};
         let mut adj_list: IndexMap<&'b String, HashSet<&'b String>> = IndexMap::new();
         let mut duds: Vec<&'b String> = Vec::new();
         let mut i = 0;
@@ -79,7 +79,6 @@ impl<'b> Processor<'b> {
             i += 1;
             let remainder = &self.umis[i..];
             for sub in remainder {
-                // TODO: add in handling of singleton UMIs or unpaired ones
                 if Processor::edit_distance(top, sub).unwrap() <= threshold
                     && counts.get(top).unwrap() > &(counts.get(sub).unwrap() * 2 - 1)
                     && top != sub 
@@ -90,19 +89,14 @@ impl<'b> Processor<'b> {
                     adj_list.entry(sub).or_insert(HashSet::new());
                     adj_list[sub].insert(top);
 
-                    println! {"{:?}", adj_list};
-                    // idk if this is correct, need to think
+                    println! {"ADJACENCY LIST {:?}", adj_list};
                 } else {
-                    // THIS IS WRONG!!!!!!!!
-                    // removing this caused 300% speedup
-                    // duds.push(sub)
                 }
             }
             if !adj_list.contains_key(top) {
                 duds.push(top);
             }
         }
-        println! {"{:?}", adj_list};
         return (duds, adj_list);
     }
 
@@ -113,7 +107,6 @@ impl<'b> Processor<'b> {
         &self,
         adj_list: IndexMap<&'b String, HashSet<&'b String>>,
     ) -> Option<Vec<VecDeque<& String>>> {
-        // println! {"getting connected components..."};
         let mut components: Vec<VecDeque<&String>> = Vec::new();
         let mut found: Vec<&String> = Vec::new();
 

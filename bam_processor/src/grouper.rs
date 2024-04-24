@@ -11,10 +11,14 @@ use rand::{thread_rng, Rng};
 pub struct Grouper {}
 
 impl Grouper {
+
+    // for umis successfully grouped (passing directional filtering)
+    // remove the reads associated with each UMI from the bundle
+    // tag them 
+    // push them to a list of tagged Records awaiting writing to an output bamfile
     pub fn tag_groups(
         &self,
         final_umis: Vec<Vec<&String>>,
-        // bottomhash: & mut BottomHashMap,
         umis_records: & mut IndexMap<String, ReadsAndCount>,
         output_list: & mut Vec<Record>,
     ) {
@@ -22,6 +26,7 @@ impl Grouper {
 
         // for each UMI within a group, assign the same tag
         for top_umi in final_umis {
+            println!{"{:?}", top_umi};
             for group in top_umi {
                 let ug_tag = rng.gen_range(1_000_000..10_999_999);
 
@@ -36,10 +41,12 @@ impl Grouper {
             }
         }
 
+    // for umis failing directional filtering 
+    // remove their reads from bundle
+    // tag them and push them to list of records awaiting write
     pub fn tag_singletons(
         &self,
         singletons: Vec<&String>,
-        // bottomhash: & mut BottomHashMap,
         umis_records: & mut IndexMap<String, ReadsAndCount>,
         output_list: & mut Vec<Record>,
     ) {
@@ -56,6 +63,10 @@ impl Grouper {
                 }
     }
 
+    // driver function of grouping
+    // recieves outout of main_grouper()
+    // tags whatever is available at given position
+    // (singletons, groups, or neither)
     pub fn tag_records(
         &self,
         grouping_output: GroupsAndSingletons,
