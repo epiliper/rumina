@@ -1,6 +1,6 @@
 use bam::Record;
-use std::collections::HashSet;
 use bam::BamWriter;
+use bam::RecordWriter;
 use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::env;
@@ -23,6 +23,7 @@ fn main() { let now = Instant::now();
     };
     let args: Vec<String> = env::args().collect();
     let input_file = &args[1];
+    let output_file = &args[2];
     let bam = bam::BamReader::from_path(&input_file, 6).unwrap();
     let header = bam::BamReader::from_path(&input_file, 6).unwrap().header().clone();
     let mut n: i64 = 0;
@@ -51,12 +52,11 @@ fn main() { let now = Instant::now();
         }
     }
 
-    let outfile = BamWriter::from_path("test/output.bam", header).unwrap();
+    let mut outfile = BamWriter::from_path(&output_file, header).unwrap();
 
     let grouper = Grouper{};
 
     let mut reads_to_spit: Vec<Record> = Vec::new();
-
 
     for position in bottomhash.bottom_dict.values_mut() {
         let bundle = position.shift_remove(&0).unwrap();
@@ -69,23 +69,20 @@ fn main() { let now = Instant::now();
 
         for umi in &umis {
             counts.entry(umi).or_insert(bundle[umi].count);
-
         }
 
         println!{"length of counts {:?}", counts.len()};
 
         let groupies = processor.main_grouper(counts);
-
         grouper.tag_records(groupies, bundle, & mut reads_to_spit);
-
-
-
     }
-    
 
+    println!{"Writing {} reads to {}", reads_to_spit.len(), output_file};
     
+    reads_to_spit.iter().for_each(
+        |x| outfile.write(x).unwrap()
+    );
 
-        
     let elapsed = now.elapsed();
     println!{"Time elapsed {:.2?}", elapsed};
 }

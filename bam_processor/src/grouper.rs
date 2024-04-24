@@ -33,16 +33,6 @@ impl Grouper {
                         }
                     )
                 }
-                // umis_records.entry(group.to_string())
-                //     .and_modify(|e| {
-                //         e.reads
-                //             .iter_mut()
-                //             .for_each(|x| {
-                //                 x.tags_mut().push_num(b"UG", ug_tag);
-                //                 output_list.push(*x);
-                //             }
-                //             );
-                //     });
             }
         }
 
@@ -53,10 +43,8 @@ impl Grouper {
         umis_records: & mut IndexMap<String, ReadsAndCount>,
         output_list: & mut Vec<Record>,
     ) {
-        println!{"YYYYY"};
         let mut rng = thread_rng();
         for dud in singletons {
-            println!{"{}", dud};
             let ug_tag = rng.gen_range(1_000_000..10_999_999);
             umis_records.swap_remove(dud).unwrap().reads.drain(0..)
                 .for_each(
@@ -66,10 +54,6 @@ impl Grouper {
                         }
                     )
                 }
-            // umis_records.get_mut(dud).expect("UMI not found in sequence!")
-            // .reads
-            // .iter_mut()
-            //     .for_each(|x| x.tags_mut().push_num(b"UG", ug_tag));
     }
 
     pub fn tag_records(
