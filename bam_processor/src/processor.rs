@@ -82,6 +82,7 @@ impl<'b> Processor<'b> {
                 // TODO: add in handling of singleton UMIs or unpaired ones
                 if Processor::edit_distance(top, sub).unwrap() <= threshold
                     && counts.get(top).unwrap() > &(counts.get(sub).unwrap() * 2 - 1)
+                    && top != sub 
                 {
                     adj_list.entry(top).or_insert(HashSet::new());
                     adj_list[top].insert(sub);
@@ -92,7 +93,9 @@ impl<'b> Processor<'b> {
                     println! {"{:?}", adj_list};
                     // idk if this is correct, need to think
                 } else {
-                    duds.push(sub);
+                    // THIS IS WRONG!!!!!!!!
+                    // removing this caused 300% speedup
+                    // duds.push(sub)
                 }
             }
             if !adj_list.contains_key(top) {
