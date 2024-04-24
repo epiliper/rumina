@@ -1,3 +1,4 @@
+#![feature(test)]
 use bam::Record;
 use bam::BamWriter;
 use bam::RecordWriter;

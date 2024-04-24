@@ -5,6 +5,7 @@ use crate::bottomhash::ReadsAndCount;
 use crate::processor::GroupsAndSingletons;
 use rand::{thread_rng, Rng};
 
+
 // this struct holds methods to
 // 1. modify the records within the bottomhash by lookup
 // 2. for every bundle, write the UG-tagged reads to output bam
@@ -53,14 +54,11 @@ impl Grouper {
         let mut rng = thread_rng();
         for dud in singletons {
             let ug_tag = rng.gen_range(1_000_000..10_999_999);
-            umis_records.swap_remove(dud).unwrap().reads.drain(0..)
-                .for_each(
-                        |mut x| {
-                            x.tags_mut().push_num(b"UG", ug_tag);
-                            output_list.push(x);
-                        }
-                    )
-                }
+            umis_records.get_mut(dud).expect("UMI not found in sequence!")
+            .reads
+            .iter_mut()
+                .for_each(|x| x.tags_mut().push_num(b"UG", ug_tag));
+        }
     }
 
     // driver function of grouping
