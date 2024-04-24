@@ -25,12 +25,14 @@ impl<'a> Iterator for NeighborIterator<'a> {
     }
 }
 
-pub type GroupsAndSingletons <'b> = (Option<Vec<Vec<String>>>, Option<Vec<&'b String>>);
+pub type GroupsAndSingletons <'b> = (Option<Vec<Vec<&'b String>>>, Option<Vec<&'b String>>);
 
-// this is the struct that contains functions used to group umis per the directional method
 pub struct Processor<'b> {
     pub umis: &'b Vec<String>,
 }
+
+// this is the struct that contains functions used to group umis per the directional method pub struct Processor<'b> { pub umis: &'b Vec<String>,
+
 impl<'b> Processor<'b> {
     // for getting all unique umi keys from adjacency list
     // visits a UMI, gets all UMIs grouped with it, then moves onto next UMI.
@@ -106,10 +108,10 @@ impl<'b> Processor<'b> {
     // this is fed directly into the main_grouper function
     pub fn get_connected_components(
         &self,
-        adj_list: IndexMap<&String, HashSet<&String>>,
-    ) -> Option<Vec<VecDeque<String>>> {
+        adj_list: IndexMap<&'b String, HashSet<&'b String>>,
+    ) -> Option<Vec<VecDeque<& String>>> {
         // println! {"getting connected components..."};
-        let mut components: Vec<VecDeque<String>> = Vec::new();
+        let mut components: Vec<VecDeque<&String>> = Vec::new();
         let mut found: Vec<&String> = Vec::new();
 
         if adj_list.len() > 0 {
@@ -120,7 +122,7 @@ impl<'b> Processor<'b> {
                     components.push(
                         component
                             .iter()
-                            .map(|x| x.to_string())
+                            .map(|x| *x)
                             .collect::<VecDeque<_>>(),
                     );
                 }
@@ -132,21 +134,21 @@ impl<'b> Processor<'b> {
     }
 
     // get a list of UMIs, each with their own list of UMIs belonging to their group
-    pub fn group_directional(&self, clusters: Vec<VecDeque<String>>) -> Vec<Vec<String>> {
+    pub fn group_directional(&self, clusters: Vec<VecDeque<&'b String>>) -> Vec<Vec<&'b String>> {
         // println! {"generating groups...."};
-        let mut observed: Vec<String> = Vec::new();
-        let mut groups: Vec<Vec<String>> = Vec::new();
+        let mut observed: Vec<&String> = Vec::new();
+        let mut groups: Vec<Vec<&String>> = Vec::new();
 
         for cluster in clusters {
             if cluster.len() == 1 {
                 groups.push(cluster.clone().into());
-                observed.push(cluster.get(0).unwrap().to_string());
+                observed.push(cluster.get(0).unwrap());
             } else {
-                let mut temp_cluster: Vec<String> = Vec::new();
+                let mut temp_cluster: Vec<&String> = Vec::new();
 
                 for node in cluster {
                     if !observed.contains(&&node) {
-                        temp_cluster.push(node.clone());
+                        temp_cluster.push(node);
                         observed.push(node);
                     }
                 }

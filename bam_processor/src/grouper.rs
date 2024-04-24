@@ -13,7 +13,7 @@ pub struct Grouper {}
 impl Grouper {
     pub fn tag_groups(
         &self,
-        final_umis: Vec<Vec<String>>,
+        final_umis: Vec<Vec<&String>>,
         // bottomhash: & mut BottomHashMap,
         umis_records: & mut IndexMap<String, ReadsAndCount>,
     ) {
@@ -23,7 +23,7 @@ impl Grouper {
         for top_umi in final_umis {
             for group in top_umi {
                 let ug_tag = rng.gen_range(1_000_000..10_999_999);
-                umis_records.entry(group)
+                umis_records.entry(group.to_string())
                     .and_modify(|e| {
                         e.reads
                             .iter_mut()
