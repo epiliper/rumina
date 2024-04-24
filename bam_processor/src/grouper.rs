@@ -1,9 +1,9 @@
 extern crate bam;
-use crate::bottomhash::BottomHashMap;
 use crate::IndexMap;
 use crate::bottomhash::ReadsAndCount;
 use crate::processor::GroupsAndSingletons;
 use rand::{thread_rng, Rng};
+
 
 // this struct holds methods to
 // 1. modify the records within the bottomhash by lookup
@@ -42,13 +42,6 @@ impl Grouper {
         let mut rng = thread_rng();
         for dud in singletons {
             let ug_tag = rng.gen_range(1_000_000..10_999_999);
-            // bottomhash.bottom_dict[&position][0]
-            //     .entry(dud)
-            //     .and_modify(|e| {
-            //         e.reads
-            //             .iter_mut()
-            //             .for_each(|x| x.tags_mut().push_num(b"UG", ug_tag));
-            //     });
             umis_records.get_mut(dud).expect("UMI not found in sequence!")
             .reads
             .iter_mut()
@@ -78,5 +71,10 @@ impl Grouper {
 
             (None, None) => {}
         }
+    }
+
+    pub fn output_tagged_records(bundle: IndexMap<String, ReadsAndCount>) -> () {
+
+
     }
 }

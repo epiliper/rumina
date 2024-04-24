@@ -1,10 +1,10 @@
+#![feature(test)]
 use bam::Record;
 use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::env;
 use std::time::Instant;
 use crate::grouper::Grouper;
-use crate::processor::GroupsAndSingletons;
 
 mod bottomhash;
 mod processor;

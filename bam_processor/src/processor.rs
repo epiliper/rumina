@@ -1,3 +1,4 @@
+#![feature(test)]
 extern crate bam;
 extern crate rust_htslib;
 use indexmap::IndexMap;
