@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::env;
 use std::time::Instant;
 use crate::grouper::Grouper;
+use crate::processor::GroupsAndSingletons;
 
 mod bottomhash;
 mod processor;
@@ -24,6 +25,7 @@ fn main() { let now = Instant::now();
     let bam = bam::BamReader::from_path(&input_file, 6).unwrap();
     let mut n: i64 = 0;
 
+
     for read in bam {
         // don't process unmappped or reverse strands.
         if read.as_ref().unwrap().flag().is_reverse_strand()
@@ -37,6 +39,7 @@ fn main() { let now = Instant::now();
             } else {
                 // get the Record itself, plus its UMI
                 bottomhash.update_dict(&r1.start(), 0, &get_umi(&r1), &r1);
+    
                 n += 1;
 
                 if n % 100_000 == 0 {
@@ -48,33 +51,36 @@ fn main() { let now = Instant::now();
 
     // retrieve bundles from umi list
     let mut n = 0;
-    let grouper: Grouper;
 
-    for position in bottomhash.bottom_dict.keys() {
-        for k in bottomhash.bottom_dict[position].keys() {
-            let bundle = bottomhash.bottom_dict[position].get(k).unwrap();
-            let umis = bundle
-                .keys()
-                .map(|x| x.to_string())
-                .collect::<Vec<String>>();
-            let processor = processor::Processor { umis: &umis };
+    let grouper = Grouper{};
 
-            let mut counts: HashMap<String, i32> = HashMap::new();
-            for umi in &umis {
-                // counts.insert(umi.to_string(), bundle[umi].count);
-                counts.entry(umi.to_string()).or_insert(bundle[umi].count);
-            }
+    for position in bottomhash.bottom_dict.values_mut() {
+        let bundle = position.shift_remove(&0).unwrap();
+        let umis = bundle.keys().map(|x| x.to_string()).collect::<Vec<String>>();
 
-            println! {"length of counts {:?}", counts.len()};
+        let processor = processor::Processor {umis: &umis};
 
-            let groupies = processor.main_grouper(counts.clone());
-            n += 1;
-            println! {"{}", n};
+        let mut counts: HashMap<&String, i32> = HashMap::new();
 
+        for umi in &umis {
+            counts.entry(umi).or_insert(bundle[umi].count);
 
         }
-    }
 
+        println!{"length of counts {:?}", counts.len()};
+
+        let groupies = processor.main_grouper(counts);
+
+        grouper.tag_records(groupies, bundle);
+
+
+
+    }
+    
+
+    
+
+        
     let elapsed = now.elapsed();
     println!{"Time elapsed {:.2?}", elapsed};
 }

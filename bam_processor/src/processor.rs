@@ -64,7 +64,7 @@ impl<'b> Processor<'b> {
     // groups umis via directional algorithm
     pub fn get_adj_list_directional(
         &self,
-        counts: HashMap<String, i32>,
+        counts: HashMap<&String, i32>,
         threshold: usize,
     ) -> (Vec<&'b String>, IndexMap<&'b String, HashSet<&'b String>>) {
         // println! {"{}", self.umis.len()};
@@ -160,7 +160,7 @@ impl<'b> Processor<'b> {
     // and UMI organization and grouping
     // pub fn main_grouper(&self, counts: HashMap<String, i32>) -> Option<Vec<Vec<String>>> {
     // pub fn main_grouper(&self, counts: HashMap<String, i32>) -> (Option<Vec<Vec<String>>>, Option<Vec<&String>>) {
-    pub fn main_grouper(&self, counts: HashMap<String, i32>) -> GroupsAndSingletons {
+    pub fn main_grouper(&self, counts: HashMap<&String, i32>) -> GroupsAndSingletons {
         let directional_output = self.get_adj_list_directional(counts, 1);
         let singletons = directional_output.0;
         let adj_list = directional_output.1;
