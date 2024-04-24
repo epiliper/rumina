@@ -89,7 +89,6 @@ impl<'b> Processor<'b> {
                     adj_list.entry(sub).or_insert(HashSet::new());
                     adj_list[sub].insert(top);
 
-                    println! {"ADJACENCY LIST {:?}", adj_list};
                 } else {
                 }
             }
