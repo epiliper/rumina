@@ -28,30 +28,6 @@ fn main() { let now = Instant::now();
     let header = bam::BamReader::from_path(&input_file, 6).unwrap().header().clone();
     let mut n: i64 = 0;
 
-
-    // for read in bam {
-    //     // don't process unmappped or reverse strands.
-    //     if read.as_ref().unwrap().flag().is_secondary()
-    //         | !(read.as_ref().unwrap().flag().last_in_pair())
-    //     {
-    //         continue;
-    //     } else {
-    //         let r1 = read.as_ref().unwrap();
-    //         if get_umi(r1).len() != 11 {
-    //             continue;
-    //         } else {
-    //             // get the Record itself, plus its UMI
-    //             bottomhash.update_dict(&r1.start(), 0, &get_umi(&r1), &r1);
-    
-    //             n += 1;
-
-    //             if n % 100_000 == 0 {
-    //                 println! {"Read in {n} reads" }
-    //             }
-    //         }
-    //     }
-    // }
-
     for read in bam {
         if read.as_ref().unwrap().flag().is_paired() {
 
@@ -61,7 +37,7 @@ fn main() { let now = Instant::now();
                 n += 1;
 
                 if n % 100_000 == 0 {
-                    println! {"Read in {n} reads" }
+                    println!{"Read in {n} reads" }
                 }
 
             }
@@ -72,7 +48,7 @@ fn main() { let now = Instant::now();
                 n += 1;
 
                 if n % 100_000 == 0 {
-                    println! {"Read in {n} reads" }
+                    println!{"Read in {n} reads" }
                 }
 
             }
@@ -83,11 +59,14 @@ fn main() { let now = Instant::now();
     let mut outfile = BamWriter::from_path(&output_file, header).unwrap();
 
     let grouper = Grouper{};
+    let max = bottomhash.bottom_dict.keys().len();
 
     let mut reads_to_spit: Vec<Record> = Vec::new();
 
+    let mut counter = 1;
+
     for position in bottomhash.bottom_dict.values_mut() {
-        println!{"Processing position {:?}...", position.keys()};
+        print!{"\rProcessing bundle {} of {}", counter, max};
         let bundle = position.shift_remove(&0).unwrap();
         let mut umis = bundle.keys().map(|x| x.to_string()).collect::<Vec<String>>();
         umis.dedup();
@@ -104,6 +83,7 @@ fn main() { let now = Instant::now();
 
         let groupies = processor.main_grouper(counts);
         grouper.tag_records(groupies, bundle, & mut reads_to_spit);
+        counter += 1;
     }
 
     println!{"Writing {} reads to {}", reads_to_spit.len(), output_file};
