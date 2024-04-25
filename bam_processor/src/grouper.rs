@@ -26,7 +26,6 @@ impl Grouper {
 
         // for each UMI within a group, assign the same tag
         for top_umi in final_umis {
-            println!{"{:?}", top_umi};
             for group in top_umi {
                 let ug_tag = rng.gen_range(1_000_000..10_999_999);
 
