@@ -28,37 +28,49 @@ fn main() { let now = Instant::now();
     let header = bam::BamReader::from_path(&input_file, 6).unwrap().header().clone();
     let mut n: i64 = 0;
 
+    // for read in bam {
+    //     if read.as_ref().unwrap().flag().is_paired() {
+    //         if read.as_ref().unwrap().flag().is_mapped() && read.as_ref().unwrap().flag().first_in_pair() && get_umi(read.as_ref().unwrap()).len() == 11 {
+    //             let r1 = &read.unwrap();
+    //             bottomhash.update_dict(&r1.start(), 0, &get_umi(&r1), &r1);
+    //             n += 1;
+
+    //             if n % 100_000 == 0 {
+    //                 println!{"Read in {n} reads" }
+    //             }
+
+    //         }
+    //     } else {
+    //         if read.as_ref().unwrap().flag().is_mapped() && get_umi(read.as_ref().unwrap()).len() == 11 && read.as_ref().unwrap().flag().first_in_pair(){
+    //             let r1 = &read.unwrap();
+    //             bottomhash.update_dict(&r1.start(), 0, &get_umi(&r1), &r1);
+    //             n += 1;
+
+    //             if n % 100_000 == 0 {
+    //                 println!{"Read in {n} reads" }
+    //             }
+
+    //         }
+    //     }
+    // }
+
     for read in bam {
-        if read.as_ref().unwrap().flag().is_paired() {
-
-            if read.as_ref().unwrap().flag().is_mapped() && read.as_ref().unwrap().flag().first_in_pair() && get_umi(read.as_ref().unwrap()).len() == 11 {
-                let r1 = &read.unwrap();
+        if read.as_ref().unwrap().flag().is_mapped() {
+            let r1 = &read.unwrap();
                 bottomhash.update_dict(&r1.start(), 0, &get_umi(&r1), &r1);
                 n += 1;
-
                 if n % 100_000 == 0 {
-                    println!{"Read in {n} reads" }
+                println!{"Read in {n} reads" }
                 }
-
-            }
-        } else {
-            if read.as_ref().unwrap().flag().is_mapped() && get_umi(read.as_ref().unwrap()).len() == 11 {
-                let r1 = &read.unwrap();
-                bottomhash.update_dict(&r1.start(), 0, &get_umi(&r1), &r1);
-                n += 1;
-
-                if n % 100_000 == 0 {
-                    println!{"Read in {n} reads" }
-                }
-
-            }
         }
-    }
 
+    }
+    
+    println!{"moving on to processing"};
 
     let mut outfile = BamWriter::from_path(&output_file, header).unwrap();
 
-    let grouper = Grouper{};
+    let mut grouper = Grouper{num: 0};
     let max = bottomhash.bottom_dict.keys().len();
 
     let mut reads_to_spit: Vec<Record> = Vec::new();
@@ -66,10 +78,10 @@ fn main() { let now = Instant::now();
     let mut counter = 1;
 
     for position in bottomhash.bottom_dict.values_mut() {
-        print!{"\rProcessing bundle {} of {}", counter, max};
+        println!{"Processing bundle {} of {}", counter, max};
         let bundle = position.shift_remove(&0).unwrap();
         let mut umis = bundle.keys().map(|x| x.to_string()).collect::<Vec<String>>();
-        umis.dedup();
+        // umis.dedup();
 
 
         let processor = processor::Processor {umis: &umis};
@@ -79,7 +91,6 @@ fn main() { let now = Instant::now();
         for umi in &umis {
             counts.entry(umi).or_insert(bundle[umi].count);
         }
-
 
         let groupies = processor.main_grouper(counts);
         grouper.tag_records(groupies, bundle, & mut reads_to_spit);

@@ -128,7 +128,7 @@ def dedup(input_file):
     
     subprocess.run('samtools index ' + input_file, shell = True)
 
-    dedup_cmd = 'umi_tools dedup --buffer-whole-contig -I input_file --umi-separator=":" -S output_file'
+    dedup_cmd = 'umi_tools dedup --paired --buffer-whole-contig -I input_file --umi-separator=":" -S output_file'
     dedup_cmd = dedup_cmd.replace('input_file', input_file)
     dedup_cmd = dedup_cmd.replace('output_file', output_file)
     subprocess.run(dedup_cmd, shell = True)

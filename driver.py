@@ -44,8 +44,8 @@ elif os.path.isfile(args.input):
     tagged_bam = tag_bam(args.input)
     bam_to_clean, blacklist = build_onesies(tagged_bam)
     clean_file = remove_onesies(bam_to_clean, blacklist)
-    file_to_dedup, file_qc = check_cleaned(clean_file)
-    file_to_report = dedup(file_to_dedup) 
+    # file_to_dedup, file_qc = check_cleaned(clean_file)
+    # file_to_report = dedup(file_to_dedup) 
 
 end_time = time.time()
 

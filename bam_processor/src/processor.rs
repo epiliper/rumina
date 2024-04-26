@@ -41,19 +41,22 @@ impl<'b> Processor<'b> {
     // doesn't add duplicate UMIs
     pub fn depth_first_search(
         mut node: &'b String,
-        adj_list: IndexMap<&'b String, HashSet<&'b String>>,
+        adj_list: &IndexMap<&'b String, HashSet<&'b String>>,
     ) -> VecDeque<&'b String> {
         let mut searched: VecDeque<&String> = VecDeque::new();
         let mut queue: VecDeque<&String> = VecDeque::new();
 
         queue.push_back(node);
+        searched.push_back(node);
 
         while queue.len() > 0 {
             node = &queue.pop_front().unwrap();
-            for next_node in &adj_list[node] {
-                if !searched.contains(&next_node) {
-                    queue.push_back(next_node);
-                    searched.push_back(next_node);
+            if adj_list.contains_key(node) {
+                for next_node in &adj_list[node] {
+                    if !searched.contains(&next_node) {
+                        queue.push_back(next_node);
+                        searched.push_back(next_node);
+                    }
                 }
             }
         }
@@ -71,30 +74,30 @@ impl<'b> Processor<'b> {
         counts: HashMap<&String, i32>,
         threshold: usize,
     ) -> (Vec<&'b String>, IndexMap<&'b String, HashSet<&'b String>>) {
+        println!{"Getting adj list"};
         let mut adj_list: IndexMap<&'b String, HashSet<&'b String>> = IndexMap::new();
         let mut duds: Vec<&'b String> = Vec::new();
         let mut i = 0;
         while i < self.umis.len() {
             let top = &self.umis[i];
+            adj_list.entry(top).or_insert(HashSet::new());
             i += 1;
             let remainder = &self.umis[i..];
             for sub in remainder {
-                if Processor::edit_distance(top, sub).unwrap() <= threshold
-                    && counts.get(top).unwrap() > &(counts.get(sub).unwrap() * 2 - 1)
-                    && top != sub 
-                {
-                    adj_list.entry(top).or_insert(HashSet::new());
-                    adj_list[top].insert(sub);
+                adj_list.entry(sub).or_insert(HashSet::new());
+                if Processor::edit_distance(top, sub).unwrap() <= threshold  && top != sub {
+                    if counts.get(top).unwrap() >= &(counts.get(sub).unwrap() * 2 - 1) {
+                        adj_list[top].insert(sub);
 
-                    adj_list.entry(sub).or_insert(HashSet::new());
+                } else if counts.get(sub).unwrap() >= &(counts.get(top).unwrap() * 2 - 1) {
+
                     adj_list[sub].insert(top);
-
-                } else {
-                }
+                } 
+                } else {}
             }
-            if !adj_list.contains_key(top) {
-                duds.push(top);
-            }
+            // if !adj_list.contains_key(top) {
+            //     duds.push(top);
+            // }
         }
         return (duds, adj_list);
     }
@@ -112,13 +115,13 @@ impl<'b> Processor<'b> {
         if adj_list.len() > 0 {
             for node in adj_list.keys() {
                 if !found.contains(node) {
-                    let component = Processor::depth_first_search(node, adj_list.clone());
+                    let component = Processor::depth_first_search(node, &adj_list);
                     found.extend(&component);
                     components.push(
                         component
-                            .iter()
-                            .map(|x| *x)
-                            .collect::<VecDeque<_>>(),
+                            // .iter()
+                            // .map(|x| *x)
+                            // .collect::<VecDeque<_>>(),
                     );
                 }
             }
@@ -136,8 +139,8 @@ impl<'b> Processor<'b> {
 
         for cluster in clusters {
             if cluster.len() == 1 {
-                groups.push(cluster.clone().into());
-                observed.push(cluster.get(0).unwrap());
+                observed.push(&cluster.get(0).unwrap());
+                groups.push(cluster.into());
             } else {
                 let mut temp_cluster: Vec<&String> = Vec::new();
 
@@ -147,7 +150,7 @@ impl<'b> Processor<'b> {
                         observed.push(node);
                     }
                 }
-                groups.push(temp_cluster.clone());
+                groups.push(temp_cluster);
             }
         }
         return groups;
