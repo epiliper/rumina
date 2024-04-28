@@ -6,25 +6,6 @@ use std::collections::HashSet;
 use std::collections::VecDeque;
 use hamming;
 
-pub struct NeighborIterator<'a> {
-    nbrs: &'a HashMap<String, String>,
-    index: i32,
-}
-
-impl<'a> Iterator for NeighborIterator<'a> {
-    type Item = (&'a String, &'a String);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while self.index < self.nbrs.len().try_into().unwrap() {
-            for (substring, umi) in self.nbrs {
-                self.index += 1;
-                return Some((substring, umi));
-            }
-        }
-        return None;
-    }
-}
-
 // this is the struct that contains functions used to group umis per the directional method pub struct Processor<'b> { pub umis: &'b Vec<String>,
 pub struct Processor<'b> {
     pub umis: &'b Vec<String>,
