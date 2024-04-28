@@ -11,9 +11,9 @@ mod bottomhash;
 mod processor;
 mod grouper;
 
-fn get_umi(record: &Record) -> String {
+fn get_umi(record: &Record, separator: &String) -> String {
     let umi = String::from_utf8(record.name().to_vec());
-    umi.unwrap().split(":").last().unwrap().to_string()
+    umi.unwrap().split(separator).last().unwrap().to_string()
 }
 
 fn main() { let now = Instant::now();
@@ -57,7 +57,7 @@ fn main() { let now = Instant::now();
     for read in bam {
         if read.as_ref().unwrap().flag().is_mapped() {
             let r1 = &read.unwrap();
-                bottomhash.update_dict(&r1.start(), 0, &get_umi(&r1), &r1);
+                bottomhash.update_dict(&r1.start(), 0, &get_umi(&r1, &args[3]), &r1);
                 n += 1;
                 if n % 100_000 == 0 {
                 println!{"Read in {n} reads" }
@@ -66,7 +66,7 @@ fn main() { let now = Instant::now();
 
     }
     
-    println!{"moving on to processing"};
+    println!{"using separator = {}", args[3]};
 
     let mut outfile = BamWriter::from_path(&output_file, header).unwrap();
 

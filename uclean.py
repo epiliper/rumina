@@ -28,7 +28,7 @@ def tag_bam(input_file):
     # use umi_tools group to assign unique UG tag per UMI cluster
     tagged_file_name = input_file.split('.bam')[0] + '_tagged.bam'
     # tag_cmd = 'umi_tools group -I ' + input_file + " --output-bam --umi-separator=':' --paired -S " + tagged_file_name.split('.bam')[0] + '_temp.bam' 
-    tag_cmd = 'bam_processor ' + input_file + ' ' + tagged_file_name.split('.bam')[0] + '_temp.bam'
+    tag_cmd = 'bam_processor/target/release/bam_processor ' + input_file + ' ' + tagged_file_name.split('.bam')[0] + '_temp.bam ' + args.separator
     subprocess.run(tag_cmd, shell = True)
 
     # filter tagged bam to get only reads with UMI tag

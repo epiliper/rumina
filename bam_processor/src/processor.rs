@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
-use strsim::hamming;
+use hamming;
 
 pub struct NeighborIterator<'a> {
     nbrs: &'a HashMap<String, String>,
@@ -25,17 +25,12 @@ impl<'a> Iterator for NeighborIterator<'a> {
     }
 }
 
-// type returned by grouping umis
-// at every position there can be groups, singletons, both, or neither.
-pub type GroupsAndSingletons <'b> = (Option<Vec<Vec<&'b String>>>, Option<Vec<&'b String>>);
-
 // this is the struct that contains functions used to group umis per the directional method pub struct Processor<'b> { pub umis: &'b Vec<String>,
 pub struct Processor<'b> {
     pub umis: &'b Vec<String>,
 }
 
 impl<'b> Processor<'b> {
-
     // for getting all unique umi keys from adjacency list
     // visits a UMI, gets all UMIs grouped with it, then moves onto next UMI.
     // doesn't add duplicate UMIs
@@ -64,19 +59,18 @@ impl<'b> Processor<'b> {
     }
 
     // gets edit distance (hamming distance) between two umis
-    pub fn edit_distance(ua: &String, ub: &String) -> Result<usize, strsim::StrSimError> {
-        return hamming(ua, ub);
+    pub fn edit_distance(ua: &String, ub: &String) -> u64 {
+        return hamming::distance_fast(&ua.as_bytes(), &ub.as_bytes()).expect("hamming crashed");
     }
 
     // groups umis via directional algorithm
     pub fn get_adj_list_directional(
         &self,
         counts: HashMap<&String, i32>,
-        threshold: usize,
-    ) -> (Vec<&'b String>, IndexMap<&'b String, HashSet<&'b String>>) {
-        println!{"Getting adj list"};
-        let mut adj_list: IndexMap<&'b String, HashSet<&'b String>> = IndexMap::new();
-        let mut duds: Vec<&'b String> = Vec::new();
+        threshold: u64,
+    ) -> IndexMap<&'b String, HashSet<&'b String>> {
+        let mut adj_list: IndexMap<&'b String, HashSet<&'b String>> =
+            IndexMap::with_capacity(self.umis.len());
         let mut i = 0;
         while i < self.umis.len() {
             let top = &self.umis[i];
@@ -85,21 +79,17 @@ impl<'b> Processor<'b> {
             let remainder = &self.umis[i..];
             for sub in remainder {
                 adj_list.entry(sub).or_insert(HashSet::new());
-                if Processor::edit_distance(top, sub).unwrap() <= threshold  && top != sub {
+                if Processor::edit_distance(top, sub) <= threshold && top != sub {
                     if counts.get(top).unwrap() >= &(counts.get(sub).unwrap() * 2 - 1) {
                         adj_list[top].insert(sub);
-
-                } else if counts.get(sub).unwrap() >= &(counts.get(top).unwrap() * 2 - 1) {
-
-                    adj_list[sub].insert(top);
-                } 
-                } else {}
+                    } else if counts.get(sub).unwrap() >= &(counts.get(top).unwrap() * 2 - 1) {
+                        adj_list[sub].insert(top);
+                    }
+                } else {
+                }
             }
-            // if !adj_list.contains_key(top) {
-            //     duds.push(top);
-            // }
         }
-        return (duds, adj_list);
+        return adj_list;
     }
 
     // return a list of lists, comprising a UMI
@@ -108,7 +98,7 @@ impl<'b> Processor<'b> {
     pub fn get_connected_components(
         &self,
         adj_list: IndexMap<&'b String, HashSet<&'b String>>,
-    ) -> Option<Vec<VecDeque<& String>>> {
+    ) -> Option<Vec<VecDeque<&String>>> {
         let mut components: Vec<VecDeque<&String>> = Vec::new();
         let mut found: Vec<&String> = Vec::new();
 
@@ -118,10 +108,7 @@ impl<'b> Processor<'b> {
                     let component = Processor::depth_first_search(node, &adj_list);
                     found.extend(&component);
                     components.push(
-                        component
-                            // .iter()
-                            // .map(|x| *x)
-                            // .collect::<VecDeque<_>>(),
+                        component, 
                     );
                 }
             }
@@ -160,10 +147,9 @@ impl<'b> Processor<'b> {
     // and UMI organization and grouping
     // pub fn main_grouper(&self, counts: HashMap<String, i32>) -> Option<Vec<Vec<String>>> {
     // pub fn main_grouper(&self, counts: HashMap<String, i32>) -> (Option<Vec<Vec<String>>>, Option<Vec<&String>>) {
-    pub fn main_grouper(&self, counts: HashMap<&String, i32>) -> GroupsAndSingletons {
+    pub fn main_grouper(&self, counts: HashMap<&String, i32>) -> Option<Vec<Vec<&String>>> {
         let directional_output = self.get_adj_list_directional(counts, 1);
-        let singletons = directional_output.0;
-        let adj_list = directional_output.1;
+        let adj_list = directional_output;
         let final_umis;
         if adj_list.len() > 0 {
             let clusters = self.get_connected_components(adj_list).unwrap();
@@ -172,7 +158,8 @@ impl<'b> Processor<'b> {
             final_umis = None;
         }
 
-        return (final_umis, Some(singletons));
-
+        // return (final_umis, Some(singletons));
+        return final_umis;
     }
+
 }
