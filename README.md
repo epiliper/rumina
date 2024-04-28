@@ -1,4 +1,4 @@
-## prototype pipeline for UMI-tagged NGS data
+## RUMINA - Rust-based Unique Molecular Identifier Network Analysis
 
 - removing singleton UMIs (potential artifacts)
 - deduplicating UMIs via UMI_tools 
