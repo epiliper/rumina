@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::collections::VecDeque;
 use hamming;
 
-// this is the struct that contains functions used to group umis per the directional method pub struct Processor<'b> { pub umis: &'b Vec<String>,
+// this is the struct that contains functions used to group umis per the directional method
 pub struct Processor<'b> {
     pub umis: &'b Vec<String>,
 }

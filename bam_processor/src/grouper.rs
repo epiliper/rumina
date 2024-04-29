@@ -23,7 +23,6 @@ impl Grouper {
         umis_records: & mut IndexMap<String, ReadsAndCount>,
         output_list: & mut Vec<Record>,
     ) {
-        println!{"tagging"};
 
         // for each UMI within a group, assign the same tag
         for top_umi in final_umis {
@@ -63,3 +62,4 @@ impl Grouper {
     }
 
 }
+

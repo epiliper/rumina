@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::env;
 use std::time::Instant;
 use crate::grouper::Grouper;
+use indicatif::ProgressBar;
 
 mod bottomhash;
 mod processor;
@@ -60,11 +61,13 @@ fn main() { let now = Instant::now();
                 bottomhash.update_dict(&r1.start(), 0, &get_umi(&r1, &args[3]), &r1);
                 n += 1;
                 if n % 100_000 == 0 {
-                println!{"Read in {n} reads" }
+                println!{"\rRead in {n} reads" }
                 }
         }
 
     }
+
+    let progressbar = ProgressBar::new(bottomhash.bottom_dict.len().try_into().unwrap());
     
     println!{"using separator = {}", args[3]};
 
@@ -78,7 +81,7 @@ fn main() { let now = Instant::now();
     let mut counter = 1;
 
     for position in bottomhash.bottom_dict.values_mut() {
-        println!{"Processing bundle {} of {}", counter, max};
+        print!{"\rProcessing bundle {} of {}", counter, max};
         let bundle = position.shift_remove(&0).unwrap();
         let mut umis = bundle.keys().map(|x| x.to_string()).collect::<Vec<String>>();
         // umis.dedup();
@@ -95,8 +98,10 @@ fn main() { let now = Instant::now();
         let groupies = processor.main_grouper(counts);
         grouper.tag_records(groupies, bundle, & mut reads_to_spit);
         counter += 1;
+        progressbar.inc(1);
     }
 
+    progressbar.finish();
     println!{"Writing {} reads to {}", reads_to_spit.len(), output_file};
     
     reads_to_spit.iter().for_each(
