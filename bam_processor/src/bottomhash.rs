@@ -3,18 +3,17 @@ extern crate rust_htslib;
 use bam::Record;
 use indexmap::IndexMap;
 
-
-/* When main function executes, this struct is populated with 
+/* When main function executes, this struct is populated with
 * all information necessary for grouping/deduplicating.
 */
 
-/* This struct is a 4-layer deep nested hashmap. 
+/* This struct is a 4-layer deep nested hashmap.
 * This is how it's organized, from top to bottom layer:
 *
 * positition along reference genome: {
-*       key with optional metadata: { 
+*       key with optional metadata: {
 *               all the umis at said position with said metadata {
-*                   number of reads, and the Records themselves 
+*                   number of reads, and the Records themselves
 *               }
 *               }
 * }

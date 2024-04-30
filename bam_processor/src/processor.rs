@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
-use hamming;
+use strsim::hamming;
 
 // this is the struct that contains functions used to group umis per the directional method
 pub struct Processor<'b> {
@@ -40,15 +40,15 @@ impl<'b> Processor<'b> {
     }
 
     // gets edit distance (hamming distance) between two umis
-    pub fn edit_distance(ua: &String, ub: &String) -> u64 {
-        return hamming::distance_fast(&ua.as_bytes(), &ub.as_bytes()).expect("hamming crashed");
+    pub fn edit_distance(ua: &String, ub: &String) -> usize {
+        return hamming(ua, ub).unwrap();
     }
 
     // groups umis via directional algorithm
     pub fn get_adj_list_directional(
         &self,
         counts: HashMap<&String, i32>,
-        threshold: u64,
+        threshold: usize,
     ) -> IndexMap<&'b String, HashSet<&'b String>> {
         let mut adj_list: IndexMap<&'b String, HashSet<&'b String>> =
             IndexMap::with_capacity(self.umis.len());
@@ -60,11 +60,16 @@ impl<'b> Processor<'b> {
             let remainder = &self.umis[i..];
             for sub in remainder {
                 adj_list.entry(sub).or_insert(HashSet::new());
+                println!{"                  {} count {}        {} count {}", top, counts.get(top).unwrap(), sub, counts.get(sub).unwrap()};
+                println!{"edit distance {} ", Processor::edit_distance(top, sub)}
                 if Processor::edit_distance(top, sub) <= threshold && top != sub {
-                    if counts.get(top).unwrap() >= &(counts.get(sub).unwrap() * 2 - 1) {
+                    println!{"hamming checked!"}
+                    if *counts.get(top).unwrap() >= (counts.get(sub).unwrap() * 2 - 1) {
                         adj_list[top].insert(sub);
-                    } else if counts.get(sub).unwrap() >= &(counts.get(top).unwrap() * 2 - 1) {
+                        println!{"top key generated"};
+                    } else if *counts.get(sub).unwrap() >= (counts.get(top).unwrap() * 2 - 1) {
                         adj_list[sub].insert(top);
+                        println!{"sub key generated"};
                     }
                 } else {
                 }
@@ -88,9 +93,7 @@ impl<'b> Processor<'b> {
                 if !found.contains(node) {
                     let component = Processor::depth_first_search(node, &adj_list);
                     found.extend(&component);
-                    components.push(
-                        component, 
-                    );
+                    components.push(component);
                 }
             }
             return Some(components);
@@ -131,6 +134,7 @@ impl<'b> Processor<'b> {
     pub fn main_grouper(&self, counts: HashMap<&String, i32>) -> Option<Vec<Vec<&String>>> {
         let directional_output = self.get_adj_list_directional(counts, 1);
         let adj_list = directional_output;
+        // println!{"adj list {:?}", adj_list};
         let final_umis;
         if adj_list.len() > 0 {
             let clusters = self.get_connected_components(adj_list).unwrap();
@@ -142,5 +146,4 @@ impl<'b> Processor<'b> {
         // return (final_umis, Some(singletons));
         return final_umis;
     }
-
 }

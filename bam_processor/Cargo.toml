@@ -11,6 +11,7 @@ bam = "0.1.4"
 indexmap = "2.2.6"
 hamming = "0.1"
 rand = "0.8.5"
+strsim = "0.11.1"
 indicatif = "0.17.8"
 
 [profile.release]
