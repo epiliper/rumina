@@ -80,6 +80,7 @@ impl<'b> Processor<'b> {
 
     // return a list of lists, comprising a UMI
     // with a list of grouped UMIs.
+    // via breadth-first-search
     // this is fed directly into the main_grouper function
     pub fn get_connected_components(
         &self,

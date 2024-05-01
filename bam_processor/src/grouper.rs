@@ -32,6 +32,7 @@ impl Grouper {
                     .drain(0..)
                     .for_each(|mut x| {
                         x.tags_mut().push_num(b"UG", ug_tag);
+                        x.tags_mut().push_string(b"BX", group.as_bytes());
                         output_list.push(x);
                     })
             }

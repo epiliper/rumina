@@ -6,7 +6,6 @@ use indexmap::IndexMap;
 use indicatif::ProgressBar; use std::collections::HashMap;
 use std::env;
 use std::time::Instant;
-use std::process::exit;
 
 mod bottomhash;
 mod grouper;
@@ -71,7 +70,6 @@ fn main() {
             .keys()
             .map(|x| x.to_string())
             .collect::<Vec<String>>();
-        // umis.dedup();
 
         let processor = processor::Processor { umis: &umis };
 
