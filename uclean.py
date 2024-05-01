@@ -27,18 +27,21 @@ def tag_bam(input_file):
 
     # use umi_tools group to assign unique UG tag per UMI cluster
     tagged_file_name = input_file.split('.bam')[0] + '_tagged.bam'
+    temp_file_name = tagged_file_name.split('.bam')[0] + '_temp.bam'
     # tag_cmd = 'umi_tools group -I ' + input_file + " --output-bam --umi-separator=':' --paired -S " + tagged_file_name.split('.bam')[0] + '_temp.bam' 
-    tag_cmd = 'bam_processor/target/release/bam_processor ' + input_file + ' ' + tagged_file_name.split('.bam')[0] + '_temp.bam ' + args.separator
+    tag_cmd = 'bam_processor/target/release/bam_processor ' + input_file + ' ' + temp_file_name + ' ' + args.separator
     subprocess.run(tag_cmd, shell = True)
+    pysam.sort("-o", temp_file_name, '--no-PG', temp_file_name)
+    pysam.index(temp_file_name)
 
     # filter tagged bam to get only reads with UMI tag
-    filter_cmd = 'samtools view -@ 6 -h -b -d UG ' + tagged_file_name.split('.bam')[0] + '_temp.bam > ' + tagged_file_name
+    filter_cmd = 'samtools view -@ 6 -h -b -d UG ' + temp_file_name + ' > ' + tagged_file_name 
     subprocess.run(filter_cmd, shell = True)
 
     # CLEAN 
     if args.delete_temps:
         print('DELETING FILE!')
-        os.remove(tagged_file_name.split('.bam')[0] + '_temp.bam')
+        os.remove(temp_file_name)
 
     return(tagged_file_name)
 
@@ -53,7 +56,7 @@ def build_onesies(input_file):
     n = 0
     for read in iter:
         # tag_report = {"UG":read.tags["UG"]}
-        ug = str(dict(read.tags)["UG"])
+        ug = (str(dict(read.tags)["UG"]), str(read.reference_start), str(read.qname.split(str(args.separator))[-1]))
         ug_list.append(ug)
         n += 1
         
@@ -67,7 +70,7 @@ def build_onesies(input_file):
 
     with open(name_of_txt, "w") as filter_file:
         for key in filtered_list.keys():
-            filter_file.write(key + "\n")
+            filter_file.write(key[0] +"\t" + key[1] + "\t" + key[2] + "\n")
 
     return input_file, name_of_txt
 

@@ -57,7 +57,7 @@ impl<'b> Processor<'b> {
             let top = &self.umis[i];
             adj_list.entry(top).or_insert(HashSet::new());
             i += 1;
-            let remainder = &self.umis[i..];
+            let remainder = self.umis.iter();
             for sub in remainder {
                 adj_list.entry(sub).or_insert(HashSet::new());
                 println!{"                  {} count {}        {} count {}", top, counts.get(top).unwrap(), sub, counts.get(sub).unwrap()};
