@@ -60,16 +60,11 @@ impl<'b> Processor<'b> {
             let remainder = self.umis.iter();
             for sub in remainder {
                 adj_list.entry(sub).or_insert(HashSet::new());
-                println!{"                  {} count {}        {} count {}", top, counts.get(top).unwrap(), sub, counts.get(sub).unwrap()};
-                println!{"edit distance {} ", Processor::edit_distance(top, sub)}
                 if Processor::edit_distance(top, sub) <= threshold && top != sub {
-                    println!{"hamming checked!"}
                     if *counts.get(top).unwrap() >= (counts.get(sub).unwrap() * 2 - 1) {
                         adj_list[top].insert(sub);
-                        println!{"top key generated"};
                     } else if *counts.get(sub).unwrap() >= (counts.get(top).unwrap() * 2 - 1) {
                         adj_list[sub].insert(top);
-                        println!{"sub key generated"};
                     }
                 } else {
                 }
@@ -105,7 +100,6 @@ impl<'b> Processor<'b> {
 
     // get a list of UMIs, each with their own list of UMIs belonging to their group
     pub fn group_directional(&self, clusters: Vec<VecDeque<&'b String>>) -> Vec<Vec<&'b String>> {
-        // println! {"generating groups...."};
         let mut observed: Vec<&String> = Vec::new();
         let mut groups: Vec<Vec<&String>> = Vec::new();
 
@@ -135,7 +129,6 @@ impl<'b> Processor<'b> {
     pub fn main_grouper(&self, counts: HashMap<&String, i32>) -> Option<Vec<Vec<&String>>> {
         let directional_output = self.get_adj_list_directional(counts, 1);
         let adj_list = directional_output;
-        // println!{"adj list {:?}", adj_list};
         let final_umis;
         if adj_list.len() > 0 {
             let clusters = self.get_connected_components(adj_list).unwrap();

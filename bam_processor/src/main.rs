@@ -1,12 +1,11 @@
 use crate::grouper::Grouper;
-use crate::read_io::group_reads;
+use crate::read_io::ChunkProcessor;
 use bam::BamWriter;
 use bam::Record;
 use bam::RecordWriter;
 use indexmap::IndexMap;
 use std::env;
 use std::time::Instant;
-use crate::read_io::pull_reads;
 
 mod bottomhash;
 mod grouper;
@@ -23,6 +22,7 @@ fn main() {
     println! {"using separator = {}", args[3]};
     let input_file = &args[1];
     let output_file = &args[2];
+    let separator = &args[3];
     let bam = bam::BamReader::from_path(&input_file, 6).unwrap();
     let header = bam::BamReader::from_path(&input_file, 6)
         .unwrap()
@@ -34,11 +34,16 @@ fn main() {
     let grouper = Grouper { num: 0 };
     let mut reads_to_spit: Vec<Record> = Vec::new();
 
-    pull_reads(bam, & mut bottomhash, &args[3], n);
-    group_reads(& mut bottomhash, & mut reads_to_spit, grouper);
 
+    let mut read_handler = ChunkProcessor{
+        separator: separator, 
+        reads_to_output: &mut reads_to_spit, 
+        counter: n, 
+        chunksize: 500
+    };
 
-    // progressbar.finish();
+    read_handler.process_chunks(bam, bottomhash, grouper);
+
     println! {"Writing {} reads to {}", &reads_to_spit.len(), output_file};
 
     reads_to_spit.iter().for_each(|x| outfile.write(x).unwrap());
