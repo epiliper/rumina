@@ -2,7 +2,6 @@ use crate::grouper::Grouper;
 use crate::read_io::ChunkProcessor;
 use bam::BamWriter;
 use bam::Record;
-use bam::RecordWriter;
 use indexmap::IndexMap;
 use std::env;
 use std::time::Instant;
@@ -23,8 +22,9 @@ fn main() {
     let input_file = &args[1];
     let output_file = &args[2];
     let separator = &args[3];
-    let bam = bam::BamReader::from_path(&input_file, 6).unwrap();
-    let header = bam::BamReader::from_path(&input_file, 6)
+
+    let bam = bam::BamReader::from_path(&input_file, 4).unwrap();
+    let header = bam::BamReader::from_path(&input_file, 0)
         .unwrap()
         .header()
         .clone();
@@ -38,15 +38,13 @@ fn main() {
     let mut read_handler = ChunkProcessor{
         separator: separator, 
         reads_to_output: &mut reads_to_spit, 
-        counter: n, 
-        chunksize: 500
+        outfile: outfile,
     };
 
     read_handler.process_chunks(bam, bottomhash, grouper);
 
-    println! {"Writing {} reads to {}", &reads_to_spit.len(), output_file};
 
-    reads_to_spit.iter().for_each(|x| outfile.write(x).unwrap());
+    // reads_to_spit.iter().for_each(|x| outfile.write(x).unwrap());
 
     let elapsed = now.elapsed();
     println! {"Time elapsed {:.2?}", elapsed};
