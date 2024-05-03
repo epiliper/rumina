@@ -1,0 +1,9 @@
+[package]
+name = "multibam"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rust-htslib = "*"
+clap = { version = "4.5.4", features = ["derive"] }
+indexmap = "2.2.6"
