@@ -1,10 +1,12 @@
 use crate::grouper::Grouper;
 use crate::read_io::ChunkProcessor;
 use bam::BamWriter;
+use bam::bam_writer::BamWriterBuilder;
 use bam::Record;
 use indexmap::IndexMap;
 use std::env;
 use std::time::Instant;
+use std::process;
 
 mod bottomhash;
 mod grouper;
@@ -31,6 +33,7 @@ fn main() {
 
     let n: i64 = 0;
     let mut outfile = BamWriter::from_path(&output_file, header).unwrap();
+    // let mut outfile = BamWriterBuilder::from_path(&output_file, header).unwrap();
     let grouper = Grouper { num: 0 };
     let mut reads_to_spit: Vec<Record> = Vec::new();
 
