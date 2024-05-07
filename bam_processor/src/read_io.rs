@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
+use indicatif::ProgressBar;
 
 
 fn get_umi(record: &Record, separator: &String) -> String {
@@ -50,7 +51,6 @@ impl<'a> ChunkProcessor<'a> {
             grouper.lock().unwrap().tag_records(groupies, bundle, Arc::clone(&self.reads_to_output));
 
         }
-        // self.output_reads();
         bottomhash.bottom_dict.clear();
     }
 
@@ -60,6 +60,7 @@ impl<'a> ChunkProcessor<'a> {
         grouper: Arc<Mutex<Grouper>>,
     ) {
 
+        let progressbar = ProgressBar::new(bottomhash.bottom_dict.keys().len().try_into().unwrap());
         bottomhash.bottom_dict.par_values_mut().for_each(
              
             |x| {
@@ -79,8 +80,10 @@ impl<'a> ChunkProcessor<'a> {
 
             let groupies = processor.main_grouper(counts);
             grouper.lock().unwrap().tag_records(groupies, bundle, Arc::clone(&self.reads_to_output));
+            progressbar.inc(1);
             }
         );
+        progressbar.finish();
     }
 
     pub fn pull_read(
@@ -98,7 +101,7 @@ impl<'a> ChunkProcessor<'a> {
                 &read,
             );
 
-        // otherwise, use it's first position to reference
+        // otherwise, use its first position to reference
         } else if read.flag().is_mapped() {
             bottomhash.update_dict(&(&read.start() + 1), 0, &get_umi(&read, separator), &read);
         }

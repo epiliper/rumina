@@ -36,7 +36,6 @@ fn main() {
         .header()
         .clone();
 
-    let n: i64 = 0;
     let mut outfile = BamWriterBuilder::from_path(&mut BamWriterBuilder::new().additional_threads(5), &output_file, header).unwrap();
     let grouper = Arc::new(Mutex::new(Grouper { num: 0 }));
     let reads_to_spit: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
@@ -55,8 +54,6 @@ fn main() {
         outfile.write(read).unwrap();
     }
 
-
-    // reads_to_spit.iter().for_each(|x| outfile.write(x).unwrap());
 
     let elapsed = now.elapsed();
     println! {"Time elapsed {:.2?}", elapsed};
