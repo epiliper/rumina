@@ -2,11 +2,12 @@ use crate::bottomhash::BottomHashMap;
 use crate::processor;
 use crate::Grouper;
 use bam::BamReader;
-use bam::BamWriter;
 use bam::Record;
-use bam::RecordWriter;
 use std::collections::HashMap;
 use std::fs::File;
+use rayon::prelude::*;
+use std::sync::{Arc, Mutex};
+
 
 fn get_umi(record: &Record, separator: &String) -> String {
     let umi = String::from_utf8(record.name().to_vec());
@@ -15,26 +16,18 @@ fn get_umi(record: &Record, separator: &String) -> String {
 
 pub struct ChunkProcessor<'a> {
     pub separator: &'a String,
-    pub reads_to_output: &'a mut Vec<Record>,
-    pub outfile: BamWriter<File>,
+    pub reads_to_output: Arc<Mutex<Vec<Record>>>,
 }
 
 impl<'a> ChunkProcessor<'a> {
     // run grouping on pulled reads
     // add tags to Records
     // output them to list for writing to bam
-    pub fn output_reads(&mut self) {
-        println! {"Writing {} reads", self.reads_to_output.len()};
-        self.reads_to_output
-            .iter()
-            .for_each(|x| self.outfile.write(x).unwrap());
-        self.reads_to_output.clear();
-    }
 
     pub fn group_reads(
         &mut self,
         bottomhash: &mut BottomHashMap,
-        grouper: &mut Grouper,
+        grouper: Arc<Mutex<Grouper>>,
     ) {
         let max = bottomhash.bottom_dict.keys().len();
 
@@ -54,10 +47,40 @@ impl<'a> ChunkProcessor<'a> {
             }
 
             let groupies = processor.main_grouper(counts);
-            grouper.tag_records(groupies, bundle, self.reads_to_output);
+            grouper.lock().unwrap().tag_records(groupies, bundle, Arc::clone(&self.reads_to_output));
+
         }
-        self.output_reads();
+        // self.output_reads();
         bottomhash.bottom_dict.clear();
+    }
+
+    pub fn group_reads_par(
+        &mut self,
+        bottomhash: &mut BottomHashMap,
+        grouper: Arc<Mutex<Grouper>>,
+    ) {
+
+        bottomhash.bottom_dict.par_values_mut().for_each(
+             
+            |x| {
+            let bundle = x.shift_remove(&0).unwrap();
+            let umis = bundle
+                    .keys()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>();
+
+            let processor = processor::Processor {umis: &umis};
+            
+            let mut counts: HashMap<&String, i32> = HashMap::new();
+                 
+            for umi in &umis {
+                    counts.entry(umi).or_insert(bundle[umi].count);
+                } 
+
+            let groupies = processor.main_grouper(counts);
+            grouper.lock().unwrap().tag_records(groupies, bundle, Arc::clone(&self.reads_to_output));
+            }
+        );
     }
 
     pub fn pull_read(
@@ -66,6 +89,7 @@ impl<'a> ChunkProcessor<'a> {
         bottomhash: &mut BottomHashMap,
         separator: &String,
     ) {
+        // if read is reverse to reference, group it by its last aligned base to the reference
         if read.flag().is_mapped() && read.flag().is_reverse_strand() {
             bottomhash.update_dict(
                 &(&read.calculate_end() + 1),
@@ -74,17 +98,9 @@ impl<'a> ChunkProcessor<'a> {
                 &read,
             );
 
-            // if bottomhash.bottom_dict.keys().last().unwrap() % chunksize == 0 {
-            //     println! {"last pos {}", bottomhash.bottom_dict.keys().last().unwrap()};
-            //     Self::group_reads(self, bottomhash, grouper);
-            // }
         // otherwise, use it's first position to reference
         } else if read.flag().is_mapped() {
             bottomhash.update_dict(&(&read.start() + 1), 0, &get_umi(&read, separator), &read);
-            // if bottomhash.bottom_dict.keys().last().unwrap() % chunksize == 0 {
-            //     println! {"last pos {}", bottomhash.bottom_dict.keys().last().unwrap()};
-            //     Self::group_reads(self, bottomhash, grouper);
-            // }
         }
     }
 
@@ -92,7 +108,7 @@ impl<'a> ChunkProcessor<'a> {
         &mut self,
         input_file: BamReader<File>,
         mut bottomhash: BottomHashMap,
-        mut grouper: Grouper,
+        mut grouper: Arc<Mutex<Grouper>>,
     ) {
         let mut counter = 0;
 
@@ -112,6 +128,6 @@ impl<'a> ChunkProcessor<'a> {
         }
         println!{};
 
-        Self::group_reads(self, &mut bottomhash, &mut grouper);
+        Self::group_reads_par(self, &mut bottomhash, grouper);
     }
 }

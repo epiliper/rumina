@@ -209,14 +209,12 @@ impl<'b> Processor<'b> {
     pub fn main_grouper(&self, counts: HashMap<&String, i32>) -> Option<Vec<Vec<&String>>> {
         let substring_map = self.get_substring_map();
         let neighbors = self.iter_substring_neighbors(substring_map);
-        // let directional_output = self.get_adj_list_directional(counts, 1);
         let directional_output = self.get_adj_list_substring(counts, neighbors, 1);
         let adj_list = directional_output;
         let final_umis;
         if adj_list.len() > 0 {
             let clusters = self.get_connected_components(adj_list).unwrap();
             final_umis = Some(self.group_directional(clusters));
-            println!{"final UMIS {:?}", final_umis};
         } else {
             final_umis = None;
         }

@@ -32,6 +32,7 @@ impl BottomHashMap {
             .or_default()
             .entry(umi.into())
             .or_insert(ReadsAndCount {
+                // reads: Mutex::from(Vec::new()),
                 reads: Vec::new(),
                 count: 0,
             })
@@ -46,6 +47,7 @@ pub type UMIReads = IndexMap<String, ReadsAndCount>; // every UMI has a set of r
 #[derive(Debug)]
 pub struct ReadsAndCount {
     pub reads: Vec<Record>,
+    // pub reads: Mutex<Vec<Record>>,
     pub count: i32,
 }
 

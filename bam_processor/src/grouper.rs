@@ -1,5 +1,6 @@
 extern crate bam;
 use crate::bottomhash::ReadsAndCount;
+use std::sync::{Arc, Mutex};
 use crate::IndexMap;
 use bam::Record;
 
@@ -19,7 +20,7 @@ impl Grouper {
         &mut self,
         final_umis: Vec<Vec<&String>>,
         umis_records: &mut IndexMap<String, ReadsAndCount>,
-        output_list: &mut Vec<Record>,
+        output_list: Arc<Mutex<Vec<Record>>>,
     ) {
         // for each UMI within a group, assign the same tag
         for top_umi in final_umis {
@@ -33,7 +34,8 @@ impl Grouper {
                     .for_each(|mut x| {
                         x.tags_mut().push_num(b"UG", ug_tag);
                         x.tags_mut().push_string(b"BX", group.as_bytes());
-                        output_list.push(x);
+                        Arc::clone(&output_list).lock().unwrap().push(x);
+
                     })
             }
             self.num += 1;
@@ -46,7 +48,7 @@ impl Grouper {
         &mut self,
         grouping_output: Option<Vec<Vec<&String>>>,
         mut umis_records: IndexMap<String, ReadsAndCount>,
-        output_list: &mut Vec<Record>,
+        output_list: Arc<Mutex<Vec<Record>>>,
     ) {
         match grouping_output {
             Some(groups) => {
