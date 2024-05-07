@@ -16,15 +16,16 @@ mod read_io;
 
 
 fn main() {
-    let pool = rayon::ThreadPoolBuilder::new();
+    let args: Vec<String> = env::args().collect();
+
+    // let pool = rayon::ThreadPoolBuilder::new();
     let now = Instant::now();
-    pool.num_threads(4);
+    // pool.num_threads(4);
 
 
     let bottomhash = bottomhash::BottomHashMap {
         bottom_dict: IndexMap::new(),
     };
-    let args: Vec<String> = env::args().collect();
     println! {"using separator = {}", args[3]};
     let input_file = &args[1];
     let output_file = &args[2];
