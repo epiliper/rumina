@@ -21,7 +21,7 @@ fn main() {
     pool.num_threads(4);
 
 
-    let mut bottomhash = bottomhash::BottomHashMap {
+    let bottomhash = bottomhash::BottomHashMap {
         bottom_dict: IndexMap::new(),
     };
     let args: Vec<String> = env::args().collect();
@@ -39,7 +39,7 @@ fn main() {
     let n: i64 = 0;
     let mut outfile = BamWriterBuilder::from_path(&mut BamWriterBuilder::new().additional_threads(5), &output_file, header).unwrap();
     let grouper = Arc::new(Mutex::new(Grouper { num: 0 }));
-    let mut reads_to_spit: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
+    let reads_to_spit: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
 
 
 

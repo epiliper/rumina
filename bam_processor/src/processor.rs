@@ -130,7 +130,7 @@ impl<'b> Processor<'b> {
     pub fn get_adj_list_substring(
         &self,
         counts: HashMap<&String, i32>,
-        mut substring_neighbors: IndexMap<&'b String, HashSet<&'b String>>,
+        substring_neighbors: IndexMap<&'b String, HashSet<&'b String>>,
         threshold: usize,
     ) -> IndexMap<&'b String, HashSet<&'b String>> {
         let mut adj_list: IndexMap<&'b String, HashSet<&'b String>> =

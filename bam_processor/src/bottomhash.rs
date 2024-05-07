@@ -2,7 +2,6 @@ extern crate bam;
 extern crate rust_htslib;
 use bam::Record;
 use indexmap::IndexMap;
-use std::sync::Mutex;
 
 /* When main function executes, this struct is populated with
 * all information necessary for grouping/deduplicating.

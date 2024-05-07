@@ -108,7 +108,7 @@ impl<'a> ChunkProcessor<'a> {
         &mut self,
         input_file: BamReader<File>,
         mut bottomhash: BottomHashMap,
-        mut grouper: Arc<Mutex<Grouper>>,
+        grouper: Arc<Mutex<Grouper>>,
     ) {
         let mut counter = 0;
 
