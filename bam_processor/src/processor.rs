@@ -59,55 +59,6 @@ impl<'b> Processor<'b> {
         return substring_map;
     }
 
-    pub fn splitn(&self, num_chunks: usize) -> IndexMap<&str, Vec<&String>> {
-        let mut substring_map: IndexMap<&str, Vec<&String>> = IndexMap::new();
-        let umi_length = self.umis.first().unwrap().len();
-
-        let chunksize = umi_length / num_chunks;
-
-        for umi in self.umis{
-            umi.splitn(chunksize, |x| x=x).for_each(|x| { 
-                // substring_map.entry(str::from_utf8(x).unwrap()).or_insert(Vec::new()).push(umi);
-                substring_map.entry(x).or_insert(Vec::new()).push(umi);
-            });
-        }
-
-        return substring_map;
-    }
-
-    pub fn iter_substring2(
-        &self, 
-        chunksize: usize, 
-        substring_map: IndexMap<&'b str, Vec<&'b String>> 
-    ) -> IndexMap<&'b String, HashSet<&'b String>> {
-
-        let mut neighbors: IndexMap<&'b String, HashSet<&'b String>> = IndexMap::new();
-
-        for (idx, group) in &substring_map {
-            for umi in group {
-                neighbors.entry(umi).or_insert(HashSet::new());
-
-                let mut observed: HashSet<&'b String> = HashSet::new();
-
-                let sub2: HashSet<&'b String> = HashSet::new();
-
-                for slice in umi.splitn(chunksize, |x| x==x) {
-
-                    match substring_map.get(slice) {
-                        Some(x) => {observed.extend(x)},
-                        None => {},
-                    }
-
-                }
-
-                neighbors[umi].extend(observed);
-            }
-        }
-
-        return neighbors;
-
-    }
-
     pub fn iter_substring_neighbors(
         &self,
         substring_map: IndexMap<&'b str, Vec<&'b String>>,
@@ -230,9 +181,7 @@ impl<'b> Processor<'b> {
     // and UMI organization and grouping
     pub fn main_grouper(&self, counts: HashMap<&String, i32>) -> Option<Vec<Vec<&String>>> {
         let substring_map = self.get_substring_map();
-        // let substring_map = self.splitn(2);
         let neighbors = self.iter_substring_neighbors(substring_map);
-        // let neighbors = self.iter_substring2(2, substring_map);
         let directional_output = self.get_adj_list_substring(counts, neighbors, 1);
         let adj_list = directional_output;
         let final_umis;
