@@ -60,7 +60,7 @@ impl Grouper {
                 let reads = self.tag_groups(groups, &mut umis_records);
                 return Some(reads);
             }
-            None => return None
+            None => return None,
         }
     }
 }
