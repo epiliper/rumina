@@ -23,11 +23,11 @@ fn main() {
     let bottomhash = bottomhash::BottomHashMap {
         bottom_dict: IndexMap::new(),
     };
-    println! {"using separator = {}", args[3]};
     let input_file = &args[1];
     let output_file = &args[2];
     let separator = &args[3];
 
+    println! {"using separator = {}", separator};
     let bam = bam::BamReader::from_path(&input_file, 4).unwrap();
     let header = bam::BamReader::from_path(&input_file, 0)
         .unwrap()

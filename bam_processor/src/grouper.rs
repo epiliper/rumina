@@ -20,8 +20,6 @@ impl Grouper {
         &mut self,
         final_umis: Vec<Vec<&String>>,
         umis_records: &mut IndexMap<String, ReadsAndCount>,
-        // output_list: Arc<Mutex<Vec<Record>>>,
-        // mut output_list: Vec<Record>,
     ) -> Vec<Record> {
         // for each UMI within a group, assign the same tag
         let mut rng = rand::thread_rng();
@@ -38,7 +36,6 @@ impl Grouper {
                     .for_each(|mut x| {
                         x.tags_mut().push_num(b"UG", ug_tag);
                         x.tags_mut().push_string(b"BX", group.as_bytes());
-                        // Arc::clone(&output_list).lock().unwrap().push(x);
                         output_list.push(x);
                     })
             }
@@ -52,8 +49,6 @@ impl Grouper {
         &mut self,
         grouping_output: Option<Vec<Vec<&String>>>,
         mut umis_records: IndexMap<String, ReadsAndCount>,
-        // output_list: Arc<Mutex<Vec<Record>>>,
-        // output_list: Vec<Record>,
     ) -> Option<Vec<Record>> {
         match grouping_output {
             Some(groups) => {

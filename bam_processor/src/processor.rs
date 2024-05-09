@@ -1,5 +1,4 @@
 extern crate bam;
-extern crate rust_htslib;
 use indexmap::IndexMap;
 use parking_lot::Mutex;
 use rayon::prelude::*;
@@ -133,11 +132,51 @@ impl<'b> Processor<'b> {
                 if Processor::edit_distance(umi, neighbor) <= threshold && umi != neighbor {
                     if *counts.get(umi).unwrap() >= (counts.get(neighbor).unwrap() * 2 - 1) {
                         adj_list.lock()[umi].insert(neighbor);
-                    } else if *counts.get(neighbor).unwrap() >= (counts.get(umi).unwrap() * 2 - 1) {
-                        adj_list.lock()[neighbor].insert(umi);
+                    } 
+                    else if *counts.get(neighbor).unwrap() >= (counts.get(umi).unwrap() * 2 - 1) {
+                        adj_list.lock()[umi].insert(neighbor);
                     }
                 } else {
                 }
+            }
+        });
+
+        return Arc::try_unwrap(adj_list).unwrap().into_inner();
+    }
+
+    pub fn get_adj_list_substring_remove_singles(
+        &self,
+        counts: HashMap<&String, i32>,
+        substring_neighbors: IndexMap<&'b String, HashSet<&'b String>>,
+        threshold: usize,
+    ) -> IndexMap<&'b String, HashSet<&'b String>> {
+        let adj_list: Arc<Mutex<IndexMap<&'b String, HashSet<&'b String>>>> = Arc::new(Mutex::new(
+            IndexMap::with_capacity(substring_neighbors.values().len()),
+        ));
+
+        substring_neighbors.par_iter().for_each(|x| {
+            let umi = x.0;
+            let neighbors = x.1;
+            let umi_count = counts.get(umi).unwrap();
+            if *umi_count == 1 {
+            } else {
+
+            adj_list.lock().entry(x.0).or_insert(HashSet::new());
+
+            for neighbor in neighbors {
+                // adj_list.lock().entry(neighbor).or_insert(HashSet::new());
+
+                if Processor::edit_distance(umi, neighbor) <= threshold && umi != neighbor {
+                    let neighbor_count = counts.get(neighbor).unwrap();
+                    if  *umi_count >= (neighbor_count * 2 - 1) {
+                        adj_list.lock()[umi].insert(neighbor);
+                    } 
+                    else if *neighbor_count > 1 && *neighbor_count >= (umi_count * 2 -1) {
+                        adj_list.lock()[umi].insert(neighbor);
+                    }
+                } else {
+                }
+            }
             }
         });
 
@@ -169,6 +208,31 @@ impl<'b> Processor<'b> {
         }
     }
 
+    pub fn get_connected_components_par(
+        &self,
+        adj_list: IndexMap<&'b String, HashSet<&'b String>>,
+    ) -> Option<Vec<VecDeque<&String>>> {
+        let mut components: Arc<Mutex<Vec<VecDeque<&String>>>> = Arc::new(Mutex::new(Vec::new()));
+        let mut found: Arc<Mutex<HashSet<&String>>> = Arc::new(Mutex::new(HashSet::new()));
+
+        if adj_list.len() > 0 {
+            adj_list.par_keys().for_each(
+                |node| {
+                if !found.lock().contains(node) {
+                    let component = Processor::depth_first_search(node, &adj_list);
+                    found.lock().extend(component);
+                    components.lock().push(component);
+                }
+                }
+            );
+            return Some(Arc::try_unwrap(components).unwrap().into_inner());
+        } else {
+            return None;
+        }
+    }
+
+
+
     // get a list of UMIs, each with their own list of UMIs belonging to their group
     pub fn group_directional(&self, clusters: Vec<VecDeque<&'b String>>) -> Vec<Vec<&'b String>> {
         let mut observed: Vec<&String> = Vec::new();
@@ -198,11 +262,13 @@ impl<'b> Processor<'b> {
     pub fn main_grouper(&self, counts: HashMap<&String, i32>) -> Option<Vec<Vec<&String>>> {
         let substring_map = self.get_substring_map();
         let neighbors = self.iter_substring_neighbors(substring_map);
-        let directional_output = self.get_adj_list_substring(counts, neighbors, 1);
+        // let directional_output = self.get_adj_list_substring(counts, neighbors, 1);
+        let directional_output = self.get_adj_list_substring_remove_singles(counts, neighbors, 1);
         let adj_list = directional_output;
         let final_umis;
+        println!{"len adj_list {}", adj_list.len()}
         if adj_list.len() > 0 {
-            let clusters = self.get_connected_components(adj_list).unwrap();
+            let clusters = self.get_connected_components_par(adj_list).unwrap();
             final_umis = Some(self.group_directional(clusters));
         } else {
             final_umis = None;
