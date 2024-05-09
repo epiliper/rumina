@@ -220,7 +220,7 @@ impl<'b> Processor<'b> {
                 |node| {
                 if !found.lock().contains(node) {
                     let component = Processor::depth_first_search(node, &adj_list);
-                    found.lock().extend(component);
+                    found.lock().extend(&component);
                     components.lock().push(component);
                 }
                 }
