@@ -1,5 +1,4 @@
 extern crate bam;
-extern crate rust_htslib;
 use bam::Record;
 use indexmap::IndexMap;
 
