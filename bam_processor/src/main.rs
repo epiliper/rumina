@@ -7,7 +7,8 @@ use indexmap::IndexMap;
 use std::env;
 use std::time::Instant;
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
+use parking_lot::Mutex;
 
 mod bottomhash;
 mod grouper;
@@ -38,7 +39,6 @@ fn main() {
         .clone();
 
     let mut outfile = BamWriterBuilder::from_path(&mut BamWriterBuilder::new().additional_threads(5), &output_file, header).unwrap();
-    let grouper = Arc::new(Mutex::new(Grouper { num: 0 }));
     let reads_to_spit: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
 
 
@@ -48,10 +48,10 @@ fn main() {
         reads_to_output: Arc::clone(&reads_to_spit),
     };
 
-    read_handler.process_chunks(bam, bottomhash, grouper);
+    read_handler.process_chunks(bam, bottomhash);
 
-    println!{"Writing {} reads...", reads_to_spit.lock().unwrap().len()};
-    for read in reads_to_spit.lock().unwrap().iter() {
+    println!{"Writing {} reads...", reads_to_spit.lock().len()};
+    for read in reads_to_spit.lock().iter() {
         outfile.write(read).unwrap();
     }
 

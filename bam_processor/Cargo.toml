@@ -15,8 +15,11 @@ indicatif = "0.17.8"
 indexmap = {version = "2.2.6", features = ["rayon"]}
 regex = "1.10.4"
 rayon = "1.10.0"
+parking_lot = {version = "0.12.2", features = ["deadlock_detection"]}
 
 [profile.release]
 codegen-units = 1
 lto = "fat"
+target-cpu = "native"
+opt-level = 3
 

@@ -1,14 +1,14 @@
 extern crate bam;
 use crate::bottomhash::ReadsAndCount;
-use std::sync::{Arc, Mutex};
 use crate::IndexMap;
 use bam::Record;
+use rand::Rng;
 
 // this struct holds methods to
 // 1. modify the records within the bottomhash by lookup
 // 2. for every bundle, write the UG-tagged reads to output bam
 pub struct Grouper {
-    pub num: i32,
+    // pub num: i32,
 }
 
 impl Grouper {
@@ -20,11 +20,15 @@ impl Grouper {
         &mut self,
         final_umis: Vec<Vec<&String>>,
         umis_records: &mut IndexMap<String, ReadsAndCount>,
-        output_list: Arc<Mutex<Vec<Record>>>,
-    ) {
+        // output_list: Arc<Mutex<Vec<Record>>>,
+        // mut output_list: Vec<Record>,
+    ) -> Vec<Record> {
         // for each UMI within a group, assign the same tag
+        let mut rng = rand::thread_rng();
+        let mut output_list: Vec<Record> = Vec::with_capacity(1_000_000);
         for top_umi in final_umis {
-            let ug_tag = self.num;
+            // let ug_tag = self.num;
+            let ug_tag = rng.gen_range(0..20_000_000);
             for group in top_umi {
                 umis_records
                     .swap_remove(group)
@@ -34,12 +38,12 @@ impl Grouper {
                     .for_each(|mut x| {
                         x.tags_mut().push_num(b"UG", ug_tag);
                         x.tags_mut().push_string(b"BX", group.as_bytes());
-                        Arc::clone(&output_list).lock().unwrap().push(x);
-
+                        // Arc::clone(&output_list).lock().unwrap().push(x);
+                        output_list.push(x);
                     })
             }
-            self.num += 1;
         }
+        return output_list;
     }
 
     // driver function of grouping
@@ -48,13 +52,15 @@ impl Grouper {
         &mut self,
         grouping_output: Option<Vec<Vec<&String>>>,
         mut umis_records: IndexMap<String, ReadsAndCount>,
-        output_list: Arc<Mutex<Vec<Record>>>,
-    ) {
+        // output_list: Arc<Mutex<Vec<Record>>>,
+        // output_list: Vec<Record>,
+    ) -> Option<Vec<Record>> {
         match grouping_output {
             Some(groups) => {
-                self.tag_groups(groups, &mut umis_records, output_list);
+                let reads = self.tag_groups(groups, &mut umis_records);
+                return Some(reads);
             }
-            None => {}
+            None => return None
         }
     }
 }
