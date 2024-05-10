@@ -28,7 +28,6 @@ def tag_bam(input_file):
     # use umi_tools group to assign unique UG tag per UMI cluster
     tagged_file_name = input_file.split('.bam')[0] + '_tagged.bam'
     temp_file_name = tagged_file_name.split('.bam')[0] + '_temp.bam'
-    # tag_cmd = 'umi_tools group -I ' + input_file + " --output-bam --umi-separator=':' --paired -S " + tagged_file_name.split('.bam')[0] + '_temp.bam' 
     tag_cmd = 'bam_processor/target/release/bam_processor ' + input_file + ' ' + temp_file_name + ' ' + args.separator
     subprocess.run(tag_cmd, shell = True)
     pysam.sort("-o", temp_file_name, '--no-PG', temp_file_name)

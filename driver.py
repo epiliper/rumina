@@ -27,25 +27,17 @@ if os.path.isdir(args.input):
                 tagged_bam = tag_bam(file_to_clean)
                 bam_to_clean, blacklist = build_onesies(tagged_bam)
                 clean_file = remove_onesies(bam_to_clean, blacklist)
-                file_to_dedup, file_qc = check_cleaned(clean_file)
-                file_to_report = dedup(file_to_dedup) 
-                if args.report_coverage: 
-                    report_coverage(args.input, file_to_clean, 'original')
-                    report_coverage(args.input, file_to_report, 'dedup')
 
     ## assuming more than one input bamfile in the input directory, 
     ## compile coverage/depth report .tsvs into a single .csv
     if args.report_coverage:
         summarize_coverage('original', args.input)
-        summarize_coverage('dedup', args.input)
 
 ## if input is single file, process it
 elif os.path.isfile(args.input):
     tagged_bam = tag_bam(args.input)
     bam_to_clean, blacklist = build_onesies(tagged_bam)
     clean_file = remove_onesies(bam_to_clean, blacklist)
-    # file_to_dedup, file_qc = check_cleaned(clean_file)
-    # file_to_report = dedup(file_to_dedup) 
 
 end_time = time.time()
 

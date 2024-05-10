@@ -8,6 +8,7 @@ use std::collections::VecDeque;
 use std::str;
 use std::sync::Arc;
 use strsim::hamming;
+use std::mem;
 
 // this is the struct that contains functions used to group umis per the directional method
 pub struct Processor<'b> {
@@ -226,7 +227,6 @@ impl<'b> Processor<'b> {
         let directional_output = self.get_adj_list_substring(counts, neighbors, 1);
         let adj_list = directional_output;
         let final_umis;
-        println!{"len adj_list {}", adj_list.len()}
         if adj_list.len() > 0 {
             let clusters = self.get_connected_components_par(adj_list).unwrap();
             final_umis = Some(self.group_directional(clusters));
