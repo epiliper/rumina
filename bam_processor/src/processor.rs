@@ -8,7 +8,6 @@ use std::collections::VecDeque;
 use std::str;
 use std::sync::Arc;
 use strsim::hamming;
-use std::mem;
 
 // this is the struct that contains functions used to group umis per the directional method
 pub struct Processor<'b> {
@@ -16,9 +15,7 @@ pub struct Processor<'b> {
 }
 
 impl<'b> Processor<'b> {
-    // for getting all unique umi keys from adjacency list
-    // visits a UMI, gets all UMIs grouped with it, then moves onto next UMI.
-    // doesn't add duplicate UMIs
+    // gets the group neighbors of all group neighbors of a given UMI.
     pub fn depth_first_search(
         mut node: &'b String,
         adj_list: &IndexMap<&'b String, HashSet<&'b String>>,
@@ -133,8 +130,7 @@ impl<'b> Processor<'b> {
                 if Processor::edit_distance(umi, neighbor) <= threshold && umi != neighbor {
                     if *counts.get(umi).unwrap() >= (counts.get(neighbor).unwrap() * 2 - 1) {
                         adj_list.lock()[umi].insert(neighbor);
-                    } 
-                    else if *counts.get(neighbor).unwrap() >= (counts.get(umi).unwrap() * 2 - 1) {
+                    } else if *counts.get(neighbor).unwrap() >= (counts.get(umi).unwrap() * 2 - 1) {
                         adj_list.lock()[umi].insert(neighbor);
                     }
                 } else {
@@ -178,22 +174,18 @@ impl<'b> Processor<'b> {
         let mut found: Arc<Mutex<HashSet<&String>>> = Arc::new(Mutex::new(HashSet::new()));
 
         if adj_list.len() > 0 {
-            adj_list.par_keys().for_each(
-                |node| {
+            adj_list.par_keys().for_each(|node| {
                 if !found.lock().contains(node) {
                     let component = Processor::depth_first_search(node, &adj_list);
                     found.lock().extend(&component);
                     components.lock().push(component);
                 }
-                }
-            );
+            });
             return Some(Arc::try_unwrap(components).unwrap().into_inner());
         } else {
             return None;
         }
     }
-
-
 
     // get a list of UMIs, each with their own list of UMIs belonging to their group
     pub fn group_directional(&self, clusters: Vec<HashSet<&'b String>>) -> Vec<Vec<&'b String>> {

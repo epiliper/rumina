@@ -8,11 +8,10 @@ use rand::Rng;
 // 1. modify the records within the bottomhash by lookup
 // 2. for every bundle, write the UG-tagged reads to output bam
 pub struct Grouper {
-    // pub num: i32,
 }
 
 impl Grouper {
-    // for umis successfully grouped (passing directional filtering)
+
     // remove the reads associated with each UMI from the bundle
     // tag them
     // push them to a list of tagged Records awaiting writing to an output bamfile
@@ -25,8 +24,9 @@ impl Grouper {
         let mut rng = rand::thread_rng();
         let mut output_list: Vec<Record> = Vec::with_capacity(1_000_000);
         for top_umi in final_umis {
-            // let ug_tag = self.num;
-            let ug_tag = rng.gen_range(0..20_000_000);
+            // generate a UG tag for each group, randomly from 0 - 1e9. 
+            // this range works for bamfiles of 1e8 reads.
+            let ug_tag = rng.gen_range(0..1_000_000_000);
             for group in top_umi {
                 umis_records
                     .swap_remove(group)
