@@ -144,45 +144,6 @@ impl<'b> Processor<'b> {
         return Arc::try_unwrap(adj_list).unwrap().into_inner();
     }
 
-    pub fn get_adj_list_substring_remove_singles(
-        &self,
-        counts: HashMap<&String, i32>,
-        substring_neighbors: IndexMap<&'b String, HashSet<&'b String>>,
-        threshold: usize,
-    ) -> IndexMap<&'b String, HashSet<&'b String>> {
-        let adj_list: Arc<Mutex<IndexMap<&'b String, HashSet<&'b String>>>> = Arc::new(Mutex::new(
-            IndexMap::with_capacity(substring_neighbors.values().len()),
-        ));
-
-        substring_neighbors.par_iter().for_each(|x| {
-            let umi = x.0;
-            let neighbors = x.1;
-            let umi_count = counts.get(umi).unwrap();
-            if *umi_count == 1 {
-            } else {
-
-            adj_list.lock().entry(x.0).or_insert(HashSet::new());
-
-            for neighbor in neighbors {
-                // adj_list.lock().entry(neighbor).or_insert(HashSet::new());
-
-                if Processor::edit_distance(umi, neighbor) <= threshold && umi != neighbor {
-                    let neighbor_count = counts.get(neighbor).unwrap();
-                    if  *umi_count >= (neighbor_count * 2 - 1) {
-                        adj_list.lock()[umi].insert(neighbor);
-                    } 
-                    else if *neighbor_count > 1 && *neighbor_count >= (umi_count * 2 -1) {
-                        adj_list.lock()[umi].insert(neighbor);
-                    }
-                } else {
-                }
-            }
-            }
-        });
-
-        return Arc::try_unwrap(adj_list).unwrap().into_inner();
-    }
-
     // return a list of lists, comprising a UMI
     // with a list of grouped UMIs.
     // via breadth-first-search
@@ -262,7 +223,6 @@ impl<'b> Processor<'b> {
     pub fn main_grouper(&self, counts: HashMap<&String, i32>) -> Option<Vec<Vec<&String>>> {
         let substring_map = self.get_substring_map();
         let neighbors = self.iter_substring_neighbors(substring_map);
-        // let directional_output = self.get_adj_list_substring(counts, neighbors, 1);
         let directional_output = self.get_adj_list_substring(counts, neighbors, 1);
         let adj_list = directional_output;
         let final_umis;
