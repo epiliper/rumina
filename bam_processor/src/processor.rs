@@ -21,20 +21,20 @@ impl<'b> Processor<'b> {
     pub fn depth_first_search(
         mut node: &'b String,
         adj_list: &IndexMap<&'b String, HashSet<&'b String>>,
-    ) -> VecDeque<&'b String> {
-        let mut searched: VecDeque<&String> = VecDeque::new();
+    ) -> HashSet<&'b String> {
+        let mut searched: HashSet<&String> = HashSet::new();
         let mut queue: VecDeque<&String> = VecDeque::new();
 
         queue.push_back(node);
-        searched.push_back(node);
+        searched.insert(node);
 
         while queue.len() > 0 {
             node = &queue.pop_front().unwrap();
             if adj_list.contains_key(node) {
                 for next_node in &adj_list[node] {
-                    if !searched.contains(&next_node) {
+                    if !searched.contains(next_node) {
                         queue.push_back(next_node);
-                        searched.push_back(next_node);
+                        searched.insert(next_node);
                     }
                 }
             }
@@ -190,8 +190,8 @@ impl<'b> Processor<'b> {
     pub fn get_connected_components(
         &self,
         adj_list: IndexMap<&'b String, HashSet<&'b String>>,
-    ) -> Option<Vec<VecDeque<&String>>> {
-        let mut components: Vec<VecDeque<&String>> = Vec::new();
+    ) -> Option<Vec<HashSet<&String>>> {
+        let mut components: Vec<HashSet<&String>> = Vec::new();
         let mut found: Vec<&String> = Vec::new();
 
         if adj_list.len() > 0 {
@@ -211,8 +211,8 @@ impl<'b> Processor<'b> {
     pub fn get_connected_components_par(
         &self,
         adj_list: IndexMap<&'b String, HashSet<&'b String>>,
-    ) -> Option<Vec<VecDeque<&String>>> {
-        let mut components: Arc<Mutex<Vec<VecDeque<&String>>>> = Arc::new(Mutex::new(Vec::new()));
+    ) -> Option<Vec<HashSet<&String>>> {
+        let mut components: Arc<Mutex<Vec<HashSet<&String>>>> = Arc::new(Mutex::new(Vec::new()));
         let mut found: Arc<Mutex<HashSet<&String>>> = Arc::new(Mutex::new(HashSet::new()));
 
         if adj_list.len() > 0 {
@@ -234,21 +234,21 @@ impl<'b> Processor<'b> {
 
 
     // get a list of UMIs, each with their own list of UMIs belonging to their group
-    pub fn group_directional(&self, clusters: Vec<VecDeque<&'b String>>) -> Vec<Vec<&'b String>> {
-        let mut observed: Vec<&String> = Vec::new();
+    pub fn group_directional(&self, clusters: Vec<HashSet<&'b String>>) -> Vec<Vec<&'b String>> {
+        let mut observed: HashSet<&String> = HashSet::new();
         let mut groups: Vec<Vec<&String>> = Vec::new();
 
         for cluster in clusters {
             if cluster.len() == 1 {
-                observed.push(&cluster.get(0).unwrap());
-                groups.push(cluster.into());
+                observed.extend(&cluster);
+                groups.push(cluster.into_iter().collect::<Vec<&String>>());
             } else {
                 let mut temp_cluster: Vec<&String> = Vec::new();
 
                 for node in cluster {
-                    if !observed.contains(&&node) {
+                    if !observed.contains(&node) {
                         temp_cluster.push(node);
-                        observed.push(node);
+                        observed.insert(node);
                     }
                 }
                 groups.push(temp_cluster);
@@ -263,7 +263,7 @@ impl<'b> Processor<'b> {
         let substring_map = self.get_substring_map();
         let neighbors = self.iter_substring_neighbors(substring_map);
         // let directional_output = self.get_adj_list_substring(counts, neighbors, 1);
-        let directional_output = self.get_adj_list_substring_remove_singles(counts, neighbors, 1);
+        let directional_output = self.get_adj_list_substring(counts, neighbors, 1);
         let adj_list = directional_output;
         let final_umis;
         println!{"len adj_list {}", adj_list.len()}
