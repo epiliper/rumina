@@ -3,6 +3,8 @@ use crate::bottomhash::ReadsAndCount;
 use crate::IndexMap;
 use bam::Record;
 use rand::Rng;
+use std::collections::HashSet;
+use rand::rngs::ThreadRng;
 
 const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
                             abcdefghijklmnopqrstuvwxyz\
@@ -14,6 +16,20 @@ const UMI_TAG_LEN: usize = 8;
 // 1. modify the records within the bottomhash by lookup
 // 2. for every bundle, write the UG-tagged reads to output bam
 pub struct Grouper {
+}
+
+pub fn generate_tag(rng: & mut ThreadRng, used_tags: & mut HashSet<[u8; UMI_TAG_LEN]>) -> [u8; UMI_TAG_LEN] {
+    let ug_tag: [u8; UMI_TAG_LEN] = (0..UMI_TAG_LEN)
+    .map(|_| {
+            let idx = rng.gen_range(0..CHARSET.len());
+            CHARSET[idx]
+        }).collect::<Vec<u8>>().try_into().unwrap();
+    if !used_tags.contains(&ug_tag) {
+        return ug_tag
+    } else {
+        generate_tag(rng, used_tags)
+    }
+
 }
 
 impl Grouper {
@@ -29,15 +45,9 @@ impl Grouper {
         // for each UMI within a group, assign the same tag
         let mut rng = rand::thread_rng();
         let mut output_list: Vec<Record> = Vec::with_capacity(1_000_000);
+        let mut used_tags: HashSet<[u8; UMI_TAG_LEN]> = HashSet::with_capacity(output_list.len());
         for top_umi in final_umis {
-            // generate a UG tag for each group, randomly from 0 - 1e9. 
-            // this range works for bamfiles of 1e8 reads.
-            // let ug_tag: String = rng.gen_range(0..CHARSET.len());
-            let ug_tag: [u8; UMI_TAG_LEN] = (0..UMI_TAG_LEN)
-            .map(|_| {
-                    let idx = rng.gen_range(0..CHARSET.len());
-                    CHARSET[idx]
-                }).collect::<Vec<u8>>().try_into().unwrap();
+            let ug_tag = generate_tag(& mut rng, & mut used_tags);
             for group in top_umi {
                 umis_records
                     .swap_remove(group)
@@ -45,7 +55,6 @@ impl Grouper {
                     .reads
                     .drain(0..)
                     .for_each(|mut x| {
-                        // x.tags_mut().push_num(b"UG", ug_tag);
                         x.tags_mut().push_string(b"UG", &ug_tag);
                         x.tags_mut().push_string(b"BX", group.as_bytes());
                         output_list.push(x);
