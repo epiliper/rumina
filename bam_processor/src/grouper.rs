@@ -4,6 +4,12 @@ use crate::IndexMap;
 use bam::Record;
 use rand::Rng;
 
+const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+                            abcdefghijklmnopqrstuvwxyz\
+                            0123456789)(*&^%$#@!~";
+
+const UMI_TAG_LEN: usize = 8;
+
 // this struct holds methods to
 // 1. modify the records within the bottomhash by lookup
 // 2. for every bundle, write the UG-tagged reads to output bam
@@ -26,7 +32,12 @@ impl Grouper {
         for top_umi in final_umis {
             // generate a UG tag for each group, randomly from 0 - 1e9. 
             // this range works for bamfiles of 1e8 reads.
-            let ug_tag = rng.gen_range(0..1_000_000_000);
+            // let ug_tag: String = rng.gen_range(0..CHARSET.len());
+            let ug_tag: [u8; UMI_TAG_LEN] = (0..UMI_TAG_LEN)
+            .map(|_| {
+                    let idx = rng.gen_range(0..CHARSET.len());
+                    CHARSET[idx]
+                }).collect::<Vec<u8>>().try_into().unwrap();
             for group in top_umi {
                 umis_records
                     .swap_remove(group)
@@ -34,7 +45,8 @@ impl Grouper {
                     .reads
                     .drain(0..)
                     .for_each(|mut x| {
-                        x.tags_mut().push_num(b"UG", ug_tag);
+                        // x.tags_mut().push_num(b"UG", ug_tag);
+                        x.tags_mut().push_string(b"UG", &ug_tag);
                         x.tags_mut().push_string(b"BX", group.as_bytes());
                         output_list.push(x);
                     })
