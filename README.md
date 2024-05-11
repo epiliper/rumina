@@ -1,3 +1,8 @@
+<p align="center">
+<!-- ![RUMINA LOGO](imgs/RUMINA_LOGO.svg) -->
+    <img src="imgs/RUMINA_LOGO.svg">
+</p>
+
 ## RUMINA - Rust-based Unique Molecular Identifier Network Analysis
 
 - removing singleton UMIs (potential artifacts)
