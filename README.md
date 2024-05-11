@@ -1,7 +1,5 @@
 <p align="center">
-<!-- ![RUMINA LOGO](imgs/RUMINA_LOGO.svg) -->
-    <img src="imgs/RUMINA_LOGO_dark.svg#gh-dark-mode-only">
-    <img src="imgs/RUMINA_LOGO_light.svg#gh-light-mode-only">
+    <img src="imgs/RUMINA_LOGO_light.svg">
 </p>
 
 ## RUMINA - Rust-based Unique Molecular Identifier Network Analysis
@@ -34,5 +32,3 @@ If `--report_coverage` is used (see optional arguments) with a directory input, 
 
 #### Todo
 - Attempt to include mapping quality stats in `--report_coverage`
-- investigate faster ways of grouping/deduping bams
-- parallelize processing multiple bamfiles (contingent on above task)
