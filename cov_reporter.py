@@ -1,23 +1,25 @@
 import pandas as pd 
-import argparse
 import subprocess
 import os
+from shutil import which
 
 columns = ['min_depth', 'max_depth', 'median_depth', 'mean_depth', 'coverage_percent','query_name']
 
-def report_coverage(work_dir, input, report_type):
+def report_coverage(input):
 
     cov_cmd = 'bedtools genomecov -d -ibam input_file > output_file'
 
-    infile = os.path.basename(input)
-    save_dir = os.path.dirname(input)
+    # infile = os.path.basename(input)
+    save_dir = os.path.dirname(os.path.basename(input))
     outfile = input.split('.bam')[0] + '_depth.tsv'
-    query_name = infile.split('.bam')[0]
+    query_name = os.path.basename(input).split('.bam')[0]
 
     cov_cmd = cov_cmd.replace('input_file', input)
     cov_cmd = cov_cmd.replace('output_file', outfile)
 
-    subprocess.run(cov_cmd, shell = True)
+    with open(outfile, "w") as cov_file:
+        subprocess.run([which("bedtools"), 'genomecov', '-d', '-ibam', input], stdout = cov_file)
+
 
     df = pd.read_csv(outfile, sep='\t', names = ['reference', 'position', 'num_reads'])
 
@@ -36,10 +38,7 @@ def report_coverage(work_dir, input, report_type):
 
     report = pd.DataFrame(data)
 
-    if report_type == 'original':
-        csv_name = infile.split('.bam')[0] + '_coverage.tsv'
-    elif report_type == 'dedup':
-        csv_name = infile.split('.bam')[0] + '_coverage_dedup.tsv'
+    csv_name = input.split('.bam')[0] + '_coverage.tsv'
 
     report.to_csv(save_dir + '/' + csv_name, sep = '\t', header = 0, index = None)
     
@@ -61,10 +60,10 @@ def summarize_coverage(report_type, work_dir):
         search_path = work_dir + '/'
         final_file = search_path + 'COMPLETE_COVERAGE.csv'
 
-    elif report_type == 'dedup':
+    elif report_type == 'cleaned':
         suffix = '_coverage_dedup.tsv'
         search_path = work_dir + '/cleaned/'
-        final_file = search_path + 'DEDUP_COMPLETE_COVERAGE.csv'
+        final_file = search_path + 'COMPLETE_COVERAGE.csv'
 
     print(f"Combining coverage reports...\nCoverage csv name: {final_file}")
     print(search_path)

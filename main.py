@@ -1,11 +1,8 @@
-### This is an example file showing how the pipeline
-## can be applied to multiple input bamfiles 
-## within a single directory.
 import os 
-# from cov_reporter import report_coverage, summarize_coverage
-from uclean import tag_bam, build_onesies, remove_onesies
+from uclean import group_bam, build_onesies, remove_onesies
 from args import init_args
 import time
+from cov_reporter import report_coverage, summarize_coverage
 
 args = init_args()
 
@@ -21,20 +18,26 @@ if os.path.isdir(args.input):
             if 'tagged' not in file and 'cleaned' not in file:
                 file_to_clean = os.path.abspath(os.path.join(args.input, file))
                 print(f"WORKING ON FILE: {file_to_clean}")
-                tagged_bam = tag_bam(file_to_clean)
+                tagged_bam = group_bam(file_to_clean)
                 bam_to_clean, blacklist = build_onesies(tagged_bam)
                 clean_file = remove_onesies(bam_to_clean, blacklist)
+                if args.report_coverage:
+                    report_coverage(clean_file)
 
     ## assuming more than one input bamfile in the input directory, 
     ## compile coverage/depth report .tsvs into a single .csv
-    # if args.report_coverage:
-    #     summarize_coverage('original', args.input)
+    if args.report_coverage:
+        summarize_coverage('original', args.input)
+        summarize_coverage('cleaned', args.input)
 
 ## if input is single file, process it
 elif os.path.isfile(args.input):
-    tagged_bam = tag_bam(args.input)
+    tagged_bam = group_bam(args.input)
     bam_to_clean, blacklist = build_onesies(tagged_bam)
     clean_file = remove_onesies(bam_to_clean, blacklist)
+    if args.report_coverage:
+        report_coverage(os.path.abspath(args.input))
+        report_coverage(os.path.abspath(clean_file))
 
 end_time = time.time()
 

@@ -20,21 +20,19 @@ else:
 print(f"Working path: {work_path}")
 
 ### assign UG tag for each group of clustered UMIs
-def tag_bam(input_file):
+def group_bam(input_file):
 
     tagged_file_name = input_file.split('.bam')[0] + '_tagged.bam'
     temp_file_name = tagged_file_name.split('.bam')[0] + '_temp.bam'
-    # tag_cmd = 'bam_processor/target/release/bam_processor ' + input_file + ' ' + temp_file_name + ' ' + args.separator
     tag_cmd = 'bam_processor/target/release/bam_processor'
     subprocess.run([tag_cmd, input_file, temp_file_name, args.separator])
 
     pysam.view("-@ 6", "-h", "-b", "-d", "UG", os.path.abspath(temp_file_name), "-o", os.path.abspath(tagged_file_name), catch_stdout = False)
-    pysam.sort(tagged_file_name, "-T temp", "-o", tagged_file_name, catch_stdout = False)
-    pysam.index(tagged_file_name)
+    # pysam.sort("-@ 6", tagged_file_name, "-o", tagged_file_name, catch_stdout = False)
+    # pysam.index("-@ 6", tagged_file_name)
 
     # CLEAN 
     if args.delete_temps:
-        print('DELETING FILE!')
         os.remove(temp_file_name)
 
     return(tagged_file_name)
