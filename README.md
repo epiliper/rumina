@@ -1,5 +1,6 @@
 <p align="center">
-    <img src="imgs/RUMINA_LOGO_light.svg">
+    <img src="imgs/RUMINA_LOGO_light.png#gh-light-mode-only">
+    <img src="imgs/RUMINA_LOGO_dark.png#gh-dark-mode-only">
 </p>
 
 ## RUMINA - Rust-based Unique Molecular Identifier Network Analysis
