@@ -2,11 +2,8 @@
 ## can be applied to multiple input bamfiles 
 ## within a single directory.
 import os 
-import subprocess
-import argparse
-import pandas 
-from cov_reporter import report_coverage, summarize_coverage
-from uclean import *
+# from cov_reporter import report_coverage, summarize_coverage
+from uclean import tag_bam, build_onesies, remove_onesies
 from args import init_args
 import time
 
@@ -30,8 +27,8 @@ if os.path.isdir(args.input):
 
     ## assuming more than one input bamfile in the input directory, 
     ## compile coverage/depth report .tsvs into a single .csv
-    if args.report_coverage:
-        summarize_coverage('original', args.input)
+    # if args.report_coverage:
+    #     summarize_coverage('original', args.input)
 
 ## if input is single file, process it
 elif os.path.isfile(args.input):

@@ -1,10 +1,7 @@
-import argparse 
 import pysam 
 from collections import Counter 
 import subprocess 
 import os
-import time
-from cov_reporter import report_coverage, summarize_coverage
 
 ### import args
 from args import init_args
@@ -25,17 +22,15 @@ print(f"Working path: {work_path}")
 ### assign UG tag for each group of clustered UMIs
 def tag_bam(input_file):
 
-    # use umi_tools group to assign unique UG tag per UMI cluster
     tagged_file_name = input_file.split('.bam')[0] + '_tagged.bam'
     temp_file_name = tagged_file_name.split('.bam')[0] + '_temp.bam'
-    tag_cmd = 'bam_processor/target/release/bam_processor ' + input_file + ' ' + temp_file_name + ' ' + args.separator
-    subprocess.run(tag_cmd, shell = True)
-    pysam.sort("-o", temp_file_name, '--no-PG', temp_file_name)
-    pysam.index(temp_file_name)
+    # tag_cmd = 'bam_processor/target/release/bam_processor ' + input_file + ' ' + temp_file_name + ' ' + args.separator
+    tag_cmd = 'bam_processor/target/release/bam_processor'
+    subprocess.run([tag_cmd, input_file, temp_file_name, args.separator])
 
-    # filter tagged bam to get only reads with UMI tag
-    filter_cmd = 'samtools view -@ 6 -h -b -d UG ' + temp_file_name + ' > ' + tagged_file_name 
-    subprocess.run(filter_cmd, shell = True)
+    pysam.view("-@ 6", "-h", "-b", "-d", "UG", os.path.abspath(temp_file_name), "-o", os.path.abspath(tagged_file_name), catch_stdout = False)
+    pysam.sort(tagged_file_name, "-T temp", "-o", tagged_file_name, catch_stdout = False)
+    pysam.index(tagged_file_name)
 
     # CLEAN 
     if args.delete_temps:
@@ -85,10 +80,8 @@ def remove_onesies(input_file, blacklist):
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
     clean_file_name = output_dir  + '/' + output_file + '_cleaned.bam'
-
-
-    clean_cmd = 'samtools view -b -@ 6 -h -D UG:' + blacklist + ' ' + file_to_clean + ' > ' + clean_file_name
-    subprocess.run(clean_cmd, shell = True)
+        
+    pysam.view("-b", "-@ 6", "-h", "-D", f"UG:{blacklist}", file_to_clean, "-o", clean_file_name, catch_stdout = False) 
 
     # CLEAN
     if args.delete_temps: 
@@ -124,17 +117,3 @@ def check_cleaned(input_file):
 
     return input_file, qc
 
-def dedup(input_file):
-
-    output_file = input_file.split('.bam')[0] + '_dedup.bam'
-    
-    subprocess.run('samtools index ' + input_file, shell = True)
-
-    dedup_cmd = 'umi_tools dedup --paired --buffer-whole-contig -I input_file --umi-separator=":" -S output_file'
-    dedup_cmd = dedup_cmd.replace('input_file', input_file)
-    dedup_cmd = dedup_cmd.replace('output_file', output_file)
-    subprocess.run(dedup_cmd, shell = True)
-
-    subprocess.run('samtools index ' + output_file, shell = True)
-
-    return output_file
