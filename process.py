@@ -19,6 +19,38 @@ else:
 
 print(f"Working path: {work_path}")
 
+
+def calculate_split(input):
+    size = os.stat(input).st_size / 1024**2
+    print(size)
+    window_size = 0
+
+    if size in range(0, 500):
+        window_size = 0 
+
+    elif size in range(500, 1_000):
+        window_size = 250
+
+    elif size in range(1000, 10_000):
+        print("oof")
+        window_size = 100
+
+    else:
+        window_size = 100
+
+    return window_size 
+
+def split_bam(input, window_size):
+
+    file = os.path.basename(input)
+    split_dir = file.split('.bam')[0] + f"_{window_size}"
+
+    print(f"Splitting {input} into {window_size} base pair windows...")
+
+    subprocess.run(["multibam/target/release/multibam", input, split_dir, str(window_size)])
+
+    return os.path.abspath(os.path.join(os.path.dirname(input), split_dir))
+
 ### assign UG tag for each group of clustered UMIs
 def group_bam(input_file):
 
@@ -111,4 +143,3 @@ def check_cleaned(input_file):
         qc = 'PASS'
 
     return input_file, qc
-
