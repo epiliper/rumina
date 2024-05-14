@@ -86,7 +86,7 @@ impl<'a> ChunkProcessor<'a> {
                 print! {"\rRead in {counter} reads" }
             }
         }
-        print! {"\rRead in {counter} reads\n"}
+        print! {"\r Grouping {counter} reads...\n"}
 
         Self::group_reads(self, &mut bottomhash);
     }

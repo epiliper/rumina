@@ -28,8 +28,6 @@ def group_bam(input_file):
     subprocess.run([tag_cmd, input_file, temp_file_name, args.separator])
 
     pysam.view("-@ 6", "-h", "-b", "-d", "UG", os.path.abspath(temp_file_name), "-o", os.path.abspath(tagged_file_name), catch_stdout = False)
-    # pysam.sort("-@ 6", tagged_file_name, "-o", tagged_file_name, catch_stdout = False)
-    # pysam.index("-@ 6", tagged_file_name)
 
     # CLEAN 
     if args.delete_temps:
@@ -47,7 +45,6 @@ def build_onesies(input_file):
     ug_list = []
     n = 0
     for read in iter:
-        # tag_report = {"UG":read.tags["UG"]}
         ug = (str(dict(read.tags)["UG"]), str(read.reference_start), str(read.qname.split(str(args.separator))[-1]))
         ug_list.append(ug)
         n += 1
