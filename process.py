@@ -2,6 +2,7 @@ import pysam
 from collections import Counter 
 import subprocess 
 import os
+from cov_reporter import report_coverage, summarize_coverage
 
 ### import args
 from args import init_args
@@ -32,7 +33,6 @@ def calculate_split(input):
         window_size = 250
 
     elif size in range(1000, 10_000):
-        print("oof")
         window_size = 100
 
     else:
@@ -45,11 +45,34 @@ def split_bam(input, window_size):
     file = os.path.basename(input)
     split_dir = file.split('.bam')[0] + f"_{window_size}"
 
-    print(f"Splitting {input} into {window_size} base pair windows...")
+    print(f"Splitting {input} into {window_size}bp windows...")
 
     subprocess.run(["multibam/target/release/multibam", input, split_dir, str(window_size)])
 
-    return os.path.abspath(os.path.join(os.path.dirname(input), split_dir))
+    # return os.path.abspath(os.path.join(os.path.dirname(input), split_dir))
+    return os.path.join(os.path.dirname(input), split_dir)
+
+def merge_processed_splits():
+
+    clean_dir = os.path.join(work_path, "cleaned")
+
+    prefixes_for_merging = set()
+
+    # prefixes_for_merging = [filename.split('.')[0] for filename in os.listdir(clean_dir)]
+    for filename in os.listdir(clean_dir):
+        prefixes_for_merging.add(filename.split('.')[0])
+    print(prefixes_for_merging)
+
+    for prefix in prefixes_for_merging:
+        splits = [os.path.join(clean_dir, file) for file in os.listdir(clean_dir) if file.startswith(prefix)]
+        final_file = os.path.join(clean_dir, prefix + "_final.bam")
+        # pysam.merge("-@ 6", final_file, f"{prefix}*")
+        pysam.merge("-@ 6", final_file, *splits)
+        for split in splits:
+            os.remove(split)
+
+        if args.report_coverage:
+            report_coverage(final_file)
 
 ### assign UG tag for each group of clustered UMIs
 def group_bam(input_file):
@@ -143,3 +166,15 @@ def check_cleaned(input_file):
         qc = 'PASS'
 
     return input_file, qc
+
+def report():
+    clean_path = os.path.join(work_path, "cleaned")
+    for file in os.listdir(clean_path):
+        if file.endswith('.bam'):
+            report_coverage(os.path.join(clean_path, file))
+
+    summarize_coverage(clean_path)
+    
+
+    
+
