@@ -22,23 +22,19 @@ print(f"Working path: {work_path}")
 
 
 def calculate_split(input):
-    size = os.stat(input).st_size / 1024**2
-    print(size)
-    window_size = 0
+    size = int(os.stat(input).st_size / 1024**2)
 
     if size in range(0, 500):
-        window_size = 0 
+        return 0
 
     elif size in range(500, 1_000):
-        window_size = 250
+        return 250
 
     elif size in range(1000, 10_000):
-        window_size = 100
+        return 100
 
     else:
-        window_size = 100
-
-    return window_size 
+        return 100
 
 def split_bam(input, window_size):
 
@@ -66,7 +62,6 @@ def merge_processed_splits():
     for prefix in prefixes_for_merging:
         splits = [os.path.join(clean_dir, file) for file in os.listdir(clean_dir) if file.startswith(prefix)]
         final_file = os.path.join(clean_dir, prefix + "_final.bam")
-        # pysam.merge("-@ 6", final_file, f"{prefix}*")
         pysam.merge("-@ 6", final_file, *splits)
         for split in splits:
             os.remove(split)

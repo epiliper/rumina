@@ -2,6 +2,10 @@ import pandas as pd
 import subprocess
 import os
 from shutil import which
+import warnings
+
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 columns = ['min_depth', 'max_depth', 'median_depth', 'mean_depth', 'coverage_percent','query_name']
 
@@ -58,7 +62,7 @@ def summarize_coverage(work_dir):
 
     for file in os.listdir(work_dir):
         if file.endswith('_coverage.tsv'):
-            read_file = pd.read_csv(os.path.join(work_dir, file), sep = '\t', header = 0) 
+            read_file = pd.read_csv(os.path.join(work_dir, file), sep = '\t', header = 0, index_col = False) 
             total_df = pd.concat([total_df, read_file])
 
     total_df.to_csv(final_file)

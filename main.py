@@ -26,21 +26,22 @@ def process_file(file):
     bam_to_clean, blacklist = build_onesies(tagged_bam)
     clean_file = remove_onesies(bam_to_clean, blacklist)
 
+## if input is a directory, analyze all bams within
 if os.path.isdir(args.input): 
-    ## if a bam is split, a new directory of sub-bams is created
-    ## and all sub-bams within are processed
+
     match args.split_window:
 
         ## calculate recommended split window size
         ## if zero, then just process all files in the dir
         case "auto":
             for file in os.listdir(args.input):
-                window_size = calculate_split(file)
-                if window_size == 0:
-                    print("Processing file without splitting...")
-                    process_dir(args.input)
-                else:
-                    split_dirs.append(split_bam(file, window_size))
+                if file.endswith('.bam'):
+                    window_size = calculate_split(file)
+                    if window_size == 0:
+                        print("Processing file without splitting...")
+                        process_dir(args.input)
+                    else:
+                        split_dirs.append(split_bam(os.path.join(args.input, file), window_size))
 
             for dir in split_dirs:
                 process_dir(dir)
@@ -55,14 +56,15 @@ if os.path.isdir(args.input):
             process_dir(args.input)
 
         ## process all bams with a supplied split window size
-        case args.split_window.isdigit():
-            if int(args.split_window) == 0:
+        case x if x.isdigit():
+            if int(x) == 0:
                 print("Processing directory without splitting...")
                 process_dir(args.input)
 
             else: 
                 for file in os.listdir(args.input):
-                    split_dirs.append(split_bam(file, args.split_window))
+                    if file.endswith('.bam'):
+                        split_dirs.append(split_bam(os.path.join(args.input, file), x))
 
                 for dir in split_dirs:
                     clean_dir = process_dir(dir)
@@ -76,6 +78,7 @@ if os.path.isdir(args.input):
             print("Invalid value for split window size! Enter none, an integer, or 'auto'")
             exit(5)
 
+## if input is just a file, process it
 if os.path.isfile(args.input):
 
     match args.split_window:
