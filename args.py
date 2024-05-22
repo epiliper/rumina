@@ -17,7 +17,7 @@ def init_args():
         '--separator', action='store'
     )
     
-    parser.add_argument('--split_window', nargs='?', default="auto")
+    parser.add_argument('--split_window', nargs='?', default=None)
 
     args = parser.parse_args()
     if args.split_window is None:
