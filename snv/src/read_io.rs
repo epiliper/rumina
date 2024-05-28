@@ -9,6 +9,7 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs::File;
 use std::sync::Arc;
+use polars::prelude::*;
 
 fn get_umi(record: &Record, separator: &String) -> String {
     let umi = String::from_utf8(record.name().to_vec());
@@ -18,6 +19,8 @@ fn get_umi(record: &Record, separator: &String) -> String {
 pub struct ChunkProcessor<'a> {
     pub separator: &'a String,
     pub reads_to_output: Arc<Mutex<Vec<Record>>>,
+    pub reports: Arc<Mutex<Vec<DataFrame>>>,
+    pub min_max: Arc<Mutex<Vec<i64>>>,
 }
 
 impl<'a> ChunkProcessor<'a> {
@@ -44,12 +47,25 @@ impl<'a> ChunkProcessor<'a> {
             let mut grouper = Grouper {};
             let groupies = processor.main_grouper(counts);
             let tagged_reads = grouper.tag_records(groupies, bundle);
+
             let mut out = self.reads_to_output.lock();
+            let mut reports = self.reports.lock();
+            let mut min_max = self.min_max.lock();
 
             match tagged_reads {
                 Some(tagged_reads) => {
-                    out.extend(tagged_reads);
+                    out.extend(tagged_reads.1);
                     drop(out);
+
+                    match tagged_reads.0.1 {
+                        Some(x) => {
+                            min_max.push(x[0]);
+                            min_max.push(x[1]);
+                        }
+                        _ => ()
+                    }
+
+
                 }
                 None => (),
             }
@@ -92,25 +108,4 @@ impl<'a> ChunkProcessor<'a> {
         Self::group_reads(self, &mut bottomhash);
     }
 
-    // pub fn filter_pulled_read(&mut self, read: &Record) {
-
-    //     if read.mapq() >= 60 {
-
-    //         let edit_distance: i32;
-
-    //         for base in read.
-
-                
-
-
-    //         }
-
-
-    //     }
-
-
-
-
-    //     todo!();
-    // }
 }

@@ -4,12 +4,11 @@ import os
 from shutil import which
 import warnings
 
-
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
-columns = ['min_depth', 'max_depth', 'median_depth', 'mean_depth', 'coverage_percent','query_name']
+columns = ['min umis per group', 'max umis per group', 'min_depth', 'max_depth', 'median_depth', 'mean_depth', 'coverage_percent','query_name']
 
-def report_coverage(input):
+def report_coverage(input, min_groupsize, max_groupsize):
 
     # infile = os.path.basename(input)
     # save_dir = os.path.dirname(os.path.basename(input))
@@ -33,7 +32,7 @@ def report_coverage(input):
     coverage = 100 * (num_positions - len(df.loc[df['num_reads'] == 0])) / num_positions 
 
     data = [columns, 
-            [min_depth, max_depth, median_depth, mean_depth, coverage, query_name]]
+            [min_groupsize, max_groupsize, min_depth, max_depth, median_depth, mean_depth, coverage, query_name]]
 
     report = pd.DataFrame(data)
 
@@ -42,10 +41,8 @@ def report_coverage(input):
         outfile.split('_depth.tsv')[0] + '_coverage.tsv'
     )
 
-
     # report.to_csv(os.path.join(save_dir, csv_name), sep = '\t', header = 0, index = None)
     report.to_csv(csv_name, sep = '\t', header = 0, index = None)
-
     
     os.remove(outfile)
 
