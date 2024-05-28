@@ -142,6 +142,20 @@ pub fn get_counts(top_umi: &Vec<&String>, counts: &HashMap<&String, i32>) -> i64
     return read_count as i64;
 }
 
+pub fn get_best_read(mut reads: Vec<Record>) -> Record {
+
+    let mut quals: IndexMap<i32, Record> = IndexMap::new();
+
+    for read in reads.drain(0..) {
+        let avg_phred = ((read.qualities().raw().iter().map(|x| *x as f32).sum::<f32>() / read.qualities().raw().len() as f32) * 100.0) as i32;
+        quals.insert(avg_phred, read);
+    }
+     
+    let winning_read_index = *quals.iter_mut().map(|x| x.0).max().unwrap();
+    return quals.swap_remove(&winning_read_index).unwrap();
+
+}
+
 pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
     // return a single read, since this is per-position and we expect one read per UMI group
     match clusters.len() {
@@ -170,6 +184,17 @@ pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
 
             // get the index of the sequences with the best phred score across all reads
             let x = *mean_phreds.iter_mut().map(|x| x.0).max().unwrap();
+
+            let mut best_phred = mean_phreds.swap_remove(&x).unwrap();
+
+            if best_phred.len() == 1 {
+                return best_phred.remove(0);
+            } else {
+
+                return get_best_read(best_phred);
+
+            }
+            
 
             return mean_phreds.swap_remove(&x).unwrap().remove(0);
         }
