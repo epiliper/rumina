@@ -60,7 +60,7 @@ def merge_processed_splits():
             prefixes_for_merging.add(filename.split('.')[0])
 
     for prefix in prefixes_for_merging:
-        splits = [os.path.join(clean_dir, file) for file in os.listdir(clean_dir) if file.startswith(prefix)]
+        splits = [os.path.join(clean_dir, file) for file in os.listdir(clean_dir) if file.startswith(prefix) and file.endswith('.bam')]
         final_file = os.path.join(clean_dir, prefix + "_final.bam")
         pysam.merge("-@ 6", final_file, *splits)
         for split in splits:

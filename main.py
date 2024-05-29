@@ -70,7 +70,7 @@ if os.path.isdir(args.input):
                 for dir in split_dirs:
                     clean_dir = process_dir(dir, split = True)
 
-                merge_processed_splits()
+                    merge_processed_splits()
 
                 [rmtree(dir) for dir in split_dirs]
 

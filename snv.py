@@ -56,7 +56,7 @@ def merge_processed_splits():
 
     # prefixes_for_merging = [filename.split('.')[0] for filename in os.listdir(clean_dir)]
     for filename in os.listdir(clean_dir):
-        if filename.endswith('.bam'):
+        if filename.endswith('.bam') and 'final' not in filename:
             prefixes_for_merging.add(filename.split('.')[0])
 
     for prefix in prefixes_for_merging:
