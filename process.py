@@ -74,7 +74,7 @@ def group_bam(input_file, split):
         os.path.basename(input_file).split('.bam')[0] + '_cleaned.bam'
     )
     
-    tag_cmd = 'snv/target/release/snv'
+    tag_cmd = 'bam_processor/target/release/bam_processor'
     subprocess.run([tag_cmd, input_file, tagged_file_name, args.separator])
 
     if not split:

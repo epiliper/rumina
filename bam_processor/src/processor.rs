@@ -112,7 +112,7 @@ impl<'b> Processor<'b> {
 
     pub fn get_adj_list_substring(
         &self,
-        counts: HashMap<&String, i32>,
+        counts: &HashMap<&String, i32>,
         substring_neighbors: IndexMap<&'b String, HashSet<&'b String>>,
         threshold: usize,
     ) -> IndexMap<&'b String, HashSet<&'b String>> {
@@ -145,27 +145,6 @@ impl<'b> Processor<'b> {
     // with a list of grouped UMIs.
     // via breadth-first-search
     // this is fed directly into the main_grouper function
-    pub fn get_connected_components(
-        &self,
-        adj_list: IndexMap<&'b String, HashSet<&'b String>>,
-    ) -> Option<Vec<HashSet<&String>>> {
-        let mut components: Vec<HashSet<&String>> = Vec::new();
-        let mut found: Vec<&String> = Vec::new();
-
-        if adj_list.len() > 0 {
-            for node in adj_list.keys() {
-                if !found.contains(node) {
-                    let component = Processor::depth_first_search(node, &adj_list);
-                    found.extend(&component);
-                    components.push(component);
-                }
-            }
-            return Some(components);
-        } else {
-            return None;
-        }
-    }
-
     pub fn get_connected_components_par(
         &self,
         adj_list: IndexMap<&'b String, HashSet<&'b String>>,
@@ -213,10 +192,10 @@ impl<'b> Processor<'b> {
 
     // driver code for directional method,
     // and UMI organization and grouping
-    pub fn main_grouper(&self, counts: HashMap<&String, i32>) -> Option<Vec<Vec<&String>>> {
+    pub fn main_grouper(&self, counts: HashMap<&'b String, i32>) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
         let substring_map = self.get_substring_map();
         let neighbors = self.iter_substring_neighbors(substring_map);
-        let directional_output = self.get_adj_list_substring(counts, neighbors, 1);
+        let directional_output = self.get_adj_list_substring(&counts, neighbors, 1);
         let adj_list = directional_output;
         let final_umis;
         if adj_list.len() > 0 {
@@ -226,6 +205,6 @@ impl<'b> Processor<'b> {
             final_umis = None;
         }
 
-        return final_umis;
+        return (counts, final_umis);
     }
 }
