@@ -2,7 +2,7 @@ import pysam
 from collections import Counter 
 import subprocess 
 import os
-from cov_reporter import report_coverage, summarize_coverage
+from cov_reporter import report_coverage, summarize_coverage, report_merged_coverage
 
 ### import args
 from args import init_args
@@ -60,17 +60,17 @@ def merge_processed_splits():
             prefixes_for_merging.add(filename.split('.')[0])
 
     for prefix in prefixes_for_merging:
-        splits = [os.path.join(clean_dir, file) for file in os.listdir(clean_dir) if file.startswith(prefix)]
+        splits = [os.path.join(clean_dir, file) for file in os.listdir(clean_dir) if file.startswith(prefix) and file.endswith('.bam')]
         final_file = os.path.join(clean_dir, prefix + "_final.bam")
         pysam.merge("-@ 6", final_file, *splits)
         for split in splits:
             os.remove(split)
 
         if args.report_coverage:
-            report_coverage(final_file)
+            report_merged_coverage(final_file)
 
 ### assign UG tag for each group of clustered UMIs
-def group_bam(input_file):
+def group_bam(input_file, split):
 
     output_dir = os.path.join(work_path, 'cleaned')
     if not os.path.exists(output_dir):
@@ -89,22 +89,24 @@ def group_bam(input_file):
 
     # pysam.view("-@ 6", "-h", "-b", "-d", "UG", os.path.abspath(temp_file_name), "-o", os.path.abspath(tagged_file_name), catch_stdout = False)
 
-    min_groupsize = 0 
-    max_groupsize = 0
+    if not split:
 
-    minmax_group_file = os.path.join(
-        os.path.dirname(input_file),
-        "minmax.txt"
-    )
+        min_groupsize = 0 
+        max_groupsize = 0
 
-    with open(minmax_group_file) as minmax:
-        min_and_max = minmax.readline().split(':')
-        min_groupsize = min_and_max[0]
-        max_groupsize = min_and_max[1]
+        minmax_group_file = os.path.join(
+            os.path.dirname(input_file),
+            "minmax.txt"
+        )
 
-    os.remove(minmax_group_file)
+        with open(minmax_group_file) as minmax:
+            min_and_max = minmax.readline().split('\t')
+            min_groupsize = min_and_max[0]
+            max_groupsize = min_and_max[1]
 
-    report_coverage(tagged_file_name, min_groupsize, max_groupsize)
+        os.remove(minmax_group_file)
+
+        report_coverage(tagged_file_name, min_groupsize, max_groupsize)
 
     return(tagged_file_name)
 

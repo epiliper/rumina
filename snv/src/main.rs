@@ -6,8 +6,7 @@ use bam::Record;
 use bam::RecordWriter;
 use indexmap::IndexMap;
 use rayon::iter::IndexedParallelIterator;
-use rayon::iter::ParallelDrainRange;
-use rayon::iter::ParallelIterator;
+use rayon::iter::ParallelDrainRange; use rayon::iter::ParallelIterator;
 use std::env;
 use std::fs;
 use std::io;
@@ -16,6 +15,7 @@ use std::time::Instant;
 use std::fs::File;
 use polars::prelude::*;
 use std::mem;
+use crate::fs::OpenOptions;
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -111,14 +111,35 @@ fn main() {
 
     let min_maxes = Arc::into_inner(min_maxes).unwrap().into_inner();
 
-    let min = &min_maxes.iter().min().unwrap();
-    let max = &min_maxes.iter().max().unwrap();
 
-    println!{"minimum number of reads per group     {}", min};
-    println!{"maxmimum number of reads per group     {}", max};
+    if !min_maxes.is_empty() {
 
-    fs::write(&Path::new(input_file).parent().unwrap().join("minmax.txt"), format!("{}:{}", min, max).as_bytes()).unwrap();
+        let min = &min_maxes.iter().min().unwrap();
+        let max = &min_maxes.iter().max().unwrap();
 
+        println!{"minimum number of reads per group     {}", min};
+        println!{"maxmimum number of reads per group     {}", max};
+
+        let minmax_file = Path::new(&output_file).parent().unwrap().join("minmax.txt");
+
+        if !minmax_file.exists() {
+            File::create(&minmax_file);
+        }
+
+        let mut f = OpenOptions::new()
+            .write(true)
+            .append(true)
+            .open(&minmax_file)
+            .expect("unable to open minmax file");
+
+        f.write(format!("{}\t{}\n", min, max).as_bytes());
+
+
+
+
+        // fs::write(&Path::new(input_file).parent().unwrap().join("minmax.txt"), format!("{}\t{}", min, max).as_bytes()).unwrap();
+
+    }
 
 
 

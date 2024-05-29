@@ -13,17 +13,17 @@ start_time = time.time()
 window_size = 0
 split_dirs = []
 
-def process_dir(dir):
+def process_dir(dir, split):
     for file in os.listdir(dir):
         if 'tagged' not in file and 'cleaned' not in file:
             file_to_clean = os.path.abspath(os.path.join(dir, file))
             print(f"WORKING ON FILE: {file_to_clean}")
-            tagged_bam = group_bam(file_to_clean)
+            tagged_bam = group_bam(file_to_clean, split)
             # bam_to_clean, blacklist = build_onesies(tagged_bam)
             # clean_file = remove_onesies(bam_to_clean, blacklist)
 
 def process_file(file):
-    tagged_bam = group_bam(file)
+    tagged_bam = group_bam(file, False)
     # bam_to_clean, blacklist = build_onesies(tagged_bam)
     # clean_file = remove_onesies(bam_to_clean, blacklist)
 
@@ -40,12 +40,12 @@ if os.path.isdir(args.input):
                     window_size = calculate_split(file)
                     if window_size == 0:
                         print("Processing file without splitting...")
-                        process_dir(args.input)
+                        process_dir(args.input, split = False)
                     else:
                         split_dirs.append(split_bam(os.path.join(args.input, file), window_size))
 
             for dir in split_dirs:
-                process_dir(dir)
+                process_dir(dir, split = True)
                 
             merge_processed_splits()
 
@@ -54,13 +54,13 @@ if os.path.isdir(args.input):
         ## no splitting; process files normally
         case None:
             print("Processing directory without splitting...")
-            process_dir(args.input)
+            process_dir(args.input, split = False)
 
         ## process all bams with a supplied split window size
         case x if x.isdigit():
             if int(x) == 0:
                 print("Processing directory without splitting...")
-                process_dir(args.input)
+                process_dir(args.input, split = False)
 
             else: 
                 for file in os.listdir(args.input):
@@ -68,7 +68,7 @@ if os.path.isdir(args.input):
                         split_dirs.append(split_bam(os.path.join(args.input, file), x))
 
                 for dir in split_dirs:
-                    clean_dir = process_dir(dir)
+                    clean_dir = process_dir(dir, split = True)
 
                 merge_processed_splits()
 
@@ -92,7 +92,7 @@ if os.path.isfile(args.input):
                 process_file(args.input)
             else:
                 split_dir = split_bam(args.input, window_size)
-                process_dir(split_dir)
+                process_dir(split_dir, split = True)
                 merge_processed_splits()
                 rmtree(split_dir)
 
@@ -108,16 +108,13 @@ if os.path.isfile(args.input):
                 process_file(args.input)
             else: 
                 split_dir = split_bam(args.input, x)
-                process_dir(split_dir)
+                process_dir(split_dir, split = True)
                 merge_processed_splits()
                 rmtree(split_dir)
 
         case _:
             print("Invalid value for split window size! Enter none, an integer, or 'auto'")
             exit(5)
-
-if args.report_coverage:
-    report()
 
 end_time = time.time()
 

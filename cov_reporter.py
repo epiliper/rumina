@@ -69,6 +69,27 @@ def summarize_coverage(work_dir):
             os.remove(os.path.join(work_dir, file))
     
 
+def report_merged_coverage(input):
+    work_path = os.path.dirname(input)
+
+    minmax_file = os.path.join(
+        work_path, 
+        'minmax.txt'
+    )
+
+    df = pd.read_csv(minmax_file, sep = '\t', names = ['mins', 'maxes'])
+    true_min = df['mins'].min()
+    true_max = df['maxes'].max()
+
+    report_coverage(input, true_min, true_max)
+
+    os.remove(minmax_file)
+
+    # os.remove(minmax_file)
+
+
+
+
 
 
     

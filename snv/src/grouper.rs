@@ -4,9 +4,12 @@ use crate::IndexMap;
 use bam::record::cigar::Operation;
 use bam::Record;
 use polars::functions::concat_df_horizontal;
+use polars::lazy::dsl::when;
 use polars::prelude::*;
 use rand::rngs::ThreadRng;
 use rand::Rng;
+use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelIterator;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -195,7 +198,6 @@ pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
 
             }
             
-
             return mean_phreds.swap_remove(&x).unwrap().remove(0);
         }
     }
@@ -203,13 +205,13 @@ pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
 
 pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Record {
     let mut sequences: IndexMap<Box<[u8]>, (Vec<Record>, i32)> = IndexMap::new();
-    let mut counts: IndexMap<Box<[u8]>, i32> = IndexMap::new();
+    let mut counts: IndexMap<&Box<[u8]>, i32> = IndexMap::new();
 
     // group the reads by sequence
     for mut cluster in clusters {
         cluster.reads.drain(0..).for_each(|x| {
             sequences
-                .entry(Box::from(x.clone().sequence().raw()))
+                .entry(Box::from(*&x.sequence().raw()))
                 .or_insert((Vec::new(), 0));
             sequences[x.sequence().raw()].1 += 1;
             sequences[x.sequence().raw()].0.push(x);
@@ -219,31 +221,53 @@ pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Record {
     // the sequence with the most reads is at index 0 (can be tied)
     sequences.sort_by(|a, b, c, d| d.1.cmp(&b.1));
 
-    // count number of reads per unique sequence
-    for read_group in &sequences {
-        counts
-            .entry(read_group.0.clone())
-            .or_insert(read_group.1 .1);
-    }
+    let mut phreddies: Vec<Vec<Record>> = Vec::new();
 
-    let max = counts.values().next().unwrap();
+    let mut first = true;
+    let mut max = 0;
+    for cluster in sequences.drain(0..) {
 
-    // gather all groups that have maximum reported per-group read count
-    let mut groups_to_sort: HashSet<Box<[u8]>> = HashSet::new();
-    for cluster in &sequences {
-        if cluster.1 .1 == *max {
-            // i'm cloning a box so this should work
-            groups_to_sort.insert(cluster.0.clone());
+        if first {
+            max = cluster.1.1;
+            phreddies.push(cluster.1.0);
+            first = false;
+        } else if cluster.1.1 == max {
+            phreddies.push(cluster.1.0);
         } else {
+
             break;
         }
+
     }
 
-    // remove read clusters and send for phred comparison
-    let phreddies = groups_to_sort
-        .iter()
-        .map(|x| sequences.shift_remove(x).unwrap().0)
-        .collect::<Vec<Vec<Record>>>();
+    // count number of reads per unique sequence
+    // for read_group in & mut sequences {
+    //     counts
+    //         .entry(*&read_group.0)
+    //         .or_insert(read_group.1 .1);
+    // }
+
+    // let max = counts.values().next().unwrap();
+
+    // // gather all groups that have maximum reported per-group read count
+    // let phreddies: Vec<Vec<Record>> = Vec::new();
+
+    // let mut groups_to_sort: HashSet<&Box<[u8]>> = HashSet::new();
+    // for cluster in sequences.drain(0..) {
+    //     if cluster.1 .1 == *max {
+    //         phreddies.push(sequences.shift_remove(&cluster.0).unwrap().0);
+    //         // i'm cloning a box so this should work
+    //         groups_to_sort.insert(&cluster.0);
+    //     } else {
+    //         break;
+    //     }
+    // }
+
+    // // remove read clusters and send for phred comparison
+    // let phreddies = groups_to_sort
+    //     .iter()
+    //     .map(|x| sequences.shift_remove(*x).unwrap().0)
+    //     .collect::<Vec<Vec<Record>>>();
     return get_best_phred(phreddies);
 }
 
@@ -290,24 +314,25 @@ impl Grouper {
 
                 let mut cluster_list: Vec<ReadsAndCount> = Vec::new();
                 let ug_tag = generate_tag(&mut rng, &mut used_tags);
-                for group in top_umi {
-                    cluster_list.push(umis_records.swap_remove(group).unwrap());
+                for group in &top_umi {
+                    cluster_list.push(umis_records.swap_remove(*group).unwrap());
+                }
 
                     // this is the read from the read group with the highest average phred score
-                    let mut final_record = correct_errors(&mut cluster_list);
+                let mut final_record = correct_errors(&mut cluster_list);
 
-                    // final_records.drain(0..).for_each(|mut x| {
-                    //     // gather data
-                    //     // report_list.push(report_read(&x, group));
-                    //     x.tags_mut().push_string(b"UG", &ug_tag);
-                    //     x.tags_mut().push_string(b"BX", group.as_bytes());
-                    //     output_list.push(x);
-                    // })
+                // final_records.drain(0..).for_each(|mut x| {
+                //     // gather data
+                //     // report_list.push(report_read(&x, group));
+                //     x.tags_mut().push_string(b"UG", &ug_tag);
+                //     x.tags_mut().push_string(b"BX", group.as_bytes());
+                //     output_list.push(x);
+                // })
 
-                    final_record.tags_mut().push_string(b"UG", &ug_tag);
-                    final_record.tags_mut().push_string(b"BX", group.as_bytes());
-                    output_list.push(final_record);
-                }
+                final_record.tags_mut().push_string(b"UG", &ug_tag);
+                final_record.tags_mut().push_string(b"BX", &top_umi.iter().next().unwrap().as_bytes());
+                output_list.push(final_record);
+                // }
             }
         }
 
