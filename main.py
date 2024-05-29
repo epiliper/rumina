@@ -1,6 +1,5 @@
 import os 
-# from process import group_bam, build_onesies, remove_onesies, calculate_split, split_bam, merge_processed_splits, report
-from snv import group_bam, build_onesies, remove_onesies, calculate_split, split_bam, merge_processed_splits, report
+from process import group_bam, calculate_split, split_bam, merge_processed_splits
 
 from args import init_args
 import time
@@ -19,15 +18,11 @@ def process_dir(dir, split):
             file_to_clean = os.path.abspath(os.path.join(dir, file))
             print(f"WORKING ON FILE: {file_to_clean}")
             tagged_bam = group_bam(file_to_clean, split)
-            # bam_to_clean, blacklist = build_onesies(tagged_bam)
-            # clean_file = remove_onesies(bam_to_clean, blacklist)
 
 def process_file(file):
     tagged_bam = group_bam(file, False)
-    # bam_to_clean, blacklist = build_onesies(tagged_bam)
-    # clean_file = remove_onesies(bam_to_clean, blacklist)
 
-## if input is a directory, analyze all bams within
+## if input is a directory, process all bams within
 if os.path.isdir(args.input): 
 
     match args.split_window:

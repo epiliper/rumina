@@ -9,7 +9,6 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs::File;
 use std::sync::Arc;
-use polars::prelude::*;
 
 fn get_umi(record: &Record, separator: &String) -> String {
     let umi = String::from_utf8(record.name().to_vec());
@@ -19,7 +18,6 @@ fn get_umi(record: &Record, separator: &String) -> String {
 pub struct ChunkProcessor<'a> {
     pub separator: &'a String,
     pub reads_to_output: Arc<Mutex<Vec<Record>>>,
-    pub reports: Arc<Mutex<Vec<DataFrame>>>,
     pub min_max: Arc<Mutex<Vec<i64>>>,
 }
 
@@ -49,7 +47,6 @@ impl<'a> ChunkProcessor<'a> {
             let tagged_reads = grouper.tag_records(groupies, bundle);
 
             let mut out = self.reads_to_output.lock();
-            let mut reports = self.reports.lock();
             let mut min_max = self.min_max.lock();
 
             match tagged_reads {
@@ -57,15 +54,13 @@ impl<'a> ChunkProcessor<'a> {
                     out.extend(tagged_reads.1);
                     drop(out);
 
-                    match tagged_reads.0.1 {
+                    match tagged_reads.0 {
                         Some(x) => {
                             min_max.push(x[0]);
                             min_max.push(x[1]);
                         }
                         _ => ()
                     }
-
-
                 }
                 None => (),
             }
@@ -74,9 +69,9 @@ impl<'a> ChunkProcessor<'a> {
         progressbar.finish();
     }
 
-    // 2024-May-16: implement mapq and edit distance filtering 
+    // organize reads in bottomhash based on position
     pub fn pull_read(&mut self, read: &Record, bottomhash: &mut BottomHashMap, separator: &String) {
-    // if read is reverse to reference, group it by its last aligned base to the reference
+        // if read is reverse to reference, group it by its last aligned base to the reference
         if read.flag().is_mapped() && read.flag().is_reverse_strand() {
             bottomhash.update_dict(
                 &(&read.calculate_end() + 1),
@@ -91,6 +86,7 @@ impl<'a> ChunkProcessor<'a> {
         }
     }
 
+    // for every position, group, and process UMIs. output remaining UMIs to write list
     pub fn process_chunks(&mut self, input_file: BamReader<File>, mut bottomhash: BottomHashMap) {
         let mut counter = 0;
 

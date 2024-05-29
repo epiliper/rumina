@@ -145,27 +145,6 @@ impl<'b> Processor<'b> {
     // with a list of grouped UMIs.
     // via breadth-first-search
     // this is fed directly into the main_grouper function
-    pub fn get_connected_components(
-        &self,
-        adj_list: IndexMap<&'b String, HashSet<&'b String>>,
-    ) -> Option<Vec<HashSet<&String>>> {
-        let mut components: Vec<HashSet<&String>> = Vec::new();
-        let mut found: Vec<&String> = Vec::new();
-
-        if adj_list.len() > 0 {
-            for node in adj_list.keys() {
-                if !found.contains(node) {
-                    let component = Processor::depth_first_search(node, &adj_list);
-                    found.extend(&component);
-                    components.push(component);
-                }
-            }
-            return Some(components);
-        } else {
-            return None;
-        }
-    }
-
     pub fn get_connected_components_par(
         &self,
         adj_list: IndexMap<&'b String, HashSet<&'b String>>,

@@ -41,9 +41,7 @@ def report_coverage(input, min_groupsize, max_groupsize):
         outfile.split('_depth.tsv')[0] + '_coverage.tsv'
     )
 
-    # report.to_csv(os.path.join(save_dir, csv_name), sep = '\t', header = 0, index = None)
     report.to_csv(csv_name, sep = '\t', header = 0, index = None)
-    
     os.remove(outfile)
 
 def summarize_coverage(work_dir):
@@ -68,7 +66,6 @@ def summarize_coverage(work_dir):
         if file.endswith('_coverage.tsv'):
             os.remove(os.path.join(work_dir, file))
     
-
 def report_merged_coverage(input):
     work_path = os.path.dirname(input)
 
@@ -82,10 +79,7 @@ def report_merged_coverage(input):
     true_max = df['maxes'].max()
 
     report_coverage(input, true_min, true_max)
-
     os.remove(minmax_file)
-
-    # os.remove(minmax_file)
 
 
 
