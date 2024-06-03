@@ -6,9 +6,9 @@ import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
-columns = ['min umis per group', 'max umis per group', 'min_depth', 'max_depth', 'median_depth', 'mean_depth', 'coverage_percent','query_name']
+columns = ['least_reads_group', 'min umis per group', 'most_reads_group', 'max umis per group', 'min_depth', 'max_depth', 'median_depth', 'mean_depth', 'coverage_percent','query_name']
 
-def report_coverage(input, min_groupsize, max_groupsize):
+def report_coverage(input, min_group, min_groupsize, max_group, max_groupsize):
 
     # infile = os.path.basename(input)
     # save_dir = os.path.dirname(os.path.basename(input))
@@ -32,7 +32,7 @@ def report_coverage(input, min_groupsize, max_groupsize):
     coverage = 100 * (num_positions - len(df.loc[df['num_reads'] == 0])) / num_positions 
 
     data = [columns, 
-            [min_groupsize, max_groupsize, min_depth, max_depth, median_depth, mean_depth, coverage, query_name]]
+            [min_group, min_groupsize, max_group, max_groupsize, min_depth, max_depth, median_depth, mean_depth, coverage, query_name]]
 
     report = pd.DataFrame(data)
 

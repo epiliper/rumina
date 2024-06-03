@@ -89,8 +89,6 @@ fn main() {
     // this creates minmax.txt
     if min_maxes.min_reads != i64::MAX {
 
-        // let min = &min_maxes.iter().min().unwrap();
-        // let max = &min_maxes.iter().max().unwrap();
         println!{"minimum number of reads per group:     {},    group: {:?}", min_maxes.min_reads, String::from_utf8(min_maxes.min_reads_group.to_vec()).unwrap()};
         println!{"maximum number of reads per group:     {},    group: {:?}", min_maxes.max_reads, String::from_utf8(min_maxes.max_reads_group.to_vec()).unwrap()};
 
@@ -105,7 +103,11 @@ fn main() {
             .open(&minmax_file)
             .expect("unable to open minmax file");
 
-        f.write(format!("{}\t{}\n", min_maxes.min_reads, min_maxes.max_reads).as_bytes());
+        f.write(format!("{}\t{}\t{}\t{}\n", 
+            String::from_utf8(min_maxes.min_reads_group.to_vec()).unwrap(),
+            min_maxes.min_reads, 
+            String::from_utf8(min_maxes.max_reads_group.to_vec()).unwrap(),
+            min_maxes.max_reads).as_bytes());
 
     }
 }

@@ -89,10 +89,12 @@ def group_bam(input_file, split):
 
         with open(minmax_group_file) as minmax:
             min_and_max = minmax.readline().split('\t')
-            min_groupsize = min_and_max[0]
-            max_groupsize = min_and_max[1]
+            min_groupsize = min_and_max[1]
+            min_group = min_and_max[0]
+            max_groupsize = min_and_max[3]
+            max_group = min_and_max[2]
 
         os.remove(minmax_group_file)
-        report_coverage(tagged_file_name, min_groupsize, max_groupsize)
+        report_coverage(tagged_file_name, min_group, min_groupsize, max_group, max_groupsize)
 
     return(tagged_file_name)
