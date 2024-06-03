@@ -38,8 +38,14 @@ dictates how to split input bam files into subfiles (for avoiding memory overflo
 * **none** (default): process the input as one file without splitting into subfiles. If your system has ~16GB of RAM, this is suitable for bams containing up to 1e7 reads. Using this option with larger bams may result in memory overuse.
 
 ##### `--delete_temps` (optional, off by default) 
-deletes pipeline-generated files needed temporarily for processing.<br>Can save gigabytes of space when working with large files |
+deletes pipeline-generated files needed temporarily for processing.<br>Can save gigabytes of space when working with large files 
 ##### `--report_coverage` (optional, off by default)
-generates coverage and depth .csv reports on output files using `bedtools genomecov`. Doing this with large bam files can increase the runtime by several minutes per file | 
+generates coverage and depth .csv reports on output files using `bedtools genomecov`. Doing this with large bam files can increase the runtime by several minutes per file
 
 #### Todo
+
+- establish UMI clustering methods for shotgun sequencing methods
+- make illustrations for:
+    - general pipeline process from input to output
+    - bam file splitting
+- actually have an explanation in the README for what the pipeline does
