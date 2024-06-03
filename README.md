@@ -14,22 +14,32 @@
 
 The `input` to `driver.py` can be a file or a directory; in the latter case, all .bam files within a directory (exlcuding pipeline products) are processed. This is not yet parallelized. 
 
-If `--report_coverage` is used (see optional arguments) with a directory input, the reports for each bamfile will be summarized into a final .csv file (`(DEDUP)_COVERAGE_REPORT.csv`). 
-
 #### requirements: 
 - python3+
 - pysam v0.22.0+ 
 - umi_tools v1.1.4+
 
-#### Input types 
+####  Arguments
 
-- as of 2024-Mar-27, this pipeline only works on .BAM files. .SAM files are not currently supported. 
+##### `input`
+the input file or directory. If a file, it must be in .bam format. BAM indexes, or any files associated with the reference, are not required.
 
-#### Optional arguments
-| arg | explanation | 
-| --- | --- | 
-| `--delete_temps` | deletes pipeline-generated files needed temporarily for processing.<br>Can save gigabytes of space when working with large files |
-| `--report_coverage` | generates per-sample and combined .csv reports on both *input* and *output* files using `bedtools genomecov`.<br>Doing this with large bam files can increase the runtime by several minutes per file | 
+If the input is a directory, all .bam files within (excluding pipeline products) will be processed per the other arguments specified. 
+
+##### `grouping_method` 
+
+Specifies how/if to merge UMIs based on edit distance, to account for PCR mutations and NGS errors in UMI sequence. Options are: 
+* **directional**: Merge UMIs via directional clustering. See *Amplicon* section for more details.
+* **raw**: Treat each UMI as genuine; UMIs are not merged. 
+##### `--split_window` (default = None)
+dictates how to split input bam files into subfiles (for avoiding memory overflow). Options are: 
+* **auto**: calculate the recommended subfile size (in basepairs along genome) based on input file size. If `input` is a directory, this will be applied independently to each file within the directory
+* **positive integer from 1 - 500**: split input files by a fixed window size. If `input` is a directory, this will be applied to each file within the directory. 
+* **none** (default): process the input as one file without splitting into subfiles. If your system has ~16GB of RAM, this is suitable for bams containing up to 1e7 reads. Using this option with larger bams may result in memory overuse.
+
+##### `--delete_temps` (optional, off by default) 
+deletes pipeline-generated files needed temporarily for processing.<br>Can save gigabytes of space when working with large files |
+##### `--report_coverage` (optional, off by default)
+generates coverage and depth .csv reports on output files using `bedtools genomecov`. Doing this with large bam files can increase the runtime by several minutes per file | 
 
 #### Todo
-- Attempt to include mapping quality stats in `--report_coverage`
