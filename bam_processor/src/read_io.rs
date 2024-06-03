@@ -15,10 +15,19 @@ fn get_umi(record: &Record, separator: &String) -> String {
     umi.unwrap().split(separator).last().unwrap().to_string()
 }
 
+#[derive(Default, Debug)]
+pub struct MinMaxReadsPerGroup {
+    pub min_reads: i64,
+    pub max_reads: i64,
+    pub min_reads_group: [u8; 8],
+    pub max_reads_group: [u8; 8],
+}
+
 pub struct ChunkProcessor<'a> {
     pub separator: &'a String,
     pub reads_to_output: Arc<Mutex<Vec<Record>>>,
-    pub min_max: Arc<Mutex<Vec<i64>>>,
+    // pub min_max: Arc<Mutex<Vec<i64>>>,
+    pub min_max: Arc<Mutex<MinMaxReadsPerGroup>>,
 }
 
 impl<'a> ChunkProcessor<'a> {
@@ -43,7 +52,8 @@ impl<'a> ChunkProcessor<'a> {
             }
 
             let mut grouper = Grouper {};
-            let groupies = processor.main_grouper(counts);
+            // let groupies = processor.main_grouper(counts);
+            let groupies = processor.no_directional(counts);
             let tagged_reads = grouper.tag_records(groupies, bundle);
 
             let mut out = self.reads_to_output.lock();
@@ -56,8 +66,17 @@ impl<'a> ChunkProcessor<'a> {
 
                     match tagged_reads.0 {
                         Some(x) => {
-                            min_max.push(x[0]);
-                            min_max.push(x[1]);
+
+                            if x.max_reads > min_max.max_reads {
+                                min_max.max_reads = x.max_reads;
+                                min_max.max_reads_group = x.max_reads_group;
+                            }
+
+                            if x.min_reads < min_max.min_reads {
+                                min_max.min_reads = x.min_reads;
+                                min_max.min_reads_group = x.min_reads_group;
+                            }
+
                         }
                         _ => ()
                     }

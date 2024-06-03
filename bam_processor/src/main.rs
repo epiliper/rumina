@@ -1,4 +1,5 @@
 use crate::grouper::Grouper;
+use std::fmt::write;
 use std::path::Path;
 use crate::read_io::ChunkProcessor;
 use bam::bam_writer::BamWriterBuilder;
@@ -12,6 +13,7 @@ use std::time::Instant;
 use std::fs::File;
 use std::mem::drop;
 use crate::fs::OpenOptions;
+use crate::read_io::MinMaxReadsPerGroup;
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -49,7 +51,15 @@ fn main() {
     .unwrap();
 
     // records min and max reads per group
-    let min_maxes: Arc<Mutex<Vec<i64>>> = Arc::new(Mutex::new(Vec::new()));
+    let min_maxes: Arc<Mutex<MinMaxReadsPerGroup>> = Arc::new(Mutex::new(
+
+        MinMaxReadsPerGroup {
+            min_reads: i64::MAX,
+            min_reads_group: *b"NONENONE",
+            max_reads: 0,
+            max_reads_group: *b"NONENONE",
+        }
+    ));
 
     // holds filtered reads awaiting writing to output bam file
     let reads_to_spit: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
@@ -77,13 +87,12 @@ fn main() {
 
     // report on min and max number of reads per group
     // this creates minmax.txt
-    if !min_maxes.is_empty() {
+    if min_maxes.min_reads != i64::MAX {
 
-        let min = &min_maxes.iter().min().unwrap();
-        let max = &min_maxes.iter().max().unwrap();
-
-        println!{"minimum number of reads per group     {}", min};
-        println!{"maxmimum number of reads per group     {}", max};
+        // let min = &min_maxes.iter().min().unwrap();
+        // let max = &min_maxes.iter().max().unwrap();
+        println!{"minimum number of reads per group:     {},    group: {:?}", min_maxes.min_reads, String::from_utf8(min_maxes.min_reads_group.to_vec()).unwrap()};
+        println!{"maximum number of reads per group:     {},    group: {:?}", min_maxes.max_reads, String::from_utf8(min_maxes.max_reads_group.to_vec()).unwrap()};
 
         let minmax_file = Path::new(&output_file).parent().unwrap().join("minmax.txt");
 
@@ -96,11 +105,7 @@ fn main() {
             .open(&minmax_file)
             .expect("unable to open minmax file");
 
-        f.write(format!("{}\t{}\n", min, max).as_bytes());
+        f.write(format!("{}\t{}\n", min_maxes.min_reads, min_maxes.max_reads).as_bytes());
 
     }
-
-
-
-
 }

@@ -5,6 +5,7 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
+use std::fmt::write;
 use std::str;
 use std::sync::Arc;
 use strsim::hamming;
@@ -206,5 +207,15 @@ impl<'b> Processor<'b> {
         }
 
         return (counts, final_umis);
+    }
+
+        pub fn no_directional(&self, counts:HashMap<&'b String, i32>) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
+
+        // let umis = self.umis.iter().collect::<HashSet<&'b String>>();
+        let umis = self.umis.iter().map(|x| HashSet::from([x])).collect::<Vec<HashSet<&'b String>>>();
+        let final_umis = Some(self.group_directional(umis));
+
+        return (counts, final_umis);
+
     }
 }
