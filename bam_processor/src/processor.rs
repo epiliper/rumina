@@ -5,7 +5,7 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
-use std::fmt::write;
+
 use std::str;
 use std::sync::Arc;
 use strsim::hamming;
@@ -150,8 +150,8 @@ impl<'b> Processor<'b> {
         &self,
         adj_list: IndexMap<&'b String, HashSet<&'b String>>,
     ) -> Option<Vec<HashSet<&String>>> {
-        let mut components: Arc<Mutex<Vec<HashSet<&String>>>> = Arc::new(Mutex::new(Vec::new()));
-        let mut found: Arc<Mutex<HashSet<&String>>> = Arc::new(Mutex::new(HashSet::new()));
+        let components: Arc<Mutex<Vec<HashSet<&String>>>> = Arc::new(Mutex::new(Vec::new()));
+        let found: Arc<Mutex<HashSet<&String>>> = Arc::new(Mutex::new(HashSet::new()));
 
         if adj_list.len() > 0 {
             adj_list.par_keys().for_each(|node| {

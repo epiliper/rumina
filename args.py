@@ -7,6 +7,11 @@ def init_args():
         'input')
 
     parser.add_argument(
+        'grouping_method',
+        choices=['raw', 'directional']
+    )
+
+    parser.add_argument(
         '--delete_temps',
         action = 'store_true')
 

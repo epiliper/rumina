@@ -75,7 +75,7 @@ def group_bam(input_file, split):
     )
     
     tag_cmd = 'bam_processor/target/release/bam_processor'
-    subprocess.run([tag_cmd, input_file, tagged_file_name, args.separator])
+    subprocess.run([tag_cmd, input_file, tagged_file_name, args.separator, args.grouping_method])
 
     if not split:
 

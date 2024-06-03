@@ -9,6 +9,7 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs::File;
 use std::sync::Arc;
+use crate::GroupingMethod;
 
 fn get_umi(record: &Record, separator: &String) -> String {
     let umi = String::from_utf8(record.name().to_vec());
@@ -26,7 +27,6 @@ pub struct MinMaxReadsPerGroup {
 pub struct ChunkProcessor<'a> {
     pub separator: &'a String,
     pub reads_to_output: Arc<Mutex<Vec<Record>>>,
-    // pub min_max: Arc<Mutex<Vec<i64>>>,
     pub min_max: Arc<Mutex<MinMaxReadsPerGroup>>,
 }
 
@@ -34,7 +34,7 @@ impl<'a> ChunkProcessor<'a> {
     // run grouping on pulled reads
     // add tags to Records
     // output them to list for writing to bam
-    pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap) {
+    pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap, grouping_method: GroupingMethod) {
         let progressbar = ProgressBar::new(bottomhash.bottom_dict.keys().len().try_into().unwrap());
         bottomhash.bottom_dict.par_values_mut().for_each(|x| {
             let bundle = x.shift_remove(&0).unwrap();
@@ -51,9 +51,15 @@ impl<'a> ChunkProcessor<'a> {
                 counts.entry(umi).or_insert(bundle[umi].count);
             }
 
+            let groupies: (HashMap<&String, i32>, Option<Vec<Vec<&String>>>);
+
             let mut grouper = Grouper {};
+
+            match grouping_method {
+                GroupingMethod::Directional => {groupies = processor.main_grouper(counts);},
+                GroupingMethod::Raw => {groupies = processor.no_directional(counts);}
+             }
             // let groupies = processor.main_grouper(counts);
-            let groupies = processor.no_directional(counts);
             let tagged_reads = grouper.tag_records(groupies, bundle);
 
             let mut out = self.reads_to_output.lock();
@@ -106,7 +112,7 @@ impl<'a> ChunkProcessor<'a> {
     }
 
     // for every position, group, and process UMIs. output remaining UMIs to write list
-    pub fn process_chunks(&mut self, input_file: BamReader<File>, mut bottomhash: BottomHashMap) {
+    pub fn process_chunks(&mut self, input_file: BamReader<File>, mut bottomhash: BottomHashMap, grouping_method: GroupingMethod) {
         let mut counter = 0;
 
         for r in input_file {
@@ -120,7 +126,7 @@ impl<'a> ChunkProcessor<'a> {
         }
         print! {"\r Grouping {counter} reads...\n"}
 
-        Self::group_reads(self, &mut bottomhash);
+        Self::group_reads(self, &mut bottomhash, grouping_method);
     }
 
 }

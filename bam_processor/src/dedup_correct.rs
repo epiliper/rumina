@@ -16,10 +16,10 @@ use std::collections::HashMap;
 
 pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Record {
     let mut sequences: IndexMap<Box<[u8]>, (Vec<Record>, i32)> = IndexMap::new();
-    let mut counts: IndexMap<&Box<[u8]>, i32> = IndexMap::new();
+    let _counts: IndexMap<&Box<[u8]>, i32> = IndexMap::new();
 
     // group the reads by sequence
-    for mut cluster in clusters {
+    for cluster in clusters {
         cluster.reads.drain(0..).for_each(|x| {
             sequences
                 .entry(Box::from(*&x.sequence().raw()))
@@ -30,7 +30,7 @@ pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Record {
     }
 
     // the sequence with the most reads is at index 0 (can be tied)
-    sequences.sort_by(|a, b, c, d| d.1.cmp(&b.1));
+    sequences.sort_by(|_a, b, _c, d| d.1.cmp(&b.1));
 
     let mut phreddies: Vec<Vec<Record>> = Vec::new();
     let mut first = true;

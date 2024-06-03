@@ -1,12 +1,11 @@
 use crate::grouper::Grouper;
-use std::fmt::write;
 use std::path::Path;
 use crate::read_io::ChunkProcessor;
 use bam::bam_writer::BamWriterBuilder;
 use bam::Record;
 use bam::RecordWriter;
+use clap::Subcommand;
 use indexmap::IndexMap;
-use std::env;
 use std::fs;
 use std::io::Write;
 use std::time::Instant;
@@ -15,6 +14,7 @@ use std::mem::drop;
 use crate::fs::OpenOptions;
 use crate::read_io::MinMaxReadsPerGroup;
 
+use clap::Parser;
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -25,9 +25,24 @@ mod processor;
 mod read_io;
 mod dedup_correct;
 
+#[derive(Subcommand, Debug, Clone)]
+enum GroupingMethod {
+    Directional,
+    Raw,
+}
+
+#[derive(Parser, Debug)]
+#[command(term_width = 0)]
+struct Args {
+    input: String,
+    output: String,
+    separator: String,
+    #[command(subcommand)]
+    grouping_method: GroupingMethod,
+}
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let args = Args::parse();
 
    let now = Instant::now();
 
@@ -36,9 +51,10 @@ fn main() {
         bottom_dict: IndexMap::new(),
     };
 
-    let input_file = &args[1];
-    let output_file = &args[2];
-    let separator = &args[3];
+    let input_file = args.input;
+    let output_file = args.output;
+    let separator = args.separator;
+    let grouping_method = args.grouping_method;
 
     let bam = bam::BamReader::from_path(&input_file, 4).unwrap();
     let header = bam::BamReader::from_path(&input_file, 0)
@@ -68,13 +84,13 @@ fn main() {
     let reads_to_spit: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
 
     let mut read_handler = ChunkProcessor {
-        separator: separator,
+        separator: &separator,
         reads_to_output: Arc::clone(&reads_to_spit),
         min_max: Arc::clone(&min_maxes),
     };
 
     // do grouping and processing
-    read_handler.process_chunks(bam, bottomhash);
+    read_handler.process_chunks(bam, bottomhash, grouping_method);
 
     // write final reads to output
     println! {"Writing {} reads...", reads_to_spit.lock().len()};
