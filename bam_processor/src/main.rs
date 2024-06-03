@@ -15,6 +15,7 @@ use std::mem::drop;
 use crate::fs::OpenOptions;
 use crate::read_io::MinMaxReadsPerGroup;
 
+
 use parking_lot::Mutex;
 use std::sync::Arc;
 
@@ -23,6 +24,7 @@ mod grouper;
 mod processor;
 mod read_io;
 mod dedup_correct;
+
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -33,6 +35,7 @@ fn main() {
     let bottomhash = bottomhash::BottomHashMap {
         bottom_dict: IndexMap::new(),
     };
+
     let input_file = &args[1];
     let output_file = &args[2];
     let separator = &args[3];
