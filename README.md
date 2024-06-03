@@ -10,14 +10,14 @@
 
 #### to run: 
 <!-- `python3.11 <parent dir of uclean.py>/uclean.py <path_of_input.bam>` -->
-`python3 driver.py <input (file or directory)> <optional args>`
+`python3 driver.py <input (file or directory)> <grouping_method> <optional args>`
 
 The `input` to `driver.py` can be a file or a directory; in the latter case, all .bam files within a directory (exlcuding pipeline products) are processed. This is not yet parallelized. 
 
 #### requirements: 
 - python3+
 - pysam v0.22.0+ 
-- umi_tools v1.1.4+
+- bedtools v2.31.0+
 
 ####  Arguments
 
