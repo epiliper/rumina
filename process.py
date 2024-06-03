@@ -55,7 +55,7 @@ def merge_processed_splits():
     for prefix in prefixes_for_merging:
         splits = [os.path.join(clean_dir, file) for file in os.listdir(clean_dir) if file.startswith(prefix) and file.endswith('.bam')]
         final_file = os.path.join(clean_dir, prefix + "_final.bam")
-        pysam.merge("-@ 6", final_file, *splits)
+        pysam.merge("-@ 6", "-f", final_file, *splits)
         for split in splits:
             os.remove(split)
 
@@ -81,6 +81,8 @@ def group_bam(input_file, split):
 
         min_groupsize = 0 
         max_groupsize = 0
+        min_group = ''
+        max_group = ''
 
         minmax_group_file = os.path.join(
             output_dir,
@@ -89,10 +91,12 @@ def group_bam(input_file, split):
 
         with open(minmax_group_file) as minmax:
             min_and_max = minmax.readline().split('\t')
-            min_groupsize = min_and_max[1]
+            min_groupsize = int(min_and_max[1])
             min_group = min_and_max[0]
-            max_groupsize = min_and_max[3]
+            max_groupsize = int(min_and_max[3])
             max_group = min_and_max[2]
+            
+            print(min_group, min_groupsize, max_group, max_groupsize)
 
         os.remove(minmax_group_file)
         report_coverage(tagged_file_name, min_group, min_groupsize, max_group, max_groupsize)
