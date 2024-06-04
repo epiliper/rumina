@@ -2,35 +2,71 @@ import argparse
 
 def init_args():
     parser = argparse.ArgumentParser(
+        formatter_class = argparse.RawTextHelpFormatter,
         prog="RUMINA",
         description="A pipeline to perform consensus-based error correction via UMI barcodes",
-        usage="rumina [input] [grouping_method] [separator [SEPARATOR]] [--split_window [SPLIT_WINDOW]] [--delete_temps], [--report_coverage]"
+        usage="rumina [input] [grouping_method] [--separator [SEPARATOR]] [--split_window [SPLIT_WINDOW]] [--delete_temps], [--report_coverage]"
     )
 
-    parser.add_argument(
-        'input')
+    required_named = parser.add_argument_group('required named arguments')
+    flags = parser.add_argument_group('flags')
+    optional = parser.add_argument_group('optional arguments')
 
-    parser.add_argument(
+    required_named.add_argument(
+        'input',
+        help = 
+"""A .bam file or a directory of .bam files to be processed. Bam files must have UMIs present in the read QNAME.
+"""
+    )
+
+    required_named.add_argument(
         dest ='grouping_method',
         type = str,
         choices=['raw', 'directional'],
+        help = 
+"""Specifies how/if to merge UMIs based on edit distance, to account for PCR mutations and NGS errors in UMI sequence.
+Options are:
+- directional: Merge UMIs via directinal clustering.
+- raw: Treat each raw UMI as genuine; UMIs are not merged.
+
+"""
     )
 
-    parser.add_argument(
+    required_named.add_argument(
         '--separator', action='store',
         type = str,
         required=True,
+        help = 
+"""Specifies the character in the read QNAME delimiting the UMI barcode from the rest of the string. This is usually '_' or ':'. 
+
+"""
     )
 
-    parser.add_argument(
+    flags.add_argument(
         '--delete_temps',
-        action = 'store_true')
+        action = 'store_true',
+        help = 
+"""If specified, deletes pipeline-generated files needed temporarily for processing. Can save gigabytes of space when working with large files.
 
-    parser.add_argument(
-        '--report_coverage', action = 'store_true')
+"""
+    )
+
+    flags.add_argument(
+        '--report_coverage', action = 'store_true', 
+    help=
+""""If specified, generates coverage and depth reporting on output files using 'bedtools genomecov'. Doing this with large bam files can increase the runtime by several minutes per file.\n"""
+    )
 
     
-    parser.add_argument('--split_window', nargs='?', default="auto")
+    optional.add_argument('--split_window', nargs='?', default="auto",
+                          help = 
+"""dictates how to split input bam files into subfiles (for avoiding memory overflow). Options are:
+- auto: calcluate the recommended subfile size (in basepairs along genome) based on input file size. If 'input' is a directory, this will be calculated for each file within the directory.
+- integer from 1-500: split input files by fixed window size. If 'input' is a directory, this will be applied to each file within the directory.
+- none (default): process the input bam files as one file. If your system has ~16GB of ram, this is suitable for bams containing up to ~15 million reads. Using this option with larger bams without additional RAM may result in memory overuse.
+
+"""
+                          )
 
     args = parser.parse_args()
     if args.split_window is None:
