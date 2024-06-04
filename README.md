@@ -8,31 +8,38 @@
 - removing singleton UMIs (potential artifacts)
 - deduplicating UMIs via UMI_tools 
 
-#### usage: 
-`python3 main.py <input (file or directory)> <grouping_method> --separator <separator> <optional args>`
+#### Installation:
+
+1. Clone this repository
+2. cd into `rumina`
+3. run sh `install.sh`
+
+This will compile the rust crates comprising the pipeline, set up a python virtual environment with the necessary packages, and create a script to run RUMINA from any directory: This script will named: `$HOME/.local/bin/rumina`.
+
+After this, you should be able to run `rumina` in your shell of choice with the necessary arguments (see **Usage**).
+
+
+#### Usage: 
+`rumina <input (file or directory)> --grouping_method <grouping_method> --separator <separator> <optional args>`
 
 an example command:<br>
-`python3 main.py example.bam directional --separator : --report_coverage --delete_temps`
+`rumina example.bam --grouping_method directional --separator : --report_coverage --delete_temps`
 
 ---
-
 The `input` to `main.py` can be a file or a directory; in the latter case, all .bam files within a directory (exlcuding pipeline products) are processed. This is not yet parallelized. 
 
-#### requirements: 
+#### Requirements: 
 - python3.12+
-- pysam v0.22.0+ 
-- bedtools v2.31.0+
 
 ####  Arguments 
 :small_blue_diamond: = mandatory, no default
-
 
 ##### `input` :small_blue_diamond:
 The input file or directory. If a file, it must be in .bam format. BAM indexes, or any files associated with the reference, are not required.
 
 If the input is a directory, all .bam files within (excluding pipeline products) will be processed per the other arguments specified. 
 
-##### `grouping_method` :small_blue_diamond:
+##### `--grouping_method` :small_blue_diamond:
 
 Specifies how/if to merge UMIs based on edit distance, to account for PCR mutations and NGS errors in UMI sequence. Options are: 
 * **directional**: Merge UMIs via directional clustering. See *Amplicon* section for more details.

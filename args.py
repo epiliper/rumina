@@ -20,7 +20,8 @@ def init_args():
     )
 
     required_named.add_argument(
-        dest ='grouping_method',
+        "--grouping_method",
+        required=True,
         type = str,
         choices=['raw', 'directional'],
         help = 
