@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 
-cp * $HOME/.local/bin/rumina
+# if [ ! -d $HOME/.local/bin/rumina ]; then
+# 	mkdir -p $HOME/.local/bin/rumina
+# fi
 
-cd $HOME/.local/bin/rumina
+# cp * $HOME/.local/bin/rumina
+
+# cd $HOME/.local/bin/rumina
 
 cd bam_processor
 cargo build --release
@@ -17,5 +21,11 @@ source python_env/bin/activate
 python3.12 -m pip install -r requirements.txt
 
 deactivate
+
+echo -e "$PWD/python_env/bin/activate\n" > $HOME/.local/bin/rumina
+echo -e "python3.12 activate $PWD/main.py "$@"" >> $HOME/.local/bin/rumina
+echo -e "deactivate" >> $HOME/.local/bin/rumina
+
+
 
 
