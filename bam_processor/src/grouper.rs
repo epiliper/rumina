@@ -46,6 +46,22 @@ impl Grouper {
     // deduplicate and error correct them
     // tag filtered reads
     // push them to a list of tagged records awaiting writing to an output bamfile
+
+    // driver function of grouping
+    pub fn tag_records(
+        &mut self,
+        grouping_output: (HashMap<&String, i32>, Option<Vec<Vec<&String>>>),
+        mut umis_records: IndexMap<String, ReadsAndCount>,
+    ) -> Option<(Option<MinMaxReadsPerGroup>, Vec<Record>)> {
+
+        match grouping_output.1 {
+            Some(groups) => {
+                let reads = self.tag_groups(groups, &mut umis_records, grouping_output.0);
+                return Some(reads);
+            }
+            None => return None,
+        }
+    }
     pub fn tag_groups(
         &mut self,
         final_umis: Vec<Vec<&String>>,
@@ -96,7 +112,7 @@ impl Grouper {
                     cluster_list.push(umis_records.swap_remove(*group).unwrap());
                     }
 
-                // this is the highest qual read from the read group with the highest average phred score
+                // this is the read from the majority sequence read group
                 let mut final_record = correct_errors(&mut cluster_list);
 
                 final_record.tags_mut().push_string(b"UG", &ug_tag);
@@ -111,20 +127,4 @@ impl Grouper {
         return (Some(min_max_report), output_list);
     }
 
-    // driver function of grouping
-    // recieves outout of main_grouper()
-    pub fn tag_records(
-        &mut self,
-        grouping_output: (HashMap<&String, i32>, Option<Vec<Vec<&String>>>),
-        mut umis_records: IndexMap<String, ReadsAndCount>,
-    ) -> Option<(Option<MinMaxReadsPerGroup>, Vec<Record>)> {
-
-        match grouping_output.1 {
-            Some(groups) => {
-                let reads = self.tag_groups(groups, &mut umis_records, grouping_output.0);
-                return Some(reads);
-            }
-            None => return None,
-        }
-    }
 }

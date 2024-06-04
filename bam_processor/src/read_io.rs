@@ -44,27 +44,26 @@ impl<'a> ChunkProcessor<'a> {
                 .collect::<Vec<String>>();
 
             let processor = processor::Processor { umis: &umis };
-
             let mut counts: HashMap<&String, i32> = HashMap::new();
 
+            // get number of reads for each raw UMI
             for umi in &umis {
                 counts.entry(umi).or_insert(bundle[umi].count);
             }
 
             let groupies: (HashMap<&String, i32>, Option<Vec<Vec<&String>>>);
-
             let mut grouper = Grouper {};
 
             match grouping_method {
-                GroupingMethod::Directional => {groupies = processor.main_grouper(counts);},
-                GroupingMethod::Raw => {groupies = processor.no_directional(counts);}
+                GroupingMethod::Directional => {groupies = processor.directional_clustering(counts);},
+                GroupingMethod::Raw => {groupies = processor.no_clustering(counts);}
              }
-            // let groupies = processor.main_grouper(counts);
             let tagged_reads = grouper.tag_records(groupies, bundle);
 
             let mut out = self.reads_to_output.lock();
             let mut min_max = self.min_max.lock();
 
+            // update the groups with mininum and maximum observed reads
             match tagged_reads {
                 Some(tagged_reads) => {
                     out.extend(tagged_reads.1);

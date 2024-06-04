@@ -193,7 +193,7 @@ impl<'b> Processor<'b> {
 
     // driver code for directional method,
     // and UMI organization and grouping
-    pub fn main_grouper(&self, counts: HashMap<&'b String, i32>) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
+    pub fn directional_clustering(&self, counts: HashMap<&'b String, i32>) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
         let substring_map = self.get_substring_map();
         let neighbors = self.iter_substring_neighbors(substring_map);
         let directional_output = self.get_adj_list_substring(&counts, neighbors, 1);
@@ -209,13 +209,13 @@ impl<'b> Processor<'b> {
         return (counts, final_umis);
     }
 
-        pub fn no_directional(&self, counts:HashMap<&'b String, i32>) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
+    pub fn no_clustering(&self, counts:HashMap<&'b String, i32>) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
 
-        // let umis = self.umis.iter().collect::<HashSet<&'b String>>();
-        let umis = self.umis.iter().map(|x| HashSet::from([x])).collect::<Vec<HashSet<&'b String>>>();
-        let final_umis = Some(self.group_directional(umis));
+    // let umis = self.umis.iter().collect::<HashSet<&'b String>>();
+    let umis = self.umis.iter().map(|x| HashSet::from([x])).collect::<Vec<HashSet<&'b String>>>();
+    let final_umis = Some(self.group_directional(umis));
 
-        return (counts, final_umis);
+    return (counts, final_umis);
 
     }
 }
