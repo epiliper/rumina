@@ -16,6 +16,8 @@ else:
     work_path = os.path.abspath(
         os.path.dirname(args.input))
 
+exec_path = os.path.dirname(os.path.abspath(__file__))
+
 print(f"Working path: {work_path}")
 
 def calculate_split(input):
@@ -39,7 +41,7 @@ def split_bam(input, window_size):
 
     print(f"Splitting {input} into {window_size}bp windows...")
 
-    subprocess.run(["multibam/target/release/multibam", input, split_dir, str(window_size)])
+    subprocess.run([os.path.join(exec_path, "multibam/target/release/multibam"), input, split_dir, str(window_size)])
 
     return os.path.join(os.path.dirname(input), split_dir)
 
@@ -74,7 +76,7 @@ def group_bam(input_file, split):
         os.path.basename(input_file).split('.bam')[0] + '_cleaned.bam'
     )
     
-    tag_cmd = 'bam_processor/target/release/bam_processor'
+    tag_cmd = os.path.join(exec_path, 'bam_processor/target/release/bam_processor')
     subprocess.run([tag_cmd, input_file, tagged_file_name, args.separator, args.grouping_method])
 
     if not split:
