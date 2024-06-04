@@ -8,29 +8,40 @@
 - removing singleton UMIs (potential artifacts)
 - deduplicating UMIs via UMI_tools 
 
-#### to run: 
-<!-- `python3.11 <parent dir of uclean.py>/uclean.py <path_of_input.bam>` -->
-`python3 driver.py <input (file or directory)> <grouping_method> <optional args>`
+#### usage: 
+`python3 main.py <input (file or directory)> <grouping_method> --separator <separator> <optional args>`
 
-The `input` to `driver.py` can be a file or a directory; in the latter case, all .bam files within a directory (exlcuding pipeline products) are processed. This is not yet parallelized. 
+an example command:<br>
+`python3 main.py example.bam directional --separator : --report_coverage --delete_temps`
+
+---
+
+The `input` to `main.py` can be a file or a directory; in the latter case, all .bam files within a directory (exlcuding pipeline products) are processed. This is not yet parallelized. 
 
 #### requirements: 
-- python3+
+- python3.12+
 - pysam v0.22.0+ 
 - bedtools v2.31.0+
 
-####  Arguments
+####  Arguments 
+:small_blue_diamond: = mandatory, no default
 
-##### `input`
-the input file or directory. If a file, it must be in .bam format. BAM indexes, or any files associated with the reference, are not required.
+
+##### `input` :small_blue_diamond:
+The input file or directory. If a file, it must be in .bam format. BAM indexes, or any files associated with the reference, are not required.
 
 If the input is a directory, all .bam files within (excluding pipeline products) will be processed per the other arguments specified. 
 
-##### `grouping_method` 
+##### `grouping_method` :small_blue_diamond:
 
 Specifies how/if to merge UMIs based on edit distance, to account for PCR mutations and NGS errors in UMI sequence. Options are: 
 * **directional**: Merge UMIs via directional clustering. See *Amplicon* section for more details.
-* **raw**: Treat each UMI as genuine; UMIs are not merged. 
+* **raw**: Treat each UMI as genuine; UMIs are not merged.
+
+##### `--separator` :small_blue_diamond:
+Specifies the character in the read QNAME delimiting the UMI barcode from the rest of the string. This is usually `_` or `:`.<br>
+
+
 ##### `--split_window` (default = None)
 dictates how to split input bam files into subfiles (for avoiding memory overflow). Options are: 
 * **auto**: calculate the recommended subfile size (in basepairs along genome) based on input file size. If `input` is a directory, this will be applied independently to each file within the directory
@@ -40,7 +51,7 @@ dictates how to split input bam files into subfiles (for avoiding memory overflo
 ##### `--delete_temps` (optional, off by default) 
 deletes pipeline-generated files needed temporarily for processing.<br>Can save gigabytes of space when working with large files 
 ##### `--report_coverage` (optional, off by default)
-generates coverage and depth .csv reports on output files using `bedtools genomecov`. Doing this with large bam files can increase the runtime by several minutes per file
+generates coverage and depth .csv reports on output files using `bedtools genomecov` via `pybedtools`. Doing this with large bam files can increase the runtime by several minutes per file
 
 #### Todo
 
@@ -49,3 +60,4 @@ generates coverage and depth .csv reports on output files using `bedtools genome
     - general pipeline process from input to output
     - bam file splitting
 - actually have an explanation in the README for what the pipeline does
+
