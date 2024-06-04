@@ -8,7 +8,7 @@
 - removing singleton UMIs (potential artifacts)
 - deduplicating UMIs via UMI_tools 
 
-#### Installation:
+### Installation:
 
 1. Clone this repository
 2. cd into `rumina`
@@ -19,7 +19,7 @@ This will compile the rust crates comprising the pipeline, set up a python virtu
 After this, you should be able to run `rumina` in your shell of choice with the necessary arguments (see **Usage**).
 
 
-#### Usage: 
+### Usage: 
 `rumina <input (file or directory)> --grouping_method <grouping_method> --separator <separator> <optional args>`
 
 an example command:<br>
@@ -28,10 +28,10 @@ an example command:<br>
 ---
 The `input` to `main.py` can be a file or a directory; in the latter case, all .bam files within a directory (exlcuding pipeline products) are processed. This is not yet parallelized. 
 
-#### Requirements: 
+### Requirements: 
 - python3.12+
 
-####  Arguments 
+###  Arguments 
 :small_blue_diamond: = mandatory, no default
 
 ##### `input` :small_blue_diamond:
