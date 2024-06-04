@@ -1,8 +1,8 @@
 import pandas as pd 
-import subprocess
 import os
-from shutil import which
 import warnings
+
+import pybedtools
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -11,13 +11,12 @@ columns = ['least_reads_group', 'min umis per group', 'most_reads_group', 'max u
 def report_coverage(input, min_group, min_groupsize, max_group, max_groupsize):
 
     # infile = os.path.basename(input)
-    # save_dir = os.path.dirname(os.path.basename(input))
     save_dir = os.path.dirname(input)
     outfile = os.path.basename(input).split('.bam')[0] + '_depth.tsv'
     query_name = os.path.basename(input).split('.bam')[0]
 
-    with open(outfile, "w") as cov_file:
-        subprocess.run([which("bedtools"), 'genomecov', '-d', '-ibam', os.path.abspath(input)], stdout = cov_file)
+    ## run bedtools genomecov via pybedtools API
+    pybedtools.example_bedtool(os.path.abspath(input)).genome_coverage(d=True).saveas(outfile)
 
     df = pd.read_csv(outfile, sep='\t', names = ['reference', 'position', 'num_reads'])
 
