@@ -16,11 +16,11 @@ deactivate
 
 home_dir=$PWD
 
-echo "#!/usr/bin/env bash" > $HOME/.local/bin/rumina
-echo "source $home_dir/python_env/bin/activate\n" >> $HOME/.local/bin/rumina
-echo "python3.12 $home_dir/main.py \"\$@\"" >> $HOME/.local/bin/rumina
-echo "deactivate" >> $HOME/.local/bin/rumina
-chmod +x $HOME/.local/bin/rumina
+echo "#!/usr/bin/env bash" > $HOME/.cargo/bin/rumina
+echo "source $home_dir/python_env/bin/activate" >> $HOME/.cargo/bin/rumina
+echo "python3.12 $home_dir/main.py \"\$@\"" >> $HOME/.cargo/bin/rumina
+echo "deactivate" >> $HOME/.cargo/bin/rumina
+chmod +x $HOME/.cargo/bin/rumina
 
 
 
