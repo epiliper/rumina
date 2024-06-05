@@ -1,9 +1,12 @@
 use indexmap::IndexMap;
-use rust_htslib::bam::{ext::BamRecordExtensions, Format, Header, Read, Reader, Record, Writer};
+use bam::bam_writer::BamWriterBuilder;
+use bam::bgzip::Writer;
+use bam::{Record, RecordWriter};
 use std::env;
 use std::fs;
 use std::ops::Range;
 use std::path::Path;
+use rayon::prelude::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -15,17 +18,19 @@ fn main() {
 
     let output_dir = fs::canonicalize(&output_dir).unwrap();
 
-    let mut input_bam = Reader::from_path(&args[1]).unwrap();
-    let header = Header::from_template(&input_bam.header());
-    let input_header = header.to_hashmap();
+    let mut input_bam = bam::BamReader::from_path(&args[1], 4).unwrap();
+    let input_header = bam::BamReader::from_path(&args[1], 0).unwrap().header().clone();
+    let max_pos = input_header.reference_len(0).unwrap() as i32;
+    // let input_header = header.to_hashmap();
 
-    let max_pos = input_header.get("SQ").unwrap()[0].get("LN").unwrap();
-    let mut pos_range = (0..max_pos.parse::<i64>().unwrap()).collect::<Vec<i64>>();
+    // let max_pos = input_header.get("SQ").unwrap()[0].get("LN").unwrap();
+    // let mut pos_range = (0..max_pos.parse::<i64>().unwrap()).collect::<Vec<i64>>();
+    let mut pos_range = (0..max_pos).collect::<Vec<i32>>();
 
     let chunk_size = &args[3].parse::<usize>().unwrap();
 
-    let mut ranges_of_reads: IndexMap<Range<i64>, Vec<Record>> = IndexMap::new();
-    let mut ranges: Vec<Range<i64>> = Vec::new();
+    let mut ranges_of_reads: IndexMap<Range<i32>, Vec<Record>> = IndexMap::new();
+    let mut ranges: Vec<Range<i32>> = Vec::new();
 
     for idx_array in pos_range.chunks_mut(*chunk_size) {
         let read_range = Range {
@@ -41,15 +46,13 @@ fn main() {
         ranges.push(read_range);
     }
 
-    let _ = input_bam.set_threads(4);
-
-    for read in input_bam.records() {
-        let mut pos = i64::MAX;
+    for read in input_bam {
+        let mut pos = i32::MAX;
         let r = read.unwrap();
-        if r.is_reverse() {
-            pos = r.reference_end();
+        if r.flag().is_reverse_strand() {
+            pos = r.calculate_end();
         } else {
-            pos = r.reference_start();
+            pos = r.start();
         }
 
         for range in &ranges {
@@ -63,17 +66,22 @@ fn main() {
         }
     }
 
-    for (i, set) in ranges_of_reads.values_mut().enumerate() {
-        let infile = Path::file_name(input).unwrap().to_str().unwrap();
-        let prefix = infile.split(".bam").next().unwrap();
-        let outfile = format!("{}{}{}{}", prefix, ".", i, ".bam");
+    ranges_of_reads.par_values_mut().enumerate().for_each(
+        
+        |(idx, read_bundle)| {
+            let infile = Path::file_name(input).unwrap().to_str().unwrap();
+            let prefix = infile.split(".bam").next().unwrap();
+            let outfile = format!("{}{}{}{}", prefix, ".", idx, ".bam");
 
-        print! {"\rWriting {:?} reads to {:?}", set.len(), outfile};
+            print! {"\rWriting {:?} reads to {:?}", read_bundle.len(), outfile};
 
-        let mut writer =
-            Writer::from_path(&output_dir.join(outfile), &header, Format::Bam).unwrap();
-        let _ = writer.set_threads(4);
+            let mut output_writer = BamWriterBuilder::from_path(&mut BamWriterBuilder::new().additional_threads(8),
+            &output_dir.join(outfile), 
+            input_header.clone()).unwrap();
 
-        set.drain(0..).for_each(|x| writer.write(&x).unwrap());
-    }
+            read_bundle.drain(0..).for_each(|x| output_writer.write(&x).unwrap());
+        }
+
+    );
+
 }

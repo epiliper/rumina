@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rust-htslib = "*"
+bam = "0.1.4"
 clap = { version = "4.5.4", features = ["derive"] }
-indexmap = "2.2.6"
+rayon = "1.10.0"
+indexmap = {version = "2.2.6", features = ["rayon"]}
