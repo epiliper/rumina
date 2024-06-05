@@ -73,13 +73,14 @@ def report_merged_coverage(input):
         'minmax.txt'
     )
 
-    df = pd.read_csv(minmax_file, sep = '\t', names = ['min_groups', 'mins', 'max_groups', 'maxes'])
+    df = pd.read_csv(minmax_file, sep = '\t', names = ['min_groups', 'mins', 'max_groups', 'maxes', 'num_groups'])
     true_min = int(df['mins'].min())
     true_min_group = df.iloc[df['mins'].idxmin()].min_groups
     true_max = int(df['maxes'].max())
     true_max_group = df.iloc[df['maxes'].idxmax()].max_groups
+    num_groups = df['num_groups'].sum()
 
-    report_coverage(input, true_min_group, true_min, true_max_group, true_max)
+    report_coverage(input, true_min_group, true_min, true_max_group, true_max, num_groups)
     os.remove(minmax_file)
 
 
