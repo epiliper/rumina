@@ -22,6 +22,7 @@ pub struct MinMaxReadsPerGroup {
     pub max_reads: i64,
     pub min_reads_group: [u8; 8],
     pub max_reads_group: [u8; 8],
+    pub num_groups_3reads: i64,
 }
 
 pub struct ChunkProcessor<'a> {
@@ -81,6 +82,9 @@ impl<'a> ChunkProcessor<'a> {
                                 min_max.min_reads = x.min_reads;
                                 min_max.min_reads_group = x.min_reads_group;
                             }
+
+                            // count the number of UMI groups used in consensus
+                            min_max.num_groups_3reads += x.num_groups_3reads;
 
                         }
                         _ => ()

@@ -105,6 +105,9 @@ impl Grouper {
                     min_max_report.max_reads_group = ug_tag;
                 }
 
+                // since the group has enough reads to be used, count it in the report
+                min_max_report.num_groups_3reads += 1;
+
                 let mut cluster_list: Vec<ReadsAndCount> = Vec::new();
 
                 // get all the reads across all the umis in the group

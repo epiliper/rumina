@@ -77,6 +77,7 @@ fn main() {
             min_reads_group: *b"NONENONE",
             max_reads: 0,
             max_reads_group: *b"NONENONE",
+            num_groups_3reads: 0,
         }
     ));
 
@@ -122,11 +123,13 @@ fn main() {
             .open(&minmax_file)
             .expect("unable to open minmax file");
 
-        f.write(format!("{}\t{}\t{}\t{}\n", 
+        f.write(format!("{}\t{}\t{}\t{}\t{}\n", 
             String::from_utf8(min_maxes.min_reads_group.to_vec()).unwrap(),
             min_maxes.min_reads, 
             String::from_utf8(min_maxes.max_reads_group.to_vec()).unwrap(),
-            min_maxes.max_reads).as_bytes());
+            min_maxes.max_reads,
+            min_maxes.num_groups_3reads,
+        ).as_bytes());
 
     }
 }
