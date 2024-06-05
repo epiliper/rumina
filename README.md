@@ -65,8 +65,11 @@ Options are:
 
 ##### `--delete_temps` (optional, off by default) 
 deletes pipeline-generated files needed temporarily for processing.<br>Can save gigabytes of space when working with large files 
-##### `--report_coverage` (optional, off by default)
-generates coverage and depth .csv reports on output files using `bedtools genomecov` via `pybedtools`. Also records the UMI groups with the least and most reads, respectively, as well as the number of UMI groups surviving initial filtering. Doing this with large bam files can increase the runtime by several minutes per file
+##### `--no_report` (optional, off by default)
+
+if used, disables depth, coverage, and clustering reporting on output files. This can save up to several minutes per file when working with large BAM files.
+
+reports describe coverage and depth of output files using `bedtools genomecov` via `pybedtools`. UMI groups with the least and most reads, respectively, as well as the number of UMI groups surviving initial filtering, are also recorded. 
 
 #### Todo
 

@@ -61,7 +61,7 @@ def merge_processed_splits():
         for split in splits:
             os.remove(split)
 
-        if args.report_coverage:
+        if not args.no_report:
             report_merged_coverage(final_file)
 
 ### assign UG tag for each group of clustered UMIs
@@ -79,27 +79,28 @@ def group_bam(input_file, split):
     tag_cmd = os.path.join(exec_path, 'bam_processor/target/release/bam_processor')
     subprocess.run([tag_cmd, input_file, tagged_file_name, args.separator, args.grouping_method])
 
-    if not split:
+    if not args.no_report:
+        if not split:
 
-        min_groupsize = 0 
-        max_groupsize = 0
-        min_group = ''
-        max_group = ''
+            min_groupsize = 0 
+            max_groupsize = 0
+            min_group = ''
+            max_group = ''
 
-        minmax_group_file = os.path.join(
-            output_dir,
-            "minmax.txt"
-        )
+            minmax_group_file = os.path.join(
+                output_dir,
+                "minmax.txt"
+            )
 
-        with open(minmax_group_file) as minmax:
-            min_and_max = minmax.readline().split('\t')
-            min_groupsize = int(min_and_max[1])
-            min_group = min_and_max[0]
-            max_groupsize = int(min_and_max[3])
-            max_group = min_and_max[2]
-            num_groups = int(min_and_max[4])
-            
-        os.remove(minmax_group_file)
-        report_coverage(tagged_file_name, min_group, min_groupsize, max_group, max_groupsize, num_groups)
+            with open(minmax_group_file) as minmax:
+                min_and_max = minmax.readline().split('\t')
+                min_groupsize = int(min_and_max[1])
+                min_group = min_and_max[0]
+                max_groupsize = int(min_and_max[3])
+                max_group = min_and_max[2]
+                num_groups = int(min_and_max[4])
+                
+            os.remove(minmax_group_file)
+            report_coverage(tagged_file_name, min_group, min_groupsize, max_group, max_groupsize, num_groups)
 
     return(tagged_file_name)

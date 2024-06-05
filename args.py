@@ -53,9 +53,9 @@ Options are:
     )
 
     flags.add_argument(
-        '--report_coverage', action = 'store_true', 
+        '--no_report', action = 'store_true', 
     help=
-""""If specified, generates coverage and depth reporting on output files using 'bedtools genomecov'. Doing this with large bam files can increase the runtime by several minutes per file.\n"""
+"""If used, disables coverage and depth reporting on output files using 'bedtools genomecov'. This can save several minutes per file when working with large files\n"""
     )
 
     
