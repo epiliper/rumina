@@ -64,8 +64,6 @@ Options are:
 * **positive integer from 1 - 500**: split input files by a fixed window size. If `input` is a directory, this will be applied to each file within the directory. 
 * **none** (default): process the input as one file without splitting into subfiles. If your system has ~16GB of RAM, this is suitable for BAMs containing up to ~15 million reads. Using this option with larger BAMs may result in memory overuse.
 
-##### `--delete_temps` (optional) 
-if used, deletes pipeline-generated files needed temporarily for processing.<br>Can save gigabytes of space when working with large files 
 ##### `--no_report` (optional)
 
 if used, disables depth, coverage, and clustering reporting on output files. This can save up to several minutes per file when working with large BAM files.

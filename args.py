@@ -5,7 +5,7 @@ def init_args():
         formatter_class = argparse.RawTextHelpFormatter,
         prog="RUMINA",
         description="A pipeline to perform consensus-based error correction via UMI barcodes",
-        usage="rumina [input] [grouping_method] [--separator [SEPARATOR]] [--split_window [SPLIT_WINDOW]] [--delete_temps], [--report_coverage]"
+        usage="rumina [input] [grouping_method] [--separator [SEPARATOR]] [--split_window [SPLIT_WINDOW]] [--no_report]"
     )
 
     required_named = parser.add_argument_group('required named arguments')
@@ -39,15 +39,6 @@ Options are:
         required=True,
         help = 
 """Specifies the character in the read QNAME delimiting the UMI barcode from the rest of the string. This is usually '_' or ':'. 
-
-"""
-    )
-
-    flags.add_argument(
-        '--delete_temps',
-        action = 'store_true',
-        help = 
-"""If specified, deletes pipeline-generated files needed temporarily for processing. Can save gigabytes of space when working with large files.
 
 """
     )
