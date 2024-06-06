@@ -1,7 +1,7 @@
 import pysam 
 import subprocess 
 import os
-from cov_reporter import report_coverage, report_merged_coverage, get_counts
+from cov_reporter import report_coverage, get_counts, generate_report
 
 ### import args
 from args import init_args
@@ -64,7 +64,7 @@ def merge_processed_splits(file):
             os.remove(split)
 
         if not args.no_report:
-            report_merged_coverage(file, final_file)
+            generate_report(file, final_file)
 
 ### assign UG tag for each group of clustered UMIs
 def group_bam(input_file, split):
@@ -84,28 +84,6 @@ def group_bam(input_file, split):
     if not args.no_report:
         if not split:
 
-            in_reads, out_reads = get_counts(input_file, tagged_file_name)
-
-            min_groupsize = 0 
-            max_groupsize = 0
-            min_group = ''
-            max_group = ''
-
-            minmax_group_file = os.path.join(
-                output_dir,
-                "minmax.txt"
-            )
-
-            with open(minmax_group_file) as minmax:
-                min_and_max = minmax.readline().split('\t')
-                min_groupsize = int(min_and_max[1])
-                min_group = min_and_max[0]
-                max_groupsize = int(min_and_max[3])
-                max_group = min_and_max[2]
-                num_groups = int(min_and_max[4])
-                num_total_groups = int(min_and_max[5])
-                
-            os.remove(minmax_group_file)
-            report_coverage(in_reads, out_reads, tagged_file_name, num_total_groups, min_group, min_groupsize, max_group, max_groupsize, num_groups)
+            generate_report(input_file, tagged_file_name)
 
     return(tagged_file_name)

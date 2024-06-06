@@ -7,7 +7,7 @@ import pybedtools
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
-columns = [
+COLUMNS = [
     'num_reads_input_file',
     'num_reads_output_file',
     'num_total_groups',
@@ -24,13 +24,34 @@ columns = [
     'query_name'
 ]
 
+def generate_report(original_file, final_file):
+    work_path = os.path.dirname(final_file)
+    minmax_file = os.path.join(
+        work_path, 
+        'minmax.txt'
+    )
+
+    inreads, outreads = get_counts(original_file, final_file)
+
+    df = pd.read_csv(minmax_file, sep = '\t', names = ['min_groups', 'mins', 'max_groups', 'maxes', 'num_passing_groups', 'num_total_groups'])
+    true_min = int(df['mins'].min())
+    true_min_group = df.iloc[df['mins'].idxmin()].min_groups
+    true_max = int(df['maxes'].max())
+    true_max_group = df.iloc[df['maxes'].idxmax()].max_groups
+    num_passing_groups = df['num_passing_groups'].sum()
+    num_total_groups = df['num_total_groups'].sum()
+
+    report_coverage(inreads, outreads, final_file, num_total_groups, num_passing_groups, true_min_group, true_min, true_max_group, true_max)
+    os.remove(minmax_file)
+
+
 def get_counts(infile, outfile):
     infile_reads = pysam.AlignmentFile(infile).count(until_eof = True)
     outfile_reads = pysam.AlignmentFile(outfile).count(until_eof = True)
 
     return infile_reads, outfile_reads
 
-def report_coverage(input_reads, output_reads, input, num_groups, min_group, min_groupsize, max_group, max_groupsize, num_passing_groups):
+def report_coverage(input_reads, output_reads, input, num_total_groups, num_passing_groups, min_group, min_groupsize, max_group, max_groupsize):
 
     # infile = os.path.basename(input)
     save_dir = os.path.dirname(input)
@@ -52,8 +73,8 @@ def report_coverage(input_reads, output_reads, input, num_groups, min_group, min
     num_positions = df['position'].max()
     coverage = 100 * (num_positions - len(df.loc[df['num_reads'] == 0])) / num_positions 
 
-    data = [columns, 
-            [input_reads, output_reads, num_groups, num_passing_groups, min_group, min_groupsize, max_group, max_groupsize, min_depth, max_depth, median_depth, mean_depth, coverage, query_name]]
+    data = [COLUMNS, 
+            [input_reads, output_reads, num_total_groups, num_passing_groups, min_group, min_groupsize, max_group, max_groupsize, min_depth, max_depth, median_depth, mean_depth, coverage, query_name]]
 
     report = pd.DataFrame(data)
 
@@ -70,7 +91,7 @@ def summarize_coverage(work_dir):
     if not os.path.isabs(work_dir):
         work_dir = os.path.abspath(work_dir)
 
-    total_df = pd.DataFrame(columns = columns)
+    total_df = pd.DataFrame(columns = COLUMNS)
     
     final_file = os.path.join(work_dir, "COVERAGE_REPORT.csv")
     
@@ -87,23 +108,3 @@ def summarize_coverage(work_dir):
         if file.endswith('_coverage.tsv'):
             os.remove(os.path.join(work_dir, file))
     
-def report_merged_coverage(original_file, final_file):
-    work_path = os.path.dirname(final_file)
-
-    minmax_file = os.path.join(
-        work_path, 
-        'minmax.txt'
-    )
-
-    inreads, outreads = get_counts(original_file, final_file)
-
-    df = pd.read_csv(minmax_file, sep = '\t', names = ['min_groups', 'mins', 'max_groups', 'maxes', 'num_passing_groups', 'num_total_groups'])
-    true_min = int(df['mins'].min())
-    true_min_group = df.iloc[df['mins'].idxmin()].min_groups
-    true_max = int(df['maxes'].max())
-    true_max_group = df.iloc[df['maxes'].idxmax()].max_groups
-    num_groups = df['num_passing_groups'].sum()
-    num_total_groups = df['num_total_groups'].sum()
-
-    report_coverage(inreads, outreads, final_file, num_total_groups, true_min_group, true_min, true_max_group, true_max, num_groups)
-    os.remove(minmax_file)
