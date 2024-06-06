@@ -64,6 +64,7 @@ def merge_processed_splits(file):
             os.remove(split)
 
         if not args.no_report:
+            sort_and_index(final_file)
             generate_report(file, final_file)
 
 ### assign UG tag for each group of clustered UMIs
@@ -84,6 +85,20 @@ def group_bam(input_file, split):
     if not args.no_report:
         if not split:
 
+            sort_and_index(tagged_file_name)
             generate_report(input_file, tagged_file_name)
 
     return(tagged_file_name)
+
+def sort_and_index(output_file):
+
+    temp_file = output_file.split('.bam')[0] + '_s.bam'
+    os.rename(output_file, temp_file)
+
+    pysam.sort('-@ 6', temp_file, '-o', output_file)
+    os.remove(temp_file)
+
+    pysam.index('-@ 6', output_file)
+
+
+
