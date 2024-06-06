@@ -103,8 +103,9 @@ def group_bam(input_file, split):
                 max_groupsize = int(min_and_max[3])
                 max_group = min_and_max[2]
                 num_groups = int(min_and_max[4])
+                num_total_groups = int(min_and_max[5])
                 
             os.remove(minmax_group_file)
-            report_coverage(in_reads, out_reads, tagged_file_name, min_group, min_groupsize, max_group, max_groupsize, num_groups)
+            report_coverage(in_reads, out_reads, tagged_file_name, num_total_groups, min_group, min_groupsize, max_group, max_groupsize, num_groups)
 
     return(tagged_file_name)

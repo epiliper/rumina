@@ -110,7 +110,6 @@ impl<'b> Processor<'b> {
     }
 
     // groups umis via directional algorithm
-
     pub fn get_adj_list_substring(
         &self,
         counts: &HashMap<&String, i32>,
@@ -124,7 +123,7 @@ impl<'b> Processor<'b> {
         substring_neighbors.par_iter().for_each(|x| {
             let umi = x.0;
             let neighbors = x.1;
-            adj_list.lock().entry(x.0).or_insert(HashSet::new());
+            adj_list.lock().entry(umi).or_insert(HashSet::new());
 
             for neighbor in neighbors {
                 adj_list.lock().entry(neighbor).or_insert(HashSet::new());
@@ -139,6 +138,7 @@ impl<'b> Processor<'b> {
             }
         });
 
+        adj_list.lock().sort_unstable_keys();
         return Arc::try_unwrap(adj_list).unwrap().into_inner();
     }
 
@@ -193,7 +193,10 @@ impl<'b> Processor<'b> {
 
     // driver code for directional method,
     // and UMI organization and grouping
-    pub fn directional_clustering(&self, counts: HashMap<&'b String, i32>) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
+    pub fn directional_clustering(
+        &self,
+        counts: HashMap<&'b String, i32>,
+    ) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
         let substring_map = self.get_substring_map();
         let neighbors = self.iter_substring_neighbors(substring_map);
         let directional_output = self.get_adj_list_substring(&counts, neighbors, 1);
@@ -209,13 +212,18 @@ impl<'b> Processor<'b> {
         return (counts, final_umis);
     }
 
-    pub fn no_clustering(&self, counts:HashMap<&'b String, i32>) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
+    pub fn no_clustering(
+        &self,
+        counts: HashMap<&'b String, i32>,
+    ) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
+        // let umis = self.umis.iter().collect::<HashSet<&'b String>>();
+        let umis = self
+            .umis
+            .iter()
+            .map(|x| HashSet::from([x]))
+            .collect::<Vec<HashSet<&'b String>>>();
+        let final_umis = Some(self.group_directional(umis));
 
-    // let umis = self.umis.iter().collect::<HashSet<&'b String>>();
-    let umis = self.umis.iter().map(|x| HashSet::from([x])).collect::<Vec<HashSet<&'b String>>>();
-    let final_umis = Some(self.group_directional(umis));
-
-    return (counts, final_umis);
-
+        return (counts, final_umis);
     }
 }

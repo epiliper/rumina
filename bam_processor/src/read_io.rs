@@ -17,18 +17,19 @@ fn get_umi(record: &Record, separator: &String) -> String {
 }
 
 #[derive(Default, Debug)]
-pub struct MinMaxReadsPerGroup {
+pub struct GroupReport {
     pub min_reads: i64,
     pub max_reads: i64,
     pub min_reads_group: [u8; 8],
     pub max_reads_group: [u8; 8],
-    pub num_groups_3reads: i64,
+    pub num_passing_groups: i64,
+    pub num_groups: i64,
 }
 
 pub struct ChunkProcessor<'a> {
     pub separator: &'a String,
     pub reads_to_output: Arc<Mutex<Vec<Record>>>,
-    pub min_max: Arc<Mutex<MinMaxReadsPerGroup>>,
+    pub min_max: Arc<Mutex<GroupReport>>,
 }
 
 impl<'a> ChunkProcessor<'a> {
@@ -84,7 +85,8 @@ impl<'a> ChunkProcessor<'a> {
                             }
 
                             // count the number of UMI groups used in consensus
-                            min_max.num_groups_3reads += x.num_groups_3reads;
+                            min_max.num_passing_groups += x.num_passing_groups;
+                            min_max.num_groups += x.num_groups;
 
                         }
                         _ => ()

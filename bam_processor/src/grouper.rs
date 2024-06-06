@@ -6,9 +6,8 @@ use rand::rngs::ThreadRng;
 use rand::Rng;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fmt::write;
 use crate::dedup_correct::{get_counts, correct_errors};
-use crate::read_io::MinMaxReadsPerGroup;
+use crate::read_io::GroupReport;
 
 
 const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
@@ -52,7 +51,7 @@ impl Grouper {
         &mut self,
         grouping_output: (HashMap<&String, i32>, Option<Vec<Vec<&String>>>),
         mut umis_records: IndexMap<String, ReadsAndCount>,
-    ) -> Option<(Option<MinMaxReadsPerGroup>, Vec<Record>)> {
+    ) -> Option<(Option<GroupReport>, Vec<Record>)> {
 
         match grouping_output.1 {
             Some(groups) => {
@@ -67,7 +66,7 @@ impl Grouper {
         final_umis: Vec<Vec<&String>>,
         umis_records: &mut IndexMap<String, ReadsAndCount>,
         counts: HashMap<&String, i32>,
-    ) -> (Option<MinMaxReadsPerGroup>, Vec<Record>) {
+    ) -> (Option<GroupReport>, Vec<Record>) {
         // for each UMI within a group, assign the same tag
 
         let mut rng = rand::thread_rng();
@@ -77,7 +76,9 @@ impl Grouper {
         let mut first = true;
 
         // to report min and max observed reads per group
-        let mut min_max_report: MinMaxReadsPerGroup = Default::default();
+        let mut group_report: GroupReport = Default::default();
+        group_report.num_groups = 0;
+        group_report.num_groups += final_umis.len() as i64;
 
         for top_umi in final_umis {
             let num_reads_in_group = get_counts(&top_umi, &counts);
@@ -87,26 +88,26 @@ impl Grouper {
                 if first {
                     // initialize min and max for comparison
                     first = false;
-                    min_max_report.min_reads = i64::MAX;
-                    min_max_report.min_reads_group = *b"NONENONE";
+                    group_report.min_reads = i64::MAX;
+                    group_report.min_reads_group = *b"NONENONE";
 
-                    min_max_report.max_reads = 0;
-                    min_max_report.max_reads_group = *b"NONENONE";
+                    group_report.max_reads = 0;
+                    group_report.max_reads_group = *b"NONENONE";
 
                 }
                 // check if number of reads per group is new minimum or maximum
-                if num_reads_in_group < min_max_report.min_reads{
-                    min_max_report.min_reads = num_reads_in_group;
-                    min_max_report.min_reads_group = ug_tag;
+                if num_reads_in_group < group_report.min_reads{
+                    group_report.min_reads = num_reads_in_group;
+                    group_report.min_reads_group = ug_tag;
                 } 
 
-                if num_reads_in_group > min_max_report.max_reads{
-                    min_max_report.max_reads = num_reads_in_group;
-                    min_max_report.max_reads_group = ug_tag;
+                if num_reads_in_group > group_report.max_reads{
+                    group_report.max_reads = num_reads_in_group;
+                    group_report.max_reads_group = ug_tag;
                 }
 
                 // since the group has enough reads to be used, count it in the report
-                min_max_report.num_groups_3reads += 1;
+                group_report.num_passing_groups += 1;
 
                 let mut cluster_list: Vec<ReadsAndCount> = Vec::new();
 
@@ -127,7 +128,7 @@ impl Grouper {
         if first {
             return (None, output_list);
         }
-        return (Some(min_max_report), output_list);
+        return (Some(group_report), output_list);
     }
 
 }

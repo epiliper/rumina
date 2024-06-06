@@ -19,7 +19,7 @@ def process_dir(dir, split):
             os.remove(os.path.join(dir, 'minmax.txt'))
 
     for file in os.listdir(dir):
-        if 'tagged' not in file and 'cleaned' not in file:
+        if file.endswith('.bam') and 'tagged' not in file and 'cleaned' not in file:
             file_to_clean = os.path.abspath(os.path.join(dir, file))
             print(f"WORKING ON FILE: {file_to_clean}")
             tagged_bam = group_bam(file_to_clean, split)

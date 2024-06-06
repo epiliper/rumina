@@ -10,11 +10,12 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 columns = [
     'num_reads_input_file',
     'num_reads_output_file',
+    'num_total_groups',
+    'num_passing_groups', 
     'least_reads_group', 
     'min umis per group', 
     'most_reads_group', 
     'max umis per group', 
-    'num_groups', 
     'min_depth', 
     'max_depth', 
     'median_depth', 
@@ -29,7 +30,7 @@ def get_counts(infile, outfile):
 
     return infile_reads, outfile_reads
 
-def report_coverage(input_reads, output_reads, input, min_group, min_groupsize, max_group, max_groupsize, num_groups):
+def report_coverage(input_reads, output_reads, input, num_groups, min_group, min_groupsize, max_group, max_groupsize, num_passing_groups):
 
     # infile = os.path.basename(input)
     save_dir = os.path.dirname(input)
@@ -52,7 +53,7 @@ def report_coverage(input_reads, output_reads, input, min_group, min_groupsize, 
     coverage = 100 * (num_positions - len(df.loc[df['num_reads'] == 0])) / num_positions 
 
     data = [columns, 
-            [input_reads, output_reads, min_group, min_groupsize, max_group, max_groupsize, num_groups, min_depth, max_depth, median_depth, mean_depth, coverage, query_name]]
+            [input_reads, output_reads, num_groups, num_passing_groups, min_group, min_groupsize, max_group, max_groupsize, min_depth, max_depth, median_depth, mean_depth, coverage, query_name]]
 
     report = pd.DataFrame(data)
 
@@ -96,12 +97,13 @@ def report_merged_coverage(original_file, final_file):
 
     inreads, outreads = get_counts(original_file, final_file)
 
-    df = pd.read_csv(minmax_file, sep = '\t', names = ['min_groups', 'mins', 'max_groups', 'maxes', 'num_groups'])
+    df = pd.read_csv(minmax_file, sep = '\t', names = ['min_groups', 'mins', 'max_groups', 'maxes', 'num_passing_groups', 'num_total_groups'])
     true_min = int(df['mins'].min())
     true_min_group = df.iloc[df['mins'].idxmin()].min_groups
     true_max = int(df['maxes'].max())
     true_max_group = df.iloc[df['maxes'].idxmax()].max_groups
-    num_groups = df['num_groups'].sum()
+    num_groups = df['num_passing_groups'].sum()
+    num_total_groups = df['num_total_groups'].sum()
 
-    report_coverage(inreads, outreads, final_file, true_min_group, true_min, true_max_group, true_max, num_groups)
+    report_coverage(inreads, outreads, final_file, num_total_groups, true_min_group, true_min, true_max_group, true_max, num_groups)
     os.remove(minmax_file)

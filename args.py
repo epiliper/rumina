@@ -59,7 +59,7 @@ Options are:
     )
 
     
-    optional.add_argument('--split_window', nargs='?', default="auto",
+    optional.add_argument('--split_window', nargs='?', default="none",
                           help = 
 """dictates how to split input bam files into subfiles (for avoiding memory overflow). Options are:
 - auto: calcluate the recommended subfile size (in basepairs along genome) based on input file size. If 'input' is a directory, this will be calculated for each file within the directory.
