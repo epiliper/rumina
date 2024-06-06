@@ -52,6 +52,12 @@ Specifies how/if to merge UMIs based on edit distance, to account for PCR mutati
 ##### `--separator` :small_blue_diamond:
 Specifies the character in the read QNAME delimiting the UMI barcode from the rest of the string. This is usually `_` or `:`.<br>
 
+<p align="center">
+    <img src="imgs/barcode_light.png#gh-light-mode-only" width=75% height=75%>
+    <img src="imgs/barcode_dark.png#gh-dark-mode-only" width=75% height=75%>
+</p>
+
+
 ##### `--split_window` (default = None)
 dictates how to split input bam files into subfiles (for avoiding memory overflow). <br><br> This is usually necessary for bam files containing above ~15 million reads, assuming 16GB of total system memory, and has been used to process BAM files containing up to 110 million reads. <br> 
 
