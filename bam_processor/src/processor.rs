@@ -138,7 +138,9 @@ impl<'b> Processor<'b> {
             }
         });
 
+        // this sort is necessary for reproducible number of reads after deduplication
         adj_list.lock().sort_unstable_keys();
+
         return Arc::try_unwrap(adj_list).unwrap().into_inner();
     }
 

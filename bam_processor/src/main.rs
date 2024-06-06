@@ -12,7 +12,7 @@ use std::time::Instant;
 use std::fs::File;
 use std::mem::drop;
 use crate::fs::OpenOptions;
-use crate::read_io::MinMaxReadsPerGroup;
+use crate::read_io::GroupReport;
 
 use clap::Parser;
 
@@ -70,14 +70,15 @@ fn main() {
     .unwrap();
 
     // records min and max reads per group
-    let min_maxes: Arc<Mutex<MinMaxReadsPerGroup>> = Arc::new(Mutex::new(
+    let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(
 
-        MinMaxReadsPerGroup {
+        GroupReport {
             min_reads: i64::MAX,
             min_reads_group: *b"NONENONE",
             max_reads: 0,
             max_reads_group: *b"NONENONE",
-            num_groups_3reads: 0,
+            num_passing_groups: 0,
+            num_groups: 0,
         }
     ));
 
@@ -103,14 +104,14 @@ fn main() {
     println! {"Time elapsed {:.2?}", elapsed};
 
     drop(read_handler);
-    let min_maxes = Arc::try_unwrap(min_maxes).unwrap().into_inner();
+    let group_report = Arc::try_unwrap(min_maxes).unwrap().into_inner();
 
     // report on min and max number of reads per group
     // this creates minmax.txt
-    if min_maxes.min_reads != i64::MAX {
+    if group_report.min_reads != i64::MAX {
 
-        println!{"minimum number of reads per group:     {},    group: {:?}", min_maxes.min_reads, String::from_utf8(min_maxes.min_reads_group.to_vec()).unwrap()};
-        println!{"maximum number of reads per group:     {},    group: {:?}", min_maxes.max_reads, String::from_utf8(min_maxes.max_reads_group.to_vec()).unwrap()};
+        println!{"minimum number of reads per group:     {},    group: {:?}", group_report.min_reads, String::from_utf8(group_report.min_reads_group.to_vec()).unwrap()};
+        println!{"maximum number of reads per group:     {},    group: {:?}", group_report.max_reads, String::from_utf8(group_report.max_reads_group.to_vec()).unwrap()};
 
         let minmax_file = Path::new(&output_file).parent().unwrap().join("minmax.txt");
 
@@ -123,12 +124,13 @@ fn main() {
             .open(&minmax_file)
             .expect("unable to open minmax file");
 
-        f.write(format!("{}\t{}\t{}\t{}\t{}\n", 
-            String::from_utf8(min_maxes.min_reads_group.to_vec()).unwrap(),
-            min_maxes.min_reads, 
-            String::from_utf8(min_maxes.max_reads_group.to_vec()).unwrap(),
-            min_maxes.max_reads,
-            min_maxes.num_groups_3reads,
+        f.write(format!("{}\t{}\t{}\t{}\t{}\t{}\n", 
+            String::from_utf8(group_report.min_reads_group.to_vec()).unwrap(),
+            group_report.min_reads, 
+            String::from_utf8(group_report.max_reads_group.to_vec()).unwrap(),
+            group_report.max_reads,
+            group_report.num_passing_groups,
+            group_report.num_groups,
         ).as_bytes());
 
     }
