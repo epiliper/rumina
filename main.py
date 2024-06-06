@@ -35,22 +35,20 @@ if os.path.isdir(args.input):
         ## calculate recommended split window size
         ## if zero, then just process all files in the dir
         case "auto":
-            split_files = []
             for file in os.listdir(args.input):
                 if file.endswith('.bam'):
-                    window_size = calculate_split(file)
+                    window_size = calculate_split(os.path.join(args.input, file))
+
                     if window_size == 0:
                         print("Processing file without splitting...")
                         process_dir(args.input, split = False)
+                        break
                     else:
                         file_split, split_dir = split_bam(os.path.join(args.input, file), window_size)
-                        split_files.append(file_split)
                         split_dirs.append(split_dir)
 
-            for file, dir in zip(split_files, split_dirs):
-                process_dir(dir, split = True)
-                
-                merge_processed_splits(file)
+                        process_dir(dir, split = True)
+                        merge_processed_splits(file)
 
             [rmtree(dir) for dir in split_dirs]
 
@@ -61,7 +59,6 @@ if os.path.isdir(args.input):
 
         ## process all bams with a supplied split window size
         case x if x.isdigit():
-            split_files = []
             if int(x) == 0:
                 print("Processing directory without splitting...")
                 process_dir(args.input, split = False)
@@ -70,13 +67,11 @@ if os.path.isdir(args.input):
                 for file in os.listdir(args.input):
                     if file.endswith('.bam'):
                         file_split, split_dir = split_bam(os.path.join(args.input, file), args.split_window)
-                        split_files.append(file_split)
                         split_dirs.append(split_dir)
 
-                for file, dir in zip(split_files, split_dirs):
-                    process_dir(dir, split = True)
-                    
-                    merge_processed_splits(file)
+                        process_dir(split_dir, split = True)
+                        
+                        merge_processed_splits(file_split)
 
 
                 [rmtree(dir) for dir in split_dirs]
@@ -100,7 +95,7 @@ if os.path.isfile(args.input):
             else:
                 input, split_dir = split_bam(args.input, window_size)
                 process_dir(split_dir, split = True)
-                merge_processed_splits()
+                merge_processed_splits(input)
                 rmtree(split_dir)
 
         ## no split
