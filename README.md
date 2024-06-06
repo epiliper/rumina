@@ -23,7 +23,7 @@ This will compile the rust components of the pipeline, set up a python virtual e
 ```rumina <input (file or directory)> --grouping_method <grouping_method> --separator <separator> <optional args>```
 
 an example command:<br>
-```rumina example.bam --grouping_method directional --separator : --no_report --delete_temps --split_window 100```
+```rumina example.bam --grouping_method directional --separator : --split_window 100```
 
 ---
 The `input` to `rumina` can be a file or a directory; if a directory, all BAM files within (exlcuding pipeline products) are processed.
@@ -36,7 +36,7 @@ The `input` to `rumina` can be a file or a directory; if a directory, all BAM fi
 The input file or directory. If a file, it must be: 
 
 1. in BAM format
-    - The UMI should be in the read QNAME field (see below screenshot). FASTQ data mapped with [BCL Convert](https://www.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/bcl-convert.html) should be formatted this way by default.
+    - The UMI should be in the read QNAME field (see image under `--separator`). Illumina data base-called by [BCL Convert](https://www.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/bcl-convert.html) should be formatted this way by default.
 2. sorted (e.g. via `samtools sort`)
 
 BAM indexes or any files associated with reference genomes are not required.
