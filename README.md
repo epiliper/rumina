@@ -20,10 +20,10 @@ This will compile the rust components of the pipeline, set up a python virtual e
 
 
 ### Usage: 
-`rumina <input (file or directory)> --grouping_method <grouping_method> --separator <separator> <optional args>`
+```rumina <input (file or directory)> --grouping_method <grouping_method> --separator <separator> <optional args>```
 
 an example command:<br>
-`rumina example.bam --grouping_method directional --separator : --report_coverage --delete_temps`
+```rumina example.bam --grouping_method directional --separator : --no_report --delete_temps --split_window 100```
 
 ---
 The `input` to `rumina` can be a file or a directory; if a directory, all BAM files within (exlcuding pipeline products) are processed.
@@ -36,6 +36,7 @@ The `input` to `rumina` can be a file or a directory; if a directory, all BAM fi
 The input file or directory. If a file, it must be: 
 
 1. in BAM format
+    - The UMI should be in the read QNAME field (see below screenshot). FASTQ data mapped with [BCL Convert](https://www.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/bcl-convert.html) should be formatted this way by default.
 2. sorted (e.g. via `samtools sort`)
 
 BAM indexes or any files associated with reference genomes are not required.
@@ -45,8 +46,8 @@ If the input is a directory, all BAM files within (excluding pipeline products) 
 ##### `--grouping_method` :small_blue_diamond:
 
 Specifies how/if to merge UMIs based on edit distance, to account for PCR mutations and NGS errors in UMI sequence. Options are: 
-* **directional**: Merge UMIs via directional clustering. See *Amplicon* section for more details.
-* **raw**: Treat each UMI as genuine; UMIs are not merged.
+* **directional**: Merge UMIs via directional clustering. See *Amplicon* section for more details. This is the best option for amplicon sequencing data.
+* **raw**: Treat each UMI as genuine; UMIs are not merged. This is the best option for metagenomics/shotgun sequencing data.
 
 ##### `--separator` :small_blue_diamond:
 Specifies the character in the read QNAME delimiting the UMI barcode from the rest of the string. This is usually `_` or `:`.<br>
@@ -61,11 +62,11 @@ Because reads are grouped per reference coordinate regardless of splitting, this
 Options are: 
 * **auto**: calculate the recommended subfile size (in basepairs along genome) based on input file size. If `input` is a directory, this will be applied independently to each file within the directory
 * **positive integer from 1 - 500**: split input files by a fixed window size. If `input` is a directory, this will be applied to each file within the directory. 
-* **none** (default): process the input as one file without splitting into subfiles. If your system has ~16GB of RAM, this is suitable for BAMs containing up to ~15 million reads. Using this option with larger bams may result in memory overuse.
+* **none** (default): process the input as one file without splitting into subfiles. If your system has ~16GB of RAM, this is suitable for BAMs containing up to ~15 million reads. Using this option with larger BAMs may result in memory overuse.
 
-##### `--delete_temps` (optional, off by default) 
-deletes pipeline-generated files needed temporarily for processing.<br>Can save gigabytes of space when working with large files 
-##### `--no_report` (optional, off by default)
+##### `--delete_temps` (optional) 
+if used, deletes pipeline-generated files needed temporarily for processing.<br>Can save gigabytes of space when working with large files 
+##### `--no_report` (optional)
 
 if used, disables depth, coverage, and clustering reporting on output files. This can save up to several minutes per file when working with large BAM files.
 

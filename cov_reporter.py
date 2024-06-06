@@ -1,14 +1,35 @@
 import pandas as pd 
 import os
 import warnings
+import pysam
 
 import pybedtools
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
-columns = ['least_reads_group', 'min umis per group', 'most_reads_group', 'max umis per group', 'num_groups', 'min_depth', 'max_depth', 'median_depth', 'mean_depth', 'coverage_percent','query_name']
+columns = [
+    'num_reads_input_file',
+    'num_reads_output_file',
+    'least_reads_group', 
+    'min umis per group', 
+    'most_reads_group', 
+    'max umis per group', 
+    'num_groups', 
+    'min_depth', 
+    'max_depth', 
+    'median_depth', 
+    'mean_depth', 
+    'coverage_percent',
+    'query_name'
+]
 
-def report_coverage(input, min_group, min_groupsize, max_group, max_groupsize, num_groups):
+def get_counts(infile, outfile):
+    infile_reads = pysam.AlignmentFile(infile).count(until_eof = True)
+    outfile_reads = pysam.AlignmentFile(outfile).count(until_eof = True)
+
+    return infile_reads, outfile_reads
+
+def report_coverage(input_reads, output_reads, input, min_group, min_groupsize, max_group, max_groupsize, num_groups):
 
     # infile = os.path.basename(input)
     save_dir = os.path.dirname(input)
@@ -31,7 +52,7 @@ def report_coverage(input, min_group, min_groupsize, max_group, max_groupsize, n
     coverage = 100 * (num_positions - len(df.loc[df['num_reads'] == 0])) / num_positions 
 
     data = [columns, 
-            [min_group, min_groupsize, max_group, max_groupsize, num_groups, min_depth, max_depth, median_depth, mean_depth, coverage, query_name]]
+            [input_reads, output_reads, min_group, min_groupsize, max_group, max_groupsize, num_groups, min_depth, max_depth, median_depth, mean_depth, coverage, query_name]]
 
     report = pd.DataFrame(data)
 
@@ -65,13 +86,15 @@ def summarize_coverage(work_dir):
         if file.endswith('_coverage.tsv'):
             os.remove(os.path.join(work_dir, file))
     
-def report_merged_coverage(input):
-    work_path = os.path.dirname(input)
+def report_merged_coverage(original_file, final_file):
+    work_path = os.path.dirname(final_file)
 
     minmax_file = os.path.join(
         work_path, 
         'minmax.txt'
     )
+
+    inreads, outreads = get_counts(original_file, final_file)
 
     df = pd.read_csv(minmax_file, sep = '\t', names = ['min_groups', 'mins', 'max_groups', 'maxes', 'num_groups'])
     true_min = int(df['mins'].min())
@@ -80,21 +103,5 @@ def report_merged_coverage(input):
     true_max_group = df.iloc[df['maxes'].idxmax()].max_groups
     num_groups = df['num_groups'].sum()
 
-    report_coverage(input, true_min_group, true_min, true_max_group, true_max, num_groups)
+    report_coverage(inreads, outreads, final_file, true_min_group, true_min, true_max_group, true_max, num_groups)
     os.remove(minmax_file)
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-    
-

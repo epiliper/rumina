@@ -13,6 +13,11 @@ window_size = 0
 split_dirs = []
 
 def process_dir(dir, split):
+    if split:
+        ## if the last run crashed for some reason, delete the partially-made report to avoid inaccurate reporting
+        if os.path.exists(os.path.join(dir, 'minmax.txt')):
+            os.remove(os.path.join(dir, 'minmax.txt'))
+
     for file in os.listdir(dir):
         if 'tagged' not in file and 'cleaned' not in file:
             file_to_clean = os.path.abspath(os.path.join(dir, file))
@@ -30,6 +35,7 @@ if os.path.isdir(args.input):
         ## calculate recommended split window size
         ## if zero, then just process all files in the dir
         case "auto":
+            split_files = []
             for file in os.listdir(args.input):
                 if file.endswith('.bam'):
                     window_size = calculate_split(file)
@@ -37,12 +43,14 @@ if os.path.isdir(args.input):
                         print("Processing file without splitting...")
                         process_dir(args.input, split = False)
                     else:
-                        split_dirs.append(split_bam(os.path.join(args.input, file), window_size))
+                        file_split, split_dir = split_bam(os.path.join(args.input, file), window_size)
+                        split_files.append(file_split)
+                        split_dirs.append(split_dir)
 
-            for dir in split_dirs:
+            for file, dir in zip(split_files, split_dirs):
                 process_dir(dir, split = True)
                 
-                merge_processed_splits()
+                merge_processed_splits(file)
 
             [rmtree(dir) for dir in split_dirs]
 
@@ -53,6 +61,7 @@ if os.path.isdir(args.input):
 
         ## process all bams with a supplied split window size
         case x if x.isdigit():
+            split_files = []
             if int(x) == 0:
                 print("Processing directory without splitting...")
                 process_dir(args.input, split = False)
@@ -60,12 +69,15 @@ if os.path.isdir(args.input):
             else: 
                 for file in os.listdir(args.input):
                     if file.endswith('.bam'):
-                        split_dirs.append(split_bam(os.path.join(args.input, file), x))
+                        file_split, split_dir = split_bam(os.path.join(args.input, file), args.split_window)
+                        split_files.append(file_split)
+                        split_dirs.append(split_dir)
 
-                for dir in split_dirs:
-                    clean_dir = process_dir(dir, split = True)
+                for file, dir in zip(split_files, split_dirs):
+                    process_dir(dir, split = True)
+                    
+                    merge_processed_splits(file)
 
-                    merge_processed_splits()
 
                 [rmtree(dir) for dir in split_dirs]
 
@@ -86,7 +98,7 @@ if os.path.isfile(args.input):
                 print("Processing file without splitting...")
                 process_file(args.input)
             else:
-                split_dir = split_bam(args.input, window_size)
+                input, split_dir = split_bam(args.input, window_size)
                 process_dir(split_dir, split = True)
                 merge_processed_splits()
                 rmtree(split_dir)
@@ -102,9 +114,10 @@ if os.path.isfile(args.input):
                 print("Processing file without splitting...")
                 process_file(args.input)
             else: 
-                split_dir = split_bam(args.input, x)
+                input, split_dir = split_bam(args.input, x)
+                print(input, split_dir)
                 process_dir(split_dir, split = True)
-                merge_processed_splits()
+                merge_processed_splits(input)
                 rmtree(split_dir)
 
         case _:

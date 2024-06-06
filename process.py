@@ -1,7 +1,7 @@
 import pysam 
 import subprocess 
 import os
-from cov_reporter import report_coverage, report_merged_coverage
+from cov_reporter import report_coverage, report_merged_coverage, get_counts
 
 ### import args
 from args import init_args
@@ -43,26 +43,28 @@ def split_bam(input, window_size):
 
     subprocess.run([os.path.join(exec_path, "multibam/target/release/multibam"), input, split_dir, str(window_size)])
 
-    return os.path.join(os.path.dirname(input), split_dir)
+    return input, os.path.join(os.path.dirname(input), split_dir)
 
-def merge_processed_splits():
+def merge_processed_splits(file):
     clean_dir = os.path.join(work_path, "cleaned")
+
+    bam_name = os.path.basename(file).split('.bam')[0]
 
     prefixes_for_merging = set()
 
     for filename in os.listdir(clean_dir):
-        if filename.endswith('.bam') and 'final' not in filename:
+        if filename.endswith('.bam') and (bam_name in filename and 'final' not in filename):
             prefixes_for_merging.add(filename.split('.')[0])
 
     for prefix in prefixes_for_merging:
-        splits = [os.path.join(clean_dir, file) for file in os.listdir(clean_dir) if file.startswith(prefix) and file.endswith('.bam')]
+        splits = [os.path.join(clean_dir, file) for file in os.listdir(clean_dir) if file.startswith(prefix) and file.endswith('.bam') and 'final' not in file]
         final_file = os.path.join(clean_dir, prefix + "_final.bam")
         pysam.merge("-@ 6", "-f", final_file, *splits)
         for split in splits:
             os.remove(split)
 
         if not args.no_report:
-            report_merged_coverage(final_file)
+            report_merged_coverage(file, final_file)
 
 ### assign UG tag for each group of clustered UMIs
 def group_bam(input_file, split):
@@ -81,6 +83,8 @@ def group_bam(input_file, split):
 
     if not args.no_report:
         if not split:
+
+            in_reads, out_reads = get_counts(input_file, tagged_file_name)
 
             min_groupsize = 0 
             max_groupsize = 0
@@ -101,6 +105,6 @@ def group_bam(input_file, split):
                 num_groups = int(min_and_max[4])
                 
             os.remove(minmax_group_file)
-            report_coverage(tagged_file_name, min_group, min_groupsize, max_group, max_groupsize, num_groups)
+            report_coverage(in_reads, out_reads, tagged_file_name, min_group, min_groupsize, max_group, max_groupsize, num_groups)
 
     return(tagged_file_name)
