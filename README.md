@@ -5,6 +5,21 @@
 
 ## RUMINA - Rust-based Unique Molecular Identifier Network Analysis
 
+RUMINA is a performant pipeline for error correction of Next-Generation Sequencing (NGS) data using Unique Molecular Identifiers (UMIs), fit for shotgun-based and amplicon-based methodologies. 
+
+RUMINA deduplicates reads associated with a single template molecule, using the coordinates of read alignment and UMI barcode sequence to perform correction of PCR and sequencing errors. The above strategy also allows for correction of errors in UMI sequences (directional clustering). 
+
+This pipeline is tested for processing ~600 million reads in ~5 hours, at a rate of 120 million reads processed per hour (tested on 10-core M1 Max Mac Studio).
+
+
+### Workflow:
+
+<p align="center">
+    <img src="imgs/workflow_light.png#gh-light-mode-only" width=75% height=75%>
+    <img src="imgs/workflow_dark.png#gh-dark-mode-only" width=75% height=75%>
+</p>
+
+
 ### Dependencies: 
 - :snake: python ≥ 3.12
 - :crab: cargo (rust) ≥ 1.77.0
