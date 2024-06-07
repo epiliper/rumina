@@ -15,8 +15,8 @@ This pipeline is tested for processing ~600 million reads in ~5 hours, at a rate
 ### Workflow:
 
 <p align="center">
-    <img src="imgs/workflow_light.png#gh-light-mode-only" width=75% height=75%>
-    <img src="imgs/workflow_dark.png#gh-dark-mode-only" width=75% height=75%>
+    <img src="imgs/workflow_light.png#gh-light-mode-only" width=100% height=100%>
+    <img src="imgs/workflow_dark.png#gh-dark-mode-only" width=100% height=100%>
 </p>
 
 
