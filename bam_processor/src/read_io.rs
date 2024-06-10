@@ -24,6 +24,7 @@ pub struct GroupReport {
     pub max_reads_group: [u8; 8],
     pub num_passing_groups: i64,
     pub num_groups: i64,
+    pub num_umis: i64,
 }
 
 pub struct ChunkProcessor<'a> {
@@ -98,6 +99,7 @@ impl<'a> ChunkProcessor<'a> {
                                 // count the number of UMI groups used in consensus
                                 min_max.num_passing_groups += x.num_passing_groups;
                                 min_max.num_groups += x.num_groups;
+                                min_max.num_umis += umis.len() as i64;
                             }
                             _ => (),
                         }
