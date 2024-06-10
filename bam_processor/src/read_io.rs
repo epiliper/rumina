@@ -42,14 +42,10 @@ impl<'a> ChunkProcessor<'a> {
     pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap) {
         let progressbar = ProgressBar::new(bottomhash.bottom_dict.keys().len().try_into().unwrap());
 
-        // trying for reproducibility
-        // bottomhash.bottom_dict.sort_unstable_keys();
-
-        // try drain
         bottomhash.bottom_dict.par_drain(0..).for_each(|position| {
             for umi in position.1 {
-                let bundle = umi.1;
-                let umis = bundle
+                let umis_reads = umi.1;
+                let umis = umis_reads
                     .keys()
                     .map(|x| x.to_string())
                     .collect::<Vec<String>>();
@@ -59,7 +55,7 @@ impl<'a> ChunkProcessor<'a> {
 
                 // get number of reads for each raw UMI
                 for umi in &umis {
-                    counts.entry(umi).or_insert(bundle[umi].count);
+                    counts.entry(umi).or_insert(umis_reads[umi].count);
                 }
 
                 let groupies: (HashMap<&String, i32>, Option<Vec<Vec<&String>>>);
@@ -73,7 +69,7 @@ impl<'a> ChunkProcessor<'a> {
                         groupies = processor.no_clustering(counts);
                     }
                 }
-                let tagged_reads = grouper.tag_records(groupies, bundle);
+                let tagged_reads = grouper.tag_records(groupies, umis_reads);
 
                 let mut out = self.reads_to_output.lock();
                 let mut min_max = self.min_max.lock();
@@ -155,9 +151,10 @@ impl<'a> ChunkProcessor<'a> {
 
     // for every position, group, and process UMIs. output remaining UMIs to write list
     pub fn process_chunks(&mut self, input_file: BamReader<File>, mut bottomhash: BottomHashMap) {
+
         let read_puller =  match self.grouping_method {
-            GroupingMethod::Directional => ChunkProcessor::pull_read,
-            GroupingMethod::Raw => ChunkProcessor::pull_read_w_length,
+            GroupingMethod::Directional => ChunkProcessor::pull_read_w_length,
+            GroupingMethod::Raw => ChunkProcessor::pull_read,
         };
 
         let mut counter = 0;
