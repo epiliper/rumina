@@ -89,10 +89,11 @@ fn main() {
         separator: &separator,
         reads_to_output: Arc::clone(&reads_to_spit),
         min_max: Arc::clone(&min_maxes),
+        grouping_method,
     };
 
     // do grouping and processing
-    read_handler.process_chunks(bam, bottomhash, grouping_method);
+    read_handler.process_chunks(bam, bottomhash);
 
     // write final reads to output
     println! {"Writing {} reads...", reads_to_spit.lock().len()};
@@ -124,7 +125,7 @@ fn main() {
             .open(&minmax_file)
             .expect("unable to open minmax file");
 
-        f.write(format!("{}\t{}\t{}\t{}\t{}\t{}\n", 
+        let _ = f.write(format!("{}\t{}\t{}\t{}\t{}\t{}\n", 
             String::from_utf8(group_report.min_reads_group.to_vec()).unwrap(),
             group_report.min_reads, 
             String::from_utf8(group_report.max_reads_group.to_vec()).unwrap(),

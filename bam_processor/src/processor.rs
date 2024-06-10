@@ -106,6 +106,7 @@ impl<'b> Processor<'b> {
             }
         });
 
+        neighbors.lock().sort_unstable_keys();
         return Arc::try_unwrap(neighbors).unwrap().into_inner();
     }
 
