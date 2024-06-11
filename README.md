@@ -41,7 +41,7 @@ an example command:<br>
 ```rumina example.bam --grouping_method directional --separator : --split_window 100```
 
 ---
-The `input` to `rumina` can be a file or a directory; if a directory, all BAM files within (exlcuding pipeline products) are processed.
+The `input` to `rumina` can be a file or a directory; if a directory, all SAM/BAM files within (exlcuding pipeline products) are processed.
 
 
 ###  Arguments 
@@ -50,10 +50,13 @@ The `input` to `rumina` can be a file or a directory; if a directory, all BAM fi
 ##### `input` :small_blue_diamond:
 The input file or directory. If a file, it must be: 
 
-- in BAM format
+- in SAM or BAM format
     - The UMI should be in the read QNAME field (see image under `--separator`). Illumina data base-called by [BCL Convert](https://www.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/bcl-convert.html) should be formatted this way by default.
 
-BAM indexes or any files associated with reference genomes are not required.
+> [!Note]
+> This pipeline processes BAM files only, but will automatically convert SAM file inputs into temporary BAM files for compatibility. Inputs are referred to as "BAM files" hereon.
+
+Indexes or any files associated with reference genomes are not required.
 
 If the input is a directory, all BAM files within (excluding pipeline products) will be processed per the other arguments specified. 
 
@@ -77,8 +80,6 @@ dictates how to split input BAM files into subfiles (for avoiding memory overflo
 
 Splitting happens along coordinates of the reference genome in the specified BAM file; If `--split_window 100` was used, reads for every 100bp stretch of the reference would be stored in a separate subfile. These subfiles would be processed individually and merged together into the final output file. Once the final file has been created, the subfiles are deleted.
 
-Because reads are grouped per reference coordinate regardless of splitting, this option does not change underlying analysis.
-
 Options are: 
 * **auto**: calculate the recommended subfile size (in basepairs along genome) based on input file size. If `input` is a directory, this will be applied independently to each file within the directory
 * **positive integer from 1 - 500**: split input files by a fixed window size. If `input` is a directory, this will be applied to each file within the directory. 
@@ -88,7 +89,7 @@ Options are:
 
 if used, disables depth, coverage, and clustering reporting on output files. This can save up to several minutes per file when working with large BAM files.
 
-reports describe coverage and depth of output files using `bedtools genomecov` via `pybedtools`. UMI groups with the least and most reads, respectively, as well as the number of UMI groups surviving initial filtering, are also recorded. 
+reports describe coverage and depth of output files using `bedtools genomecov` via `pybedtools`. UMI groups with the least and most reads, respectively, as well as the number of UMI groups present before and after clustering, are also recorded. 
 
 #### Todo
 
