@@ -1,5 +1,5 @@
 import os 
-from process import group_bam, calculate_split, split_bam, merge_processed_splits
+from process import group_bam, calculate_split, split_bam, merge_processed_splits, convert_sams
 
 from args import init_args
 import time
@@ -13,10 +13,12 @@ window_size = 0
 split_dirs = []
 
 def process_dir(dir, split):
+    temp_bams = []
     if split:
         ## if the last run crashed for some reason, delete the partially-made report to avoid inaccurate reporting
         if os.path.exists(os.path.join(dir, 'minmax.txt')):
             os.remove(os.path.join(dir, 'minmax.txt'))
+
 
     for file in os.listdir(dir):
         if file.endswith('.bam') and 'tagged' not in file and 'cleaned' not in file:
@@ -26,14 +28,16 @@ def process_dir(dir, split):
 
 def process_file(file):
     tagged_bam = group_bam(file, False)
+    os.remove(os.path.join(dir, 'minmax.txt'))
 
 ## if input is a directory, process all bams within
 if os.path.isdir(args.input): 
 
+    temp_bams = convert_sams(args.input)
+
     match args.split_window:
 
-        ## calculate recommended split window size
-        ## if zero, then just process all files in the dir
+        ## calculate recommended split window size for each file
         case "auto":
             for file in os.listdir(args.input):
                 if file.endswith('.bam'):
@@ -76,13 +80,16 @@ if os.path.isdir(args.input):
 
                 [rmtree(dir) for dir in split_dirs]
 
-        ## --split_window arg must be either "auto", a positive integer, or None (left blank)
         case _:
             print("Invalid value for split window size! Enter none, an integer, or 'auto'")
             exit(5)
 
+    [os.remove(temp) for temp in temp_bams]
+
 ## if input is just a file, process it
 if os.path.isfile(args.input):
+
+    temp_bams = convert_sams(args.input)
 
     match args.split_window:
 
@@ -118,6 +125,8 @@ if os.path.isfile(args.input):
         case _:
             print("Invalid value for split window size! Enter none, an integer, or 'auto'")
             exit(5)
+
+    [os.remove(temp) for temp in temp_bams]
 
 end_time = time.time()
 

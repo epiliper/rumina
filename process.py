@@ -1,7 +1,7 @@
 import pysam 
 import subprocess 
 import os
-from cov_reporter import report_coverage, get_counts, generate_report
+from cov_reporter import generate_report
 
 ### import args
 from args import init_args
@@ -19,6 +19,31 @@ else:
 exec_path = os.path.dirname(os.path.abspath(__file__))
 
 print(f"Working path: {work_path}")
+
+## convert sam files to temporary bam files for processing
+## delete temp bams once done
+def convert_sams(input):
+
+    print("converting sam files to bam files...")
+    temp_bams = []
+
+    ## keep a list of temp files for deletion
+    if os.path.isdir(input):
+        for file in os.listdir(input):
+            if file.endswith('.sam'):
+                file = os.path.join(input, file)
+                bam_name = file.split('.sam')[0] + '.bam'
+                pysam.view("-@ 6", "-h", "-b", file, "-o", bam_name, catch_stdout = False)
+
+                temp_bams.append(bam_name)
+
+    elif  os.path.isfile(input) and file.endswith('.sam'): 
+        input = os.path.join(dir, input)
+        bam_name = input.split('.sam')[0] + '.bam'
+        pysam.view("-@ 6", "-h", "-b", input, "-o", bam_name, catch_stdout = False)
+        
+    return temp_bams
+
 
 def calculate_split(input):
     size = int(os.stat(input).st_size / 1024**2)
