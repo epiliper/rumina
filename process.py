@@ -22,26 +22,35 @@ print(f"Working path: {work_path}")
 
 ## convert sam files to temporary bam files for processing
 ## delete temp bams once done
-def convert_sams(input):
+def prepare_files(input):
 
-    print("converting sam files to bam files...")
+    print("preparing files...")
+    print("converting SAMs to temporary BAMs and sorting inputs...")
+
     temp_bams = []
 
     ## keep a list of temp files for deletion
     if os.path.isdir(input):
         for file in os.listdir(input):
+            file = os.path.join(input, file)
             if file.endswith('.sam'):
-                file = os.path.join(input, file)
                 bam_name = file.split('.sam')[0] + '.bam'
-                pysam.view("-@ 6", "-h", "-b", file, "-o", bam_name, catch_stdout = False)
-
+                pysam.sort('-@ 6' ,'-o', bam_name, file)
                 temp_bams.append(bam_name)
 
-    elif  os.path.isfile(input) and file.endswith('.sam'): 
+            elif file.endswith('.bam'):
+                pysam.sort('-@ 6', "-o", file, file)
+
+
+    elif os.path.isfile(input) and file.endswith('.sam'): 
         input = os.path.join(dir, input)
         bam_name = input.split('.sam')[0] + '.bam'
-        pysam.view("-@ 6", "-h", "-b", input, "-o", bam_name, catch_stdout = False)
-        
+        pysam.sort('-@ 6' ,'-o', bam_name, input)
+        temp_bams.append(bam_name)
+
+    elif os.path.isfile(input) and file.endswith('bam'):
+        pysam.sort('-@ 6' ,'-o', input, input)
+
     return temp_bams
 
 

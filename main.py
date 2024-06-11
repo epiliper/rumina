@@ -1,5 +1,5 @@
 import os 
-from process import group_bam, calculate_split, split_bam, merge_processed_splits, convert_sams
+from process import group_bam, calculate_split, split_bam, merge_processed_splits, prepare_files
 
 from args import init_args
 import time
@@ -33,7 +33,7 @@ def process_file(file):
 ## if input is a directory, process all bams within
 if os.path.isdir(args.input): 
 
-    temp_bams = convert_sams(args.input)
+    temp_bams = prepare_files(args.input)
 
     match args.split_window:
 
@@ -89,7 +89,7 @@ if os.path.isdir(args.input):
 ## if input is just a file, process it
 if os.path.isfile(args.input):
 
-    temp_bams = convert_sams(args.input)
+    temp_bams = prepare_files(args.input)
 
     match args.split_window:
 
