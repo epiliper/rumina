@@ -27,9 +27,9 @@ def prepare_files(input):
     print("preparing files...")
     print("converting SAMs to temporary BAMs and sorting inputs...")
 
+    ## keep a list of temp files for deletion
     temp_bams = []
 
-    ## keep a list of temp files for deletion
     if os.path.isdir(input):
         for file in os.listdir(input):
             file = os.path.join(input, file)
@@ -41,18 +41,15 @@ def prepare_files(input):
             elif file.endswith('.bam'):
                 pysam.sort('-@ 6', "-o", file, file)
 
-
-    elif os.path.isfile(input) and file.endswith('.sam'): 
-        input = os.path.join(dir, input)
+    elif os.path.isfile(input) and input.endswith('.sam'): 
         bam_name = input.split('.sam')[0] + '.bam'
         pysam.sort('-@ 6' ,'-o', bam_name, input)
         temp_bams.append(bam_name)
 
-    elif os.path.isfile(input) and file.endswith('bam'):
+    elif os.path.isfile(input) and input.endswith('bam'):
         pysam.sort('-@ 6' ,'-o', input, input)
 
     return temp_bams
-
 
 def calculate_split(input):
     size = int(os.stat(input).st_size / 1024**2)

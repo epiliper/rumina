@@ -14,11 +14,6 @@ split_dirs = []
 
 def process_dir(dir, split):
     temp_bams = []
-    if split:
-        ## if the last run crashed for some reason, delete the partially-made report to avoid inaccurate reporting
-        if os.path.exists(os.path.join(dir, 'minmax.txt')):
-            os.remove(os.path.join(dir, 'minmax.txt'))
-
 
     for file in os.listdir(dir):
         if file.endswith('.bam') and 'tagged' not in file and 'cleaned' not in file:
@@ -28,7 +23,6 @@ def process_dir(dir, split):
 
 def process_file(file):
     tagged_bam = group_bam(file, False)
-    os.remove(os.path.join(dir, 'minmax.txt'))
 
 ## if input is a directory, process all bams within
 if os.path.isdir(args.input): 
@@ -76,8 +70,6 @@ if os.path.isdir(args.input):
                         process_dir(split_dir, split = True)
                         
                         merge_processed_splits(file_split)
-
-
                 [rmtree(dir) for dir in split_dirs]
 
         case _:
@@ -91,16 +83,21 @@ if os.path.isfile(args.input):
 
     temp_bams = prepare_files(args.input)
 
+    if not len(temp_bams) == 0:
+        input = temp_bams[0]
+    else: 
+        input = args.input
+
     match args.split_window:
 
         ## calculate split
         case "auto":
-            window_size = calculate_split(args.input)
+            window_size = calculate_split(input)
             if window_size == 0:
                 print("Processing file without splitting...")
-                process_file(args.input)
+                process_file(input)
             else:
-                input, split_dir = split_bam(args.input, window_size)
+                input, split_dir = split_bam(input, window_size)
                 process_dir(split_dir, split = True)
                 merge_processed_splits(input)
                 rmtree(split_dir)
