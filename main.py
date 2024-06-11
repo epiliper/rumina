@@ -1,5 +1,5 @@
 import os 
-from process import group_bam, calculate_split, split_bam, merge_processed_splits
+from process import group_bam, calculate_split, split_bam, merge_processed_splits, prepare_files
 
 from args import init_args
 import time
@@ -13,10 +13,7 @@ window_size = 0
 split_dirs = []
 
 def process_dir(dir, split):
-    if split:
-        ## if the last run crashed for some reason, delete the partially-made report to avoid inaccurate reporting
-        if os.path.exists(os.path.join(dir, 'minmax.txt')):
-            os.remove(os.path.join(dir, 'minmax.txt'))
+    temp_bams = []
 
     for file in os.listdir(dir):
         if file.endswith('.bam') and 'tagged' not in file and 'cleaned' not in file:
@@ -30,10 +27,11 @@ def process_file(file):
 ## if input is a directory, process all bams within
 if os.path.isdir(args.input): 
 
+    temp_bams = prepare_files(args.input)
+
     match args.split_window:
 
-        ## calculate recommended split window size
-        ## if zero, then just process all files in the dir
+        ## calculate recommended split window size for each file
         case "auto":
             for file in os.listdir(args.input):
                 if file.endswith('.bam'):
@@ -72,28 +70,34 @@ if os.path.isdir(args.input):
                         process_dir(split_dir, split = True)
                         
                         merge_processed_splits(file_split)
-
-
                 [rmtree(dir) for dir in split_dirs]
 
-        ## --split_window arg must be either "auto", a positive integer, or None (left blank)
         case _:
             print("Invalid value for split window size! Enter none, an integer, or 'auto'")
             exit(5)
 
+    [os.remove(temp) for temp in temp_bams]
+
 ## if input is just a file, process it
 if os.path.isfile(args.input):
+
+    temp_bams = prepare_files(args.input)
+
+    if not len(temp_bams) == 0:
+        input = temp_bams[0]
+    else: 
+        input = args.input
 
     match args.split_window:
 
         ## calculate split
         case "auto":
-            window_size = calculate_split(args.input)
+            window_size = calculate_split(input)
             if window_size == 0:
                 print("Processing file without splitting...")
-                process_file(args.input)
+                process_file(input)
             else:
-                input, split_dir = split_bam(args.input, window_size)
+                input, split_dir = split_bam(input, window_size)
                 process_dir(split_dir, split = True)
                 merge_processed_splits(input)
                 rmtree(split_dir)
@@ -118,6 +122,8 @@ if os.path.isfile(args.input):
         case _:
             print("Invalid value for split window size! Enter none, an integer, or 'auto'")
             exit(5)
+
+    [os.remove(temp) for temp in temp_bams]
 
 end_time = time.time()
 

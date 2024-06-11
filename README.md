@@ -50,9 +50,8 @@ The `input` to `rumina` can be a file or a directory; if a directory, all BAM fi
 ##### `input` :small_blue_diamond:
 The input file or directory. If a file, it must be: 
 
-1. in BAM format
+- in BAM format
     - The UMI should be in the read QNAME field (see image under `--separator`). Illumina data base-called by [BCL Convert](https://www.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/bcl-convert.html) should be formatted this way by default.
-2. sorted (e.g. via `samtools sort`)
 
 BAM indexes or any files associated with reference genomes are not required.
 
@@ -73,8 +72,8 @@ Specifies the character in the read QNAME delimiting the UMI barcode from the re
 </p>
 
 
-##### `--split_window` (default = None)
-dictates how to split input bam files into subfiles (for avoiding memory overflow). <br><br> This is usually necessary for bam files containing above ~15 million reads, assuming 16GB of total system memory, and has been used to process BAM files containing up to 110 million reads. <br> 
+##### `--split_window` (default = auto)
+dictates how to split input BAM files into subfiles (for avoiding memory overflow). <br><br> This is usually necessary for BAM files containing above ~15 million reads, assuming 16GB of total system memory, and has been used to process BAM files containing up to 110 million reads. <br> 
 
 Splitting happens along coordinates of the reference genome in the specified BAM file; If `--split_window 100` was used, reads for every 100bp stretch of the reference would be stored in a separate subfile. These subfiles would be processed individually and merged together into the final output file. Once the final file has been created, the subfiles are deleted.
 
@@ -94,8 +93,4 @@ reports describe coverage and depth of output files using `bedtools genomecov` v
 #### Todo
 
 - establish UMI clustering methods for shotgun sequencing methods
-- make illustrations for:
-    - general pipeline process from input to output
-    - bam file splitting
-- actually have an explanation in the README for what the pipeline does
 
