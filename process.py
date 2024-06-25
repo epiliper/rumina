@@ -36,15 +36,15 @@ def prepare_files(input):
             file = os.path.join(input, file)
             if file.endswith(".sam"):
                 bam_name = file.split(".sam")[0] + ".bam"
-                pysam.sort("-@ 6", "-o", bam_name, file)
+                pysam.sort(f"-@ {args.threads}", "-o", bam_name, file)
                 temp_bams.append(bam_name)
 
             elif file.endswith(".bam"):
-                pysam.sort("-@ 6", "-o", file, file)
+                pysam.sort(f"-@ {args.threads}", "-o", file, file)
 
     elif os.path.isfile(input) and input.endswith(".sam"):
         bam_name = input.split(".sam")[0] + ".bam"
-        pysam.sort("-@ 6", "-o", bam_name, input)
+        pysam.sort(f"-@ {args.threads}", "-o", bam_name, input)
         temp_bams.append(bam_name)
 
     # removing this for benchmarking purposes
@@ -82,6 +82,7 @@ def split_bam(input, window_size):
             input,
             split_dir,
             str(window_size),
+            args.threads,
         ]
     )
 
@@ -108,7 +109,7 @@ def merge_processed_splits(file):
             if file.startswith(prefix) and file.endswith(".bam") and "final" not in file
         ]
         final_file = os.path.join(clean_dir, prefix + "_final.bam")
-        pysam.merge("-@ 6", "-f", final_file, *splits)
+        pysam.merge(f"-@ {args.threads}", "-f", final_file, *splits)
         for split in splits:
             os.remove(split)
 
@@ -132,7 +133,14 @@ def group_bam(input_file, split):
 
     tag_cmd = os.path.join(exec_path, "bam_processor/target/release/bam_processor")
     subprocess.run(
-        [tag_cmd, input_file, tagged_file_name, args.separator, args.grouping_method]
+        [
+            tag_cmd,
+            input_file,
+            tagged_file_name,
+            args.separator,
+            args.grouping_method,
+            args.threads,
+        ]
     )
 
     if not args.no_report:
@@ -147,7 +155,7 @@ def sort_and_index(output_file):
     temp_file = output_file.split(".bam")[0] + "_s.bam"
     os.rename(output_file, temp_file)
 
-    pysam.sort("-@ 6", temp_file, "-o", output_file)
+    pysam.sort(f"-@ {args.threads}", temp_file, "-o", output_file)
     os.remove(temp_file)
 
-    pysam.index("-@ 6", output_file)
+    pysam.index(f"-@ {args.threads}", output_file)

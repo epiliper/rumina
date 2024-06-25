@@ -1,31 +1,32 @@
+use crate::fs::OpenOptions;
 use crate::grouper::Grouper;
-use std::path::Path;
 use crate::read_io::ChunkProcessor;
+use crate::read_io::GroupReport;
 use bam::bam_writer::BamWriterBuilder;
 use bam::Record;
 use bam::RecordWriter;
-use clap::Subcommand;
+use clap::ValueEnum;
 use indexmap::IndexMap;
 use std::fs;
-use std::io::Write;
-use std::time::Instant;
 use std::fs::File;
+use std::io::Write;
 use std::mem::drop;
-use crate::fs::OpenOptions;
-use crate::read_io::GroupReport;
+use std::path::Path;
+use std::time::Instant;
 
 use clap::Parser;
+use rayon::ThreadPoolBuilder;
 
 use parking_lot::Mutex;
 use std::sync::Arc;
 
 mod bottomhash;
+mod dedup_correct;
 mod grouper;
 mod processor;
 mod read_io;
-mod dedup_correct;
 
-#[derive(Subcommand, Debug, Clone)]
+#[derive(ValueEnum, Debug, Clone)]
 enum GroupingMethod {
     Directional,
     Raw,
@@ -34,17 +35,27 @@ enum GroupingMethod {
 #[derive(Parser, Debug)]
 #[command(term_width = 0)]
 struct Args {
+    #[arg(long = "in", index = 1)]
     input: String,
+    #[arg(long = "out", index = 2)]
     output: String,
+    #[arg(long = "sep", index = 3)]
     separator: String,
-    #[command(subcommand)]
+    #[arg(long = "group", index = 4)]
     grouping_method: GroupingMethod,
+    #[arg(long = "threads", index = 5)]
+    threads: usize,
 }
 
 fn main() {
     let args = Args::parse();
 
-   let now = Instant::now();
+    ThreadPoolBuilder::new()
+        .num_threads(args.threads)
+        .build_global()
+        .expect("ERROR: Invalid number of threads specified!");
+
+    let now = Instant::now();
 
     // holds organized reads
     let bottomhash = bottomhash::BottomHashMap {
@@ -56,32 +67,29 @@ fn main() {
     let separator = args.separator;
     let grouping_method = args.grouping_method;
 
-    let bam = bam::BamReader::from_path(&input_file, 4).unwrap();
+    let bam = bam::BamReader::from_path(&input_file, (args.threads - 1) as u16).unwrap();
     let header = bam::BamReader::from_path(&input_file, 0)
         .unwrap()
         .header()
         .clone();
 
     let mut outfile = BamWriterBuilder::from_path(
-        &mut BamWriterBuilder::new().additional_threads(5),
+        &mut BamWriterBuilder::new().additional_threads((args.threads - 1) as u16),
         &output_file,
         header,
     )
     .unwrap();
 
     // records min and max reads per group
-    let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(
-
-        GroupReport {
-            min_reads: i64::MAX,
-            min_reads_group: *b"NONENONE",
-            max_reads: 0,
-            max_reads_group: *b"NONENONE",
-            num_passing_groups: 0,
-            num_groups: 0,
-            num_umis: 0,
-        }
-    ));
+    let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(GroupReport {
+        min_reads: i64::MAX,
+        min_reads_group: *b"NONENONE",
+        max_reads: 0,
+        max_reads_group: *b"NONENONE",
+        num_passing_groups: 0,
+        num_groups: 0,
+        num_umis: 0,
+    }));
 
     // holds filtered reads awaiting writing to output bam file
     let reads_to_spit: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
@@ -111,9 +119,8 @@ fn main() {
     // report on min and max number of reads per group
     // this creates minmax.txt
     if group_report.min_reads != i64::MAX {
-
-        println!{"minimum number of reads per group:     {},    group: {:?}", group_report.min_reads, String::from_utf8(group_report.min_reads_group.to_vec()).unwrap()};
-        println!{"maximum number of reads per group:     {},    group: {:?}", group_report.max_reads, String::from_utf8(group_report.max_reads_group.to_vec()).unwrap()};
+        println! {"minimum number of reads per group:     {},    group: {:?}", group_report.min_reads, String::from_utf8(group_report.min_reads_group.to_vec()).unwrap()};
+        println! {"maximum number of reads per group:     {},    group: {:?}", group_report.max_reads, String::from_utf8(group_report.max_reads_group.to_vec()).unwrap()};
 
         let minmax_file = Path::new(&output_file).parent().unwrap().join("minmax.txt");
 
@@ -126,15 +133,18 @@ fn main() {
             .open(&minmax_file)
             .expect("unable to open minmax file");
 
-        let _ = f.write(format!("{}\t{}\t{}\t{}\t{}\t{}\t{}\n", 
-            String::from_utf8(group_report.min_reads_group.to_vec()).unwrap(),
-            group_report.min_reads, 
-            String::from_utf8(group_report.max_reads_group.to_vec()).unwrap(),
-            group_report.max_reads,
-            group_report.num_passing_groups,
-            group_report.num_groups,
-            group_report.num_umis,
-        ).as_bytes());
-
+        let _ = f.write(
+            format!(
+                "{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+                String::from_utf8(group_report.min_reads_group.to_vec()).unwrap(),
+                group_report.min_reads,
+                String::from_utf8(group_report.max_reads_group.to_vec()).unwrap(),
+                group_report.max_reads,
+                group_report.num_passing_groups,
+                group_report.num_groups,
+                group_report.num_umis,
+            )
+            .as_bytes(),
+        );
     }
 }
