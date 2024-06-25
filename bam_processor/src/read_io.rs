@@ -151,10 +151,10 @@ impl<'a> ChunkProcessor<'a> {
 
     // for every position, group, and process UMIs. output remaining UMIs to write list
     pub fn process_chunks(&mut self, input_file: BamReader<File>, mut bottomhash: BottomHashMap) {
-
-        let read_puller =  match self.grouping_method {
-            GroupingMethod::Directional => ChunkProcessor::pull_read_w_length,
-            GroupingMethod::Raw => ChunkProcessor::pull_read,
+        let read_puller = match self.grouping_method {
+            // for comparison purposes, changing directional to not consider read length
+            GroupingMethod::Directional => ChunkProcessor::pull_read,
+            GroupingMethod::Raw => ChunkProcessor::pull_read_w_length,
         };
 
         let mut counter = 0;
