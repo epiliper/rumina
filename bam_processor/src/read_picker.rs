@@ -5,7 +5,7 @@
 * 1. input all the reads within the UMI group
 * 2. group the reads by sequence
 * 3. select the group with the highest phred score across reads
-* 4. output the read with the highest phred score from selected group
+* 4. Output one read from the group
 */
 
 extern crate bam;
@@ -89,13 +89,12 @@ pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
                 let cluster_avg = ((avgs.iter().sum::<f32>() / avgs.len() as f32) * 100.0) as i32;
                 mean_phreds.insert(cluster_avg, cluster);
             }
-            // get the index of the sequences with the best phred score across all reads
             let x = *mean_phreds.iter_mut().map(|x| x.0).max().unwrap();
 
             let mut best_phred = mean_phreds.swap_remove(&x).unwrap();
 
+            // remove one read from this group (final read to represent UMI group)
             return best_phred.swap_remove(0);
         }
     }
 }
-

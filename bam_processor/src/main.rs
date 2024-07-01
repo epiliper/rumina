@@ -1,5 +1,4 @@
 use crate::fs::OpenOptions;
-use crate::grouper::Grouper;
 use crate::read_io::ChunkProcessor;
 use crate::read_io::GroupReport;
 use bam::bam_writer::BamWriterBuilder;
@@ -21,10 +20,10 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 mod bottomhash;
-mod dedup_correct;
+mod deduplicator;
 mod grouper;
-mod processor;
 mod read_io;
+mod read_picker;
 
 #[derive(ValueEnum, Debug, Clone)]
 enum GroupingMethod {

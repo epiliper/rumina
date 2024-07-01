@@ -1,6 +1,6 @@
 use crate::bottomhash::BottomHashMap;
-use crate::processor;
-use crate::Grouper;
+use crate::deduplicator::Deduplicator;
+use crate::grouper::Grouper;
 use crate::GroupingMethod;
 use bam::BamReader;
 use bam::Record;
@@ -50,7 +50,7 @@ impl<'a> ChunkProcessor<'a> {
                     .map(|x| x.to_string())
                     .collect::<Vec<String>>();
 
-                let processor = processor::Processor { umis: &umis };
+                let processor = Grouper { umis: &umis };
                 let mut counts: HashMap<&String, i32> = HashMap::new();
 
                 // get number of reads for each raw UMI
@@ -59,7 +59,7 @@ impl<'a> ChunkProcessor<'a> {
                 }
 
                 let groupies: (HashMap<&String, i32>, Option<Vec<Vec<&String>>>);
-                let mut grouper = Grouper {};
+                let mut grouper = Deduplicator {};
 
                 match self.grouping_method {
                     GroupingMethod::Directional => {

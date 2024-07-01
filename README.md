@@ -38,7 +38,7 @@ This will compile the rust components of the pipeline, set up a python virtual e
 ```rumina <input (file or directory)> --grouping_method <grouping_method> --separator <separator> <optional args>```
 
 an example command:<br>
-```rumina example.bam --grouping_method directional --separator : --split_window 100```
+```rumina example.bam --grouping_method directional --separator : --split_window 100 --threads 8``` 
 
 ---
 The `input` to `rumina` can be a file or a directory; if a directory, all SAM/BAM files within (exlcuding pipeline products) are processed.
@@ -91,6 +91,11 @@ if used, disables depth, coverage, and clustering reporting on output files. Thi
 
 reports describe coverage and depth of output files using `bedtools genomecov` via `pybedtools`. UMI groups with the least and most reads, respectively, as well as the number of UMI groups present before and after clustering, are also recorded. 
 
+##### `--threads` (default = all) 
+
+Specifies the number of number of threads RUMINA is allowed to use. Threads are spread across reference coordinates, as well as more expensive intra-coordinate calculations for grouping reads. 
+
+By default, RUMINA will attempt to use all available threads (logical CPUs). 
 #### Todo
 
 - establish UMI clustering methods for shotgun sequencing methods
