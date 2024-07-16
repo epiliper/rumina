@@ -27,9 +27,11 @@ This pipeline is tested for processing ~600 million reads in ~5 hours, at a rate
 
 ### Installation:
 
-1. Clone this repository
-2. `cd` into cloned repo
-3. run `sh install.sh`
+```bash
+git clone git@github.com:epiliper/rumina.git
+cd rumina
+sh install.sh
+```
 
 This will compile the rust components of the pipeline, set up a python virtual environment with the necessary packages, and create a script named `rumina` to enable running RUMINA from any directory. This script will be located in `$HOME/.cargo/bin/`
 
@@ -41,7 +43,7 @@ an example command:<br>
 ```rumina example.bam --grouping_method directional --separator : --split_window 100 --threads 8``` 
 
 ---
-The `input` to `rumina` can be a file or a directory; if a directory, all SAM/BAM files within (exlcuding pipeline products) are processed.
+The `input` to `rumina` can be a file or a directory; if a directory, all BAM files within (exlcuding pipeline products) are processed.
 
 
 ###  Arguments 
@@ -50,11 +52,11 @@ The `input` to `rumina` can be a file or a directory; if a directory, all SAM/BA
 ##### `input` :small_blue_diamond:
 The input file or directory. If a file, it must be: 
 
-- in SAM or BAM format
+- in ~~SAM~~ or BAM format
     - The UMI should be in the read QNAME field (see image under `--separator`). Illumina data base-called by [BCL Convert](https://www.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/bcl-convert.html) should be formatted this way by default.
 
 > [!Note]
-> This pipeline processes BAM files only, but will automatically convert SAM file inputs into temporary BAM files for compatibility. Inputs are referred to as "BAM files" hereon.
+> This pipeline processes BAM files only, ~~but will automatically convert SAM file inputs into temporary BAM files for compatibility. Inputs are referred to as "BAM files" hereon.~~
 
 Indexes or any files associated with reference genomes are not required.
 

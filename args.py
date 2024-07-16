@@ -70,7 +70,7 @@ Options are:
         if int(args.threads) > os.cpu_count():
             sys.exit("Number of threads specified exceeds system threads. Exiting...")
     else:
-        args.threads = os.cpu_count()
+        args.threads = str(os.cpu_count())
 
     if args.split_window is None:
         pass
