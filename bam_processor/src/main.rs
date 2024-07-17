@@ -44,6 +44,8 @@ struct Args {
     grouping_method: GroupingMethod,
     #[arg(long = "threads", index = 5)]
     threads: usize,
+    #[arg(long = "length")]
+    length: bool,
 }
 
 fn main() {
@@ -98,6 +100,7 @@ fn main() {
         reads_to_output: Arc::clone(&reads_to_spit),
         min_max: Arc::clone(&min_maxes),
         grouping_method,
+        group_by_length: args.length,
     };
 
     // do grouping and processing

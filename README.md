@@ -98,6 +98,9 @@ reports describe coverage and depth of output files using `bedtools genomecov` v
 Specifies the number of number of threads RUMINA is allowed to use. Threads are spread across reference coordinates, as well as more expensive intra-coordinate calculations for grouping reads. 
 
 By default, RUMINA will attempt to use all available threads (logical CPUs). 
+
+##### `--length` (optional)
+if used, groups reads by length as well as coordinate. This is recommended for metagenomics data with high read depth, as this will group reads more stringently and likely produce more singleton groups. 
 #### Todo
 
 - establish UMI clustering methods for shotgun sequencing methods

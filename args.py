@@ -50,6 +50,12 @@ Options are:
         help="""If used, disables coverage and depth reporting on output files using 'bedtools genomecov'. This can save several minutes per file when working with large files\n""",
     )
 
+    flags.add_argument(
+        "--length",
+        action="store_true",
+        help="if used, groups reads by length in addition to reference coordinate. Recommended for metagenomics data with high read depth.",
+    )
+
     optional.add_argument(
         "--split_window",
         nargs="?",

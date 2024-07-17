@@ -132,16 +132,19 @@ def group_bam(input_file, split):
     )
 
     tag_cmd = os.path.join(exec_path, "bam_processor/target/release/bam_processor")
-    subprocess.run(
-        [
-            tag_cmd,
-            input_file,
-            tagged_file_name,
-            args.separator,
-            args.grouping_method,
-            args.threads,
-        ]
-    )
+    tag_cmd = [
+        tag_cmd,
+        input_file,
+        tagged_file_name,
+        args.separator,
+        args.grouping_method,
+        args.threads,
+    ]
+
+    if args.length:
+        tag_cmd.append("--length")
+
+    subprocess.run(tag_cmd)
 
     if not args.no_report:
         if not split:

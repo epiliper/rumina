@@ -32,6 +32,7 @@ pub struct ChunkProcessor<'a> {
     pub reads_to_output: Arc<Mutex<Vec<Record>>>,
     pub min_max: Arc<Mutex<GroupReport>>,
     pub grouping_method: GroupingMethod,
+    pub group_by_length: bool,
 }
 
 impl<'a> ChunkProcessor<'a> {
@@ -151,10 +152,9 @@ impl<'a> ChunkProcessor<'a> {
 
     // for every position, group, and process UMIs. output remaining UMIs to write list
     pub fn process_chunks(&mut self, input_file: BamReader<File>, mut bottomhash: BottomHashMap) {
-        let read_puller = match self.grouping_method {
-            // for comparison purposes, changing directional to not consider read length
-            GroupingMethod::Directional => ChunkProcessor::pull_read,
-            GroupingMethod::Raw => ChunkProcessor::pull_read_w_length,
+        let read_puller = match self.group_by_length {
+            false => ChunkProcessor::pull_read,
+            true => ChunkProcessor::pull_read_w_length,
         };
 
         let mut counter = 0;
