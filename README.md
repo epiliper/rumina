@@ -28,9 +28,9 @@ This pipeline is tested for processing ~600 million reads in ~5 hours, at a rate
 ### Installation:
 
 ```bash
-git clone git@github.com:epiliper/rumina.git
-cd rumina
-sh install.sh
+git clone git@github.com:epiliper/rumina.git; \
+cd rumina; \
+sh install.sh; 
 ```
 
 This will compile the rust components of the pipeline, set up a python virtual environment with the necessary packages, and create a script named `rumina` to enable running RUMINA from any directory. This script will be located in `$HOME/.cargo/bin/`
