@@ -24,34 +24,55 @@ print(f"Working path: {work_path}")
 # delete temp bams once done
 
 
-def prepare_files(input):
-    print("preparing files...")
-    print("converting SAMs to temporary BAMs and sorting inputs...")
-
-    # keep a list of temp files for deletion
+def process_dir(dir, split):
     temp_bams = []
+
+    for file in os.listdir(dir):
+        if file.endswith(".bam") and "tagged" not in file and "rumina" not in file:
+            file_to_clean = os.path.abspath(os.path.join(dir, file))
+            print(f"WORKING ON FILE: {file_to_clean}")
+            tagged_bam = group_bam(file_to_clean, split)
+
+
+def process_file(file, split):
+    tagged_bam = group_bam(file, split)
+
+
+def get_all_files(input):
+    files_to_clean = []
+
+    print("gathering files...\r")
 
     if os.path.isdir(input):
         for file in os.listdir(input):
-            file = os.path.join(input, file)
-            if file.endswith(".sam"):
-                bam_name = file.split(".sam")[0] + ".bam"
-                pysam.sort(f"-@ {args.threads}", "-o", bam_name, file)
-                temp_bams.append(bam_name)
+            if file.endswith(".bam") or file.endswith(".sam"):
+                if "rumina" not in file and "tagged" not in file:
+                    files_to_clean.append(os.path.join(input, file))
 
-            elif file.endswith(".bam"):
-                pysam.sort(f"-@ {args.threads}", "-o", file, file)
+    else:
+        files_to_clean.append(input)
 
-    elif os.path.isfile(input) and input.endswith(".sam"):
-        bam_name = input.split(".sam")[0] + ".bam"
-        pysam.sort(f"-@ {args.threads}", "-o", bam_name, input)
-        temp_bams.append(bam_name)
+    return files_to_clean
 
-    # removing this for benchmarking purposes
-    # elif os.path.isfile(input) and input.endswith('bam'):
-    #     pysam.sort('-@ 6' ,'-o', input, input)
 
-    return temp_bams
+def prepare_files(files):
+    print("preparing files...\r")
+    print("converting SAMs to temporary BAMs and sorting inputs...\r")
+
+    temp_files = []
+
+    for file in files:
+        if file.endswith(".sam"):
+            bam_name = file.split(".sam")[0] + "_temp.bam"
+            pysam.sort(f"-@ {args.threads}", "-o", bam_name, file)
+            temp_files.append(bam_name)
+
+        elif file.endswith(".bam"):
+            bam_name = file.split(".bam")[0] + "_temp.bam"
+            pysam.sort(f"-@ {args.threads}", "-o", bam_name, file)
+            temp_files.append(bam_name)
+
+    return temp_files
 
 
 def calculate_split(input):
@@ -90,25 +111,30 @@ def split_bam(input, window_size):
 
 
 def merge_processed_splits(file):
-    clean_dir = os.path.join(work_path, "cleaned")
+    clean_dir = os.path.join(work_path, "rumina_output")
 
-    bam_name = os.path.basename(file).split(".bam")[0]
+    bam_name = os.path.basename(file).split("_temp")[0]
 
     prefixes_for_merging = set()
 
     for filename in os.listdir(clean_dir):
         if filename.endswith(".bam") and (
-            bam_name in filename and "final" not in filename
+            bam_name in filename and "rumina" not in filename
         ):
-            prefixes_for_merging.add(filename.split(".")[0])
+            # prefixes_for_merging.add(filename.split(".")[0])
+            prefixes_for_merging.add(bam_name)
 
     for prefix in prefixes_for_merging:
         splits = [
             os.path.join(clean_dir, file)
             for file in os.listdir(clean_dir)
-            if file.startswith(prefix) and file.endswith(".bam") and "final" not in file
+            if file.startswith(prefix)
+            and file.endswith(".bam")
+            and "rumina" not in file
         ]
-        final_file = os.path.join(clean_dir, prefix + "_final.bam")
+
+        final_file = os.path.join(clean_dir, prefix + "_rumina.bam")
+
         pysam.merge(f"-@ {args.threads}", "-f", final_file, *splits)
         for split in splits:
             os.remove(split)
@@ -119,17 +145,24 @@ def merge_processed_splits(file):
 
 
 # assign UG tag for each group of clustered UMIs
-
-
 def group_bam(input_file, split):
-    output_dir = os.path.join(work_path, "cleaned")
+    if split:
+        suffix = "_split.bam"
+    else:
+        suffix = "_rumina.bam"
+
+    output_dir = os.path.join(work_path, "rumina_output")
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
     tagged_file_name = os.path.join(
         os.path.abspath(output_dir),
-        os.path.basename(input_file).split(".bam")[0] + "_cleaned.bam",
+        os.path.basename(input_file).split(".bam")[0] + suffix,
     )
+
+    # needed to keep split file names the same
+    if not split:
+        tagged_file_name = tagged_file_name.replace("_temp", "")
 
     tag_cmd = os.path.join(exec_path, "bam_processor/target/release/bam_processor")
     tag_cmd = [
