@@ -132,7 +132,7 @@ impl<'b> Grouper<'b> {
                     if *counts.get(umi).unwrap() >= (counts.get(neighbor).unwrap() * 2 - 1) {
                         adj_list.lock()[umi].insert(neighbor);
                     } else if *counts.get(neighbor).unwrap() >= (counts.get(umi).unwrap() * 2 - 1) {
-                        adj_list.lock()[umi].insert(neighbor);
+                        adj_list.lock()[neighbor].insert(umi);
                     }
                 } else {
                 }
