@@ -33,7 +33,6 @@ for file in temp_bams:
             if window_size == 0:
                 print("Processing file without splitting...")
                 process_file(file, split=False)
-                break
             else:
                 file_split, split_dir = split_bam(file, window_size)
                 split_dirs.append(split_dir)
@@ -41,17 +40,15 @@ for file in temp_bams:
                 process_dir(split_dir, split=True)
                 merge_processed_splits(file)
 
-                [rmtree(dir) for dir in split_dirs]
-
         # no splitting; process files normally
         case None:
-            print("Processing directory without splitting...")
+            print("Processing file without splitting...")
             process_file(file, split=False)
 
         # process all bams with a supplied split window size
         case x if x.isdigit():
             if int(x) == 0:
-                print("Processing directory without splitting...")
+                print("Processing file without splitting...")
                 process_file(file, split=False)
 
             else:
@@ -61,7 +58,6 @@ for file in temp_bams:
                 process_dir(split_dir, split=True)
 
                 merge_processed_splits(file)
-                [rmtree(dir) for dir in split_dirs]
 
         case _:
             print(
@@ -70,6 +66,7 @@ for file in temp_bams:
             exit(5)
 
 [os.remove(temp) for temp in temp_bams]
+[rmtree(dir) for dir in split_dirs]
 
 end_time = time.time()
 

@@ -75,7 +75,9 @@ def prepare_files(files):
     return temp_files
 
 
+# calculate split window from file size
 def calculate_split(input):
+    # get file size in megabytes
     size = int(os.stat(input).st_size / 1024**2)
 
     if size in range(0, 500):
