@@ -114,7 +114,7 @@ def split_bam(input, window_size):
 def merge_processed_splits(file):
     clean_dir = os.path.join(work_path, "rumina_output")
 
-    bam_name = os.path.basename(file).split("_temp")[0]
+    bam_name = os.path.basename(file).split(".")[0]
 
     prefixes_for_merging = set()
 
@@ -161,9 +161,8 @@ def group_bam(input_file, split):
         os.path.basename(input_file).split(".bam")[0] + suffix,
     )
 
-    # needed to keep split file names the same
     if not split:
-        tagged_file_name = tagged_file_name.replace("_temp", "")
+        tagged_file_name = tagged_file_name.split(".")[0] + suffix
 
     tag_cmd = os.path.join(exec_path, "bam_processor/target/release/bam_processor")
     tag_cmd = [

@@ -1,4 +1,3 @@
-import os
 from process import (
     calculate_split,
     split_bam,
@@ -65,7 +64,6 @@ for file in temp_bams:
             )
             exit(5)
 
-[os.remove(temp) for temp in temp_bams]
 [rmtree(dir) for dir in split_dirs]
 
 end_time = time.time()
