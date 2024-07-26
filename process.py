@@ -56,7 +56,6 @@ def get_all_files(input):
 
 
 def prepare_files(files):
-    print("preparing files...\r")
     print("converting SAMs to temporary BAMs and sorting inputs...\r")
 
     temp_files = []
@@ -68,9 +67,9 @@ def prepare_files(files):
             temp_files.append(bam_name)
 
         elif file.endswith(".bam"):
-            bam_name = file.split(".bam")[0] + "_temp.bam"
-            pysam.sort(f"-@ {args.threads}", "-o", bam_name, file)
-            temp_files.append(bam_name)
+            # bam_name = file.split(".bam")[0] + "_temp.bam"
+            # pysam.sort(f"-@ {args.threads}", "-o", bam_name, file)
+            temp_files.append(file)
 
     return temp_files
 

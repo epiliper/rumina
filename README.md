@@ -54,6 +54,7 @@ The input file or directory. If a file, it must be:
 
 - in ~~SAM~~ or BAM format
     - The UMI should be in the read QNAME field (see image under `--separator`). Illumina data base-called by [BCL Convert](https://www.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/bcl-convert.html) should be formatted this way by default.
+    - sorted with `samtools sort` beforehand. This isn't required, but is generally recommended to ensure reproducible results.
 
 > [!Note]
 > This pipeline processes BAM files only, ~~but will automatically convert SAM file inputs into temporary BAM files for compatibility. Inputs are referred to as "BAM files" hereon.~~
