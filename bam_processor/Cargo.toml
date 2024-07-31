@@ -13,7 +13,7 @@ strsim = "0.11.1"
 indicatif = "0.17.8"
 indexmap = {version = "2.2.6", features = ["rayon"]}
 rayon = "1.10.0"
-parking_lot = {version = "0.12.2", features = ["deadlock_detection"]}
+parking_lot = {version = "0.12.2"}
 clap = {version = "4.5.4", features = ["derive"]}
 
 [profile.release]
@@ -22,7 +22,6 @@ lto = "fat"
 target-cpu = "native"
 opt-level = 3
 panic = 'abort'
-
 
 [profile.dev]
 panic = 'abort'

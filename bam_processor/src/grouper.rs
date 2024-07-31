@@ -19,7 +19,7 @@ impl<'b> Grouper<'b> {
     // gets the group neighbors of all group neighbors of a given UMI.
     pub fn depth_first_search(
         mut node: &'b String,
-        adj_list: &IndexMap<&'b String, HashSet<&'b String>>,
+        adj_list: &IndexMap<&'b String, Vec<&'b String>>,
     ) -> HashSet<&'b String> {
         let mut searched: HashSet<&String> = HashSet::new();
         let mut queue: VecDeque<&String> = VecDeque::new();
@@ -30,12 +30,12 @@ impl<'b> Grouper<'b> {
         while queue.len() > 0 {
             node = queue.pop_front().unwrap();
             if adj_list.contains_key(node) {
-                for next_node in &adj_list[node] {
+                &adj_list[node].iter().for_each(|next_node| {
                     if !searched.contains(next_node) {
                         queue.push_back(next_node);
                         searched.insert(next_node);
                     }
-                }
+                });
             }
         }
         return searched;
@@ -116,23 +116,23 @@ impl<'b> Grouper<'b> {
         counts: &HashMap<&String, i32>,
         substring_neighbors: IndexMap<&'b String, HashSet<&'b String>>,
         threshold: usize,
-    ) -> IndexMap<&'b String, HashSet<&'b String>> {
-        let adj_list: Arc<Mutex<IndexMap<&'b String, HashSet<&'b String>>>> = Arc::new(Mutex::new(
+    ) -> IndexMap<&'b String, Vec<&'b String>> {
+        let adj_list: Arc<Mutex<IndexMap<&'b String, Vec<&'b String>>>> = Arc::new(Mutex::new(
             IndexMap::with_capacity(substring_neighbors.values().len()),
         ));
 
         substring_neighbors.par_iter().for_each(|x| {
             let umi = x.0;
             let neighbors = x.1;
-            adj_list.lock().entry(umi).or_insert(HashSet::new());
+            adj_list.lock().entry(umi).or_insert(Vec::new());
 
             for neighbor in neighbors {
-                adj_list.lock().entry(neighbor).or_insert(HashSet::new());
+                adj_list.lock().entry(neighbor).or_insert(Vec::new());
                 if Grouper::edit_distance(umi, neighbor) <= threshold && umi != neighbor {
                     if *counts.get(umi).unwrap() >= (counts.get(neighbor).unwrap() * 2 - 1) {
-                        adj_list.lock()[umi].insert(neighbor);
+                        adj_list.lock()[umi].push(neighbor);
                     } else if *counts.get(neighbor).unwrap() >= (counts.get(umi).unwrap() * 2 - 1) {
-                        adj_list.lock()[neighbor].insert(umi);
+                        adj_list.lock()[neighbor].push(umi);
                     }
                 } else {
                 }
@@ -151,7 +151,7 @@ impl<'b> Grouper<'b> {
     // this is fed directly into the main_grouper function
     pub fn get_connected_components_par(
         &self,
-        adj_list: IndexMap<&'b String, HashSet<&'b String>>,
+        adj_list: IndexMap<&'b String, Vec<&'b String>>,
     ) -> Option<Vec<HashSet<&String>>> {
         let components: Arc<Mutex<Vec<HashSet<&String>>>> = Arc::new(Mutex::new(Vec::new()));
         let found: Arc<Mutex<HashSet<&String>>> = Arc::new(Mutex::new(HashSet::new()));

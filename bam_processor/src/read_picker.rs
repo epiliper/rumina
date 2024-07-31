@@ -12,17 +12,20 @@ extern crate bam;
 use crate::bottomhash::ReadsAndCount;
 use crate::IndexMap;
 use bam::Record;
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Record {
-    let mut sequences: IndexMap<Box<[u8]>, (Vec<Record>, i32)> = IndexMap::new();
+    // let mut sequences: IndexMap<Box<[u8]>, (Vec<Record>, i32)> = IndexMap::new();
+    let mut sequences: IndexMap<Cow<'static, [u8]>, (Vec<Record>, i32)> =
+        IndexMap::with_capacity(clusters.len());
     let _counts: IndexMap<&Box<[u8]>, i32> = IndexMap::new();
 
     // group the reads by sequence
     for cluster in clusters {
         cluster.reads.drain(0..).for_each(|x| {
             sequences
-                .entry(Box::from(*&x.sequence().raw()))
+                .entry(Cow::Owned(x.sequence().raw().to_vec()))
                 .or_insert((Vec::new(), 0));
             sequences[x.sequence().raw()].1 += 1;
             sequences[x.sequence().raw()].0.push(x);
@@ -32,7 +35,7 @@ pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Record {
     // the sequence with the most reads is at index 0 (can be tied)
     sequences.sort_by(|_a, b, _c, d| d.1.cmp(&b.1));
 
-    let mut phreddies: Vec<Vec<Record>> = Vec::new();
+    let mut phreddies: Vec<Vec<Record>> = Vec::with_capacity(100_000);
     let mut first = true;
     let mut max = 0;
 
@@ -70,7 +73,8 @@ pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
         1 => return clusters.drain(0..).next().unwrap().remove(0),
 
         _ => {
-            let mut mean_phreds: IndexMap<i32, Vec<Record>> = IndexMap::new();
+            let mut mean_phreds: IndexMap<i32, Vec<Record>> =
+                IndexMap::with_capacity(clusters.len());
 
             for cluster in clusters.drain(0..) {
                 let mut avgs: Vec<f32> = Vec::new();
