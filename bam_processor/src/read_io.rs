@@ -9,6 +9,7 @@ use parking_lot::Mutex;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs::File;
+use std::mem;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
@@ -56,8 +57,10 @@ impl<'a> ChunkProcessor<'a> {
                 let mut counts: HashMap<&String, i32> = HashMap::new();
 
                 // get number of reads for each raw UMI
+                let mut num_umis = 0;
                 for umi in &umis {
                     counts.entry(umi).or_insert(umis_reads[umi].count);
+                    num_umis += 1;
                 }
 
                 let groupies: (HashMap<&String, i32>, Option<Vec<Vec<&String>>>);
@@ -72,6 +75,9 @@ impl<'a> ChunkProcessor<'a> {
                     }
                 }
                 let tagged_reads = grouper.tag_records(groupies, umis_reads);
+
+                mem::drop(processor);
+                mem::drop(umis);
 
                 let mut min_max = self.min_max.lock();
 
@@ -95,7 +101,7 @@ impl<'a> ChunkProcessor<'a> {
                                 // count the number of UMI groups used in consensus
                                 min_max.num_passing_groups += x.num_passing_groups;
                                 min_max.num_groups += x.num_groups;
-                                min_max.num_umis += umis.len() as i64;
+                                min_max.num_umis += num_umis;
                             }
                             _ => (),
                         }

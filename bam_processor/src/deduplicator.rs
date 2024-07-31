@@ -61,7 +61,7 @@ impl Deduplicator {
     }
     pub fn tag_groups(
         &mut self,
-        final_umis: Vec<Vec<&String>>,
+        mut final_umis: Vec<Vec<&String>>,
         umis_records: &mut IndexMap<String, ReadsAndCount>,
         counts: HashMap<&String, i32>,
     ) -> (Option<GroupReport>, Vec<Record>) {
@@ -78,7 +78,7 @@ impl Deduplicator {
         group_report.num_groups = 0;
         group_report.num_groups += final_umis.len() as i64;
 
-        for top_umi in final_umis {
+        for top_umi in final_umis.drain(0..) {
             let num_reads_in_group = get_counts(&top_umi, &counts);
             if num_reads_in_group >= 3 {
                 let ug_tag = generate_tag(&mut rng, &mut used_tags);

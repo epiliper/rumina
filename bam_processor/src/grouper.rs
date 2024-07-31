@@ -28,7 +28,7 @@ impl<'b> Grouper<'b> {
         searched.insert(node);
 
         while queue.len() > 0 {
-            node = &queue.pop_front().unwrap();
+            node = queue.pop_front().unwrap();
             if adj_list.contains_key(node) {
                 for next_node in &adj_list[node] {
                     if !searched.contains(next_node) {
