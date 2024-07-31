@@ -1,8 +1,7 @@
 use crate::fs::OpenOptions;
 use crate::read_io::ChunkProcessor;
 use crate::read_io::GroupReport;
-use bam::bam_writer::BamWriterBuilder;
-use bam::Record;
+use bam::BamWriter;
 use bam::RecordWriter;
 use clap::ValueEnum;
 use indexmap::IndexMap;
@@ -12,6 +11,10 @@ use std::io::Write;
 use std::mem::drop;
 use std::path::Path;
 use std::time::Instant;
+
+use bam::Record;
+use std::sync::mpsc::channel;
+use std::thread;
 
 use clap::Parser;
 use rayon::ThreadPoolBuilder;
@@ -74,12 +77,25 @@ fn main() {
         .header()
         .clone();
 
-    let mut outfile = BamWriterBuilder::from_path(
-        &mut BamWriterBuilder::new().additional_threads((args.threads - 1) as u16),
-        &output_file,
-        header,
-    )
-    .unwrap();
+    // This gets the reads processed per position and sends them for file writing
+    // this is pending renaming/polish
+    let (tx, rx) = channel::<Vec<Record>>();
+
+    let out_bam = output_file.clone();
+
+    let _ = BamWriter::from_path(&out_bam, header.clone()).unwrap();
+
+    // writes reads in the read channel to output bam
+    let writer_handle = thread::spawn(move || {
+        let mut bam_writer = BamWriter::from_path(out_bam, header).unwrap();
+
+        while let Ok(reads) = rx.recv() {
+            for read in reads {
+                bam_writer.write(&read).unwrap();
+            }
+            bam_writer.flush().unwrap();
+        }
+    });
 
     // records min and max reads per group
     let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(GroupReport {
@@ -93,11 +109,10 @@ fn main() {
     }));
 
     // holds filtered reads awaiting writing to output bam file
-    let reads_to_spit: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
 
     let mut read_handler = ChunkProcessor {
         separator: &separator,
-        reads_to_output: Arc::clone(&reads_to_spit),
+        reads_to_output: tx,
         min_max: Arc::clone(&min_maxes),
         grouping_method,
         group_by_length: args.length,
@@ -105,12 +120,6 @@ fn main() {
 
     // do grouping and processing
     read_handler.process_chunks(bam, bottomhash);
-
-    // write final reads to output
-    println! {"Writing {} reads...", reads_to_spit.lock().len()};
-    for read in reads_to_spit.lock().iter() {
-        outfile.write(read).unwrap();
-    }
 
     let elapsed = now.elapsed();
     println! {"Time elapsed {:.2?}", elapsed};
@@ -149,4 +158,6 @@ fn main() {
             .as_bytes(),
         );
     }
+
+    writer_handle.join().unwrap();
 }
