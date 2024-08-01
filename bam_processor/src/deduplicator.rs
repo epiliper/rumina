@@ -4,8 +4,8 @@ use crate::read_io::GroupReport;
 use crate::read_picker::{correct_errors, get_counts};
 use crate::IndexMap;
 use bam::Record;
-use rand::rngs::ThreadRng;
-use rand::Rng;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -18,10 +18,13 @@ const UMI_TAG_LEN: usize = 8;
 // this struct holds methods to
 // 1. modify the records within the bottomhash by lookup
 // 2. for every bundle, write the UG-tagged reads to output bam
-pub struct Deduplicator {}
+pub struct Deduplicator {
+    pub seed: u64,
+}
 
 pub fn generate_tag(
-    rng: &mut ThreadRng,
+    // rng: &mut ThreadRng,
+    rng: &mut StdRng,
     used_tags: &mut HashSet<[u8; UMI_TAG_LEN]>,
 ) -> [u8; UMI_TAG_LEN] {
     let ug_tag: [u8; UMI_TAG_LEN] = (0..UMI_TAG_LEN)
@@ -67,7 +70,7 @@ impl Deduplicator {
     ) -> (Option<GroupReport>, Vec<Record>) {
         // for each UMI within a group, assign the same tag
 
-        let mut rng = rand::thread_rng();
+        let mut rng = StdRng::seed_from_u64(self.seed);
         let mut output_list: Vec<Record> = Vec::with_capacity(1_000_000);
         let mut used_tags: HashSet<[u8; UMI_TAG_LEN]> = HashSet::with_capacity(output_list.len());
 

@@ -9,7 +9,6 @@ use parking_lot::Mutex;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs::File;
-use std::mem;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
@@ -35,6 +34,7 @@ pub struct ChunkProcessor<'a> {
     pub min_max: Arc<Mutex<GroupReport>>,
     pub grouping_method: GroupingMethod,
     pub group_by_length: bool,
+    pub seed: u64,
 }
 
 impl<'a> ChunkProcessor<'a> {
@@ -47,14 +47,21 @@ impl<'a> ChunkProcessor<'a> {
 
         bottomhash.bottom_dict.par_drain(0..).for_each(|position| {
             for umi in position.1 {
-                let umis_reads = umi.1;
+                let mut umis_reads = umi.1;
+
+                // sort UMIs by read count
+                // note that this is an unstable sort, so we need to identify read-tied groups
+                umis_reads.par_sort_unstable_by(|_umi1, count1, _umi2, count2| {
+                    count2.count.cmp(&count1.count)
+                });
+
                 let umis = umis_reads
                     .keys()
                     .map(|x| x.to_string())
                     .collect::<Vec<String>>();
 
                 let processor = Grouper { umis: &umis };
-                let mut counts: HashMap<&String, i32> = HashMap::new();
+                let mut counts: HashMap<&String, i32> = HashMap::with_capacity(umis_reads.len());
 
                 // get number of reads for each raw UMI
                 let mut num_umis = 0;
@@ -64,8 +71,9 @@ impl<'a> ChunkProcessor<'a> {
                 }
 
                 let groupies: (HashMap<&String, i32>, Option<Vec<Vec<&String>>>);
-                let mut grouper = Deduplicator {};
+                let mut grouper = Deduplicator { seed: self.seed };
 
+                // get grouping method
                 match self.grouping_method {
                     GroupingMethod::Directional => {
                         groupies = processor.directional_clustering(counts);
@@ -73,18 +81,19 @@ impl<'a> ChunkProcessor<'a> {
                     GroupingMethod::Raw => {
                         groupies = processor.no_clustering(counts);
                     }
+                    GroupingMethod::Bidirectional => {
+                        groupies = processor.bidirectional_clustering(counts);
+                    }
                 }
                 let tagged_reads = grouper.tag_records(groupies, umis_reads);
-
-                mem::drop(processor);
-                mem::drop(umis);
-
                 let mut min_max = self.min_max.lock();
 
                 // update the groups with mininum and maximum observed reads
                 match tagged_reads {
                     Some(tagged_reads) => {
-                        self.reads_to_output.send(tagged_reads.1);
+                        self.reads_to_output
+                            .send(tagged_reads.1)
+                            .expect("Read channel not recieving!");
 
                         match tagged_reads.0 {
                             Some(x) => {
@@ -172,6 +181,7 @@ impl<'a> ChunkProcessor<'a> {
             }
         }
         print! {"\r Grouping {counter} reads...\n"}
+
         Self::group_reads(self, &mut bottomhash);
     }
 }

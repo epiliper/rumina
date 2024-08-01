@@ -25,7 +25,7 @@ def init_args():
         "--grouping_method",
         required=True,
         type=str,
-        choices=["raw", "directional"],
+        choices=["raw", "directional", "bidirectional"],
         help="""Specifies how/if to merge UMIs based on edit distance, to account for PCR mutations and NGS errors in UMI sequence.
 Options are:
 - directional: Merge UMIs via directinal clustering.

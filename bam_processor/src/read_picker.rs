@@ -48,6 +48,7 @@ pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Record {
             first = false;
         } else if cluster.1 .1 == max {
             phreddies.push(cluster.1 .0);
+        // once we hit groups with fewer reads, stop searching
         } else {
             break;
         }
@@ -70,8 +71,10 @@ pub fn get_counts(top_umi: &Vec<&String>, counts: &HashMap<&String, i32>) -> i64
 pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
     // return a single read, since this is per-position and we expect one read per UMI group
     match clusters.len() {
+        // if just one group, return one read
         1 => return clusters.drain(0..).next().unwrap().remove(0),
 
+        // if two groups are tied for read majority, pick the one with the best overall phred score
         _ => {
             let mut mean_phreds: IndexMap<i32, Vec<Record>> =
                 IndexMap::with_capacity(clusters.len());
