@@ -104,7 +104,7 @@ By default, RUMINA will attempt to use all available threads (logical CPUs).
 ##### `--length` (optional)
 if used, groups reads by length as well as coordinate. This is recommended for metagenomics data with high read depth, as this will group reads more stringently and likely produce more singleton groups. 
 
-##### `--group-only` (optional)
+##### `--only-group` (optional)
 if used, reads will be grouped (assigned a group-specific "UG" tag), but not deduplicated or error-corrected. This is useful if you want to manually check how grouping works with a given file.
 
 #### Todo

@@ -141,8 +141,7 @@ def merge_processed_splits(file):
             os.remove(split)
 
         if not args.no_report:
-            sort_and_index(final_file)
-            generate_report(file, final_file)
+            sort_and_index(file, final_file)
 
 
 # assign UG tag for each group of clustered UMIs
@@ -184,17 +183,20 @@ def group_bam(input_file, split):
 
     if not args.no_report:
         if not split:
-            sort_and_index(tagged_file_name)
-            generate_report(input_file, tagged_file_name)
+            sort_and_index(input_file, tagged_file_name)
 
     return tagged_file_name
 
 
-def sort_and_index(output_file):
+def sort_and_index(input_file, output_file):
     temp_file = output_file.split(".bam")[0] + "_s.bam"
     os.rename(output_file, temp_file)
+
+    if args.only_group:
+        output_file = output_file.split(".bam")[0] + "_GROUP_ONLY.bam"
 
     pysam.sort(f"-@ {args.threads}", temp_file, "-o", output_file)
     os.remove(temp_file)
 
     pysam.index(f"-@ {args.threads}", output_file)
+    generate_report(input_file, output_file)
