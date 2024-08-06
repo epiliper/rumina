@@ -242,22 +242,14 @@ impl<'b> Grouper<'b> {
         let substring_map = self.get_substring_map();
         let neighbors = self.iter_substring_neighbors(substring_map);
         let directional_output = self.get_adj_list_bidirectional(&counts, neighbors, 1);
-        let mut adj_list = directional_output;
-        let final_umis: Option<Vec<Vec<&String>>>;
-
-        // because the generated adjacency list is acyclic, and all groups are of depth <1, no need
-        // to search for neighbors of child nodes
+        let adj_list = directional_output;
+        let final_umis;
         if adj_list.len() > 0 {
-            let mut groups: Vec<Vec<&String>> = Vec::with_capacity(adj_list.len());
-            adj_list.drain(0..).for_each(|(root, mut child)| {
-                child.push(root);
-                groups.push(child);
-            });
-            final_umis = Some(groups);
+            let clusters = self.get_connected_components_par(adj_list).unwrap();
+            final_umis = Some(self.get_umi_groups(clusters));
         } else {
             final_umis = None;
         }
-
         return (counts, final_umis);
     }
 
