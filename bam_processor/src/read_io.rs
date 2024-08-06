@@ -35,6 +35,7 @@ pub struct ChunkProcessor<'a> {
     pub grouping_method: GroupingMethod,
     pub group_by_length: bool,
     pub seed: u64,
+    pub only_group: bool,
 }
 
 impl<'a> ChunkProcessor<'a> {
@@ -71,7 +72,10 @@ impl<'a> ChunkProcessor<'a> {
                 }
 
                 let groupies: (HashMap<&String, i32>, Option<Vec<Vec<&String>>>);
-                let mut grouper = Deduplicator { seed: self.seed };
+                let mut grouper = Deduplicator {
+                    seed: self.seed + position.0 as u64, // make seed unique per position
+                    group_only: self.only_group,
+                };
 
                 // get grouping method
                 match self.grouping_method {

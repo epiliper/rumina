@@ -1,7 +1,7 @@
 extern crate bam;
 use crate::bottomhash::ReadsAndCount;
 use crate::read_io::GroupReport;
-use crate::read_picker::{correct_errors, get_counts};
+use crate::read_picker::{correct_errors, get_counts, push_all_reads};
 use crate::IndexMap;
 use bam::Record;
 use rand::rngs::StdRng;
@@ -20,6 +20,7 @@ const UMI_TAG_LEN: usize = 8;
 // 2. for every bundle, write the UG-tagged reads to output bam
 pub struct Deduplicator {
     pub seed: u64,
+    pub group_only: bool,
 }
 
 pub fn generate_tag(
@@ -36,6 +37,7 @@ pub fn generate_tag(
         .try_into()
         .unwrap();
     if !used_tags.contains(&ug_tag) {
+        used_tags.insert(ug_tag);
         return ug_tag;
     } else {
         generate_tag(rng, used_tags)
@@ -75,6 +77,12 @@ impl Deduplicator {
         let mut used_tags: HashSet<[u8; UMI_TAG_LEN]> = HashSet::with_capacity(output_list.len());
 
         let mut first = true;
+
+        // either group reads, or group and deduplicate
+        let read_processor = match self.group_only {
+            true => push_all_reads,
+            false => correct_errors,
+        };
 
         // to report min and max observed reads per group
         let mut group_report: GroupReport = Default::default();
@@ -116,14 +124,16 @@ impl Deduplicator {
                     cluster_list.push(umis_records.swap_remove(*group).unwrap());
                 }
 
-                // this is the read from the majority sequence read group
-                let mut final_record = correct_errors(&mut cluster_list);
+                // tag final reads and send for writing to output bam
+                let mut to_write = read_processor(&mut cluster_list);
 
-                final_record.tags_mut().push_string(b"UG", &ug_tag);
-                final_record
-                    .tags_mut()
-                    .push_string(b"BX", &top_umi.iter().next().unwrap().as_bytes());
-                output_list.push(final_record);
+                to_write.iter_mut().for_each(|read| {
+                    read.tags_mut().push_string(b"UG", &ug_tag);
+                    read.tags_mut()
+                        .push_string(b"BX", &top_umi.iter().next().unwrap().as_bytes())
+                });
+
+                output_list.extend(to_write);
             }
         }
 

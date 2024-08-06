@@ -56,6 +56,12 @@ Options are:
         help="if used, groups reads by length in addition to reference coordinate. Recommended for metagenomics data with high read depth.",
     )
 
+    flags.add_argument(
+        "--only-group",
+        action="store_true",
+        help="if used, reads are grouped and tagged but not deduplicated or error corrected. This is useful if you want to manually review what grouping looks like.",
+    )
+
     optional.add_argument(
         "--split_window",
         nargs="?",

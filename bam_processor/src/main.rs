@@ -54,6 +54,8 @@ struct Args {
     threads: usize,
     #[arg(long = "length")]
     length: bool,
+    #[arg(long = "only-group")]
+    only_group: bool,
 }
 
 fn main() {
@@ -126,6 +128,7 @@ fn main() {
         grouping_method,
         group_by_length: args.length,
         seed: seed,
+        only_group: args.only_group,
     };
 
     // do grouping and processing

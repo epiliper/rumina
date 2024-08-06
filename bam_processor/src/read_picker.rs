@@ -15,7 +15,7 @@ use bam::Record;
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Record {
+pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
     // let mut sequences: IndexMap<Box<[u8]>, (Vec<Record>, i32)> = IndexMap::new();
     let mut sequences: IndexMap<Cow<'static, [u8]>, (Vec<Record>, i32)> =
         IndexMap::with_capacity(clusters.len());
@@ -55,7 +55,18 @@ pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Record {
     }
     // get the group with the best overall phred score
     // and return the best phred score read from it
-    return get_best_phred(phreddies);
+    return vec![get_best_phred(phreddies)];
+}
+
+// used with the --group_only arg to return all reads within a group with a group tag
+pub fn push_all_reads(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
+    let mut reads_to_write: Vec<Record> = Vec::with_capacity(clusters.len());
+
+    clusters
+        .drain(0..)
+        .for_each(|read_group| reads_to_write.extend(read_group.reads.into_iter()));
+
+    return reads_to_write;
 }
 
 // get the number of reads across all UMIs within a group

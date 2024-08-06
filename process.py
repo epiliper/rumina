@@ -177,6 +177,9 @@ def group_bam(input_file, split):
     if args.length:
         tag_cmd.append("--length")
 
+    if args.only_group:
+        tag_cmd.append("--only-group")
+
     subprocess.run(tag_cmd)
 
     if not args.no_report:
