@@ -34,7 +34,7 @@ mod read_picker;
 
 #[derive(ValueEnum, Debug, Clone)]
 enum GroupingMethod {
-    Bidirectional,
+    Acyclic,
     Directional,
     Raw,
 }

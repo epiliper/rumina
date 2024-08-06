@@ -85,7 +85,7 @@ impl<'a> ChunkProcessor<'a> {
                     GroupingMethod::Raw => {
                         groupies = processor.no_clustering(counts);
                     }
-                    GroupingMethod::Bidirectional => {
+                    GroupingMethod::Acyclic => {
                         groupies = processor.bidirectional_clustering(counts);
                     }
                 }
