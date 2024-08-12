@@ -9,7 +9,6 @@ use parking_lot::Mutex;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs::File;
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 fn get_umi(record: &Record, separator: &String) -> String {
@@ -30,7 +29,7 @@ pub struct GroupReport {
 
 pub struct ChunkProcessor<'a> {
     pub separator: &'a String,
-    pub reads_to_output: Sender<Vec<Record>>,
+    pub reads_to_output: Arc<Mutex<Vec<Record>>>,
     pub min_max: Arc<Mutex<GroupReport>>,
     pub grouping_method: GroupingMethod,
     pub group_by_length: bool,
@@ -97,9 +96,8 @@ impl<'a> ChunkProcessor<'a> {
                 // update the groups with mininum and maximum observed reads
                 match tagged_reads {
                     Some(tagged_reads) => {
-                        self.reads_to_output
-                            .send(tagged_reads.1)
-                            .expect("Read channel not recieving!");
+                        self.reads_to_output.lock().extend(tagged_reads.1);
+                        // .expect("Read channel not recieving!");
 
                         match tagged_reads.0 {
                             Some(x) => {

@@ -86,6 +86,8 @@ fn main() {
     input_file.hash(&mut hasher);
     let seed = hasher.finish();
 
+    let reads_to_write: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
+
     let bam = bam::BamReader::from_path(&input_file, (args.threads - 1) as u16).unwrap();
     let header = bam::BamReader::from_path(&input_file, 0)
         .unwrap()
@@ -98,22 +100,10 @@ fn main() {
 
     let out_bam = output_file.clone();
 
-    let _ = BamWriter::from_path(&out_bam, header.clone()).unwrap();
-
-    // writes reads in the read channel to output bam
-    let writer_handle = thread::spawn(move || {
-        let mut bam_writer = BamWriterBuilder::new()
-            .additional_threads(args.threads.try_into().unwrap())
-            .from_path(&out_bam, header)
-            .unwrap();
-
-        while let Ok(reads) = rx.recv() {
-            for read in reads {
-                bam_writer.write(&read).unwrap();
-            }
-            bam_writer.flush().unwrap();
-        }
-    });
+    let mut bam_writer = BamWriterBuilder::new()
+        .additional_threads(args.threads.try_into().unwrap())
+        .from_path(&out_bam, header)
+        .unwrap();
 
     // records min and max reads per group
     let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(GroupReport {
@@ -129,7 +119,7 @@ fn main() {
     // holds filtered reads awaiting writing to output bam file
     let mut read_handler = ChunkProcessor {
         separator: &separator,
-        reads_to_output: tx,
+        reads_to_output: Arc::clone(&reads_to_write),
         min_max: Arc::clone(&min_maxes),
         grouping_method,
         group_by_length: args.length,
@@ -145,6 +135,11 @@ fn main() {
     println! {"Time elapsed {:.2?}", elapsed};
 
     drop(read_handler);
+
+    for read in reads_to_write.lock().drain(0..) {
+        bam_writer.write(&read);
+    }
+
     let group_report = Arc::try_unwrap(min_maxes).unwrap().into_inner();
 
     // report on min and max number of reads per group
@@ -179,6 +174,4 @@ fn main() {
             .as_bytes(),
         );
     }
-
-    writer_handle.join().unwrap();
 }
