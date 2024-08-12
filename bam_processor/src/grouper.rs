@@ -1,13 +1,11 @@
 extern crate bam;
+use bam::bgzip::write;
 use indexmap::IndexMap;
-use parking_lot::Mutex;
-use rayon::prelude::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 
 use std::str;
-use std::sync::Arc;
 use strsim::hamming;
 
 // this is the struct that contains functions used to group umis per the directional method
@@ -19,7 +17,7 @@ impl<'b> Grouper<'b> {
     // gets the group neighbors of all group neighbors of a given UMI.
     pub fn depth_first_search(
         mut node: &'b String,
-        adj_list: &IndexMap<&'b String, HashSet<&'b String>>,
+        adj_list: &IndexMap<&'b String, Vec<&'b String>>,
     ) -> HashSet<&'b String> {
         let mut searched: HashSet<&String> = HashSet::new();
         let mut queue: VecDeque<&String> = VecDeque::new();
@@ -28,14 +26,14 @@ impl<'b> Grouper<'b> {
         searched.insert(node);
 
         while queue.len() > 0 {
-            node = &queue.pop_front().unwrap();
+            node = queue.pop_front().unwrap();
             if adj_list.contains_key(node) {
-                for next_node in &adj_list[node] {
+                &adj_list[node].iter().for_each(|next_node| {
                     if !searched.contains(next_node) {
                         queue.push_back(next_node);
                         searched.insert(next_node);
                     }
-                }
+                });
             }
         }
         return searched;
@@ -50,35 +48,25 @@ impl<'b> Grouper<'b> {
         let umi_length = self.umis.first().unwrap().len();
         let mid = umi_length / 2;
 
-        let substring_map: Arc<Mutex<IndexMap<&str, Vec<&String>>>> =
-            Arc::new(Mutex::new(IndexMap::new()));
+        let mut substring_map: IndexMap<&str, Vec<&String>> = IndexMap::new();
 
-        self.umis.par_iter().for_each(|x| {
+        self.umis.iter().for_each(|x| {
             let split = x.split_at(mid);
-            substring_map
-                .lock()
-                .entry(split.0)
-                .or_insert(Vec::new())
-                .push(x);
-            substring_map
-                .lock()
-                .entry(split.1)
-                .or_insert(Vec::new())
-                .push(x);
+            substring_map.entry(split.0).or_insert(Vec::new()).push(x);
+            substring_map.entry(split.1).or_insert(Vec::new()).push(x);
         });
-        return Arc::try_unwrap(substring_map).unwrap().into_inner();
+        return substring_map;
     }
 
     pub fn iter_substring_neighbors(
         &self,
         substring_map: IndexMap<&'b str, Vec<&'b String>>,
     ) -> IndexMap<&'b String, HashSet<&'b String>> {
-        let neighbors: Arc<Mutex<IndexMap<&'b String, HashSet<&'b String>>>> =
-            Arc::new(Mutex::new(IndexMap::new()));
+        let mut neighbors: IndexMap<&'b String, HashSet<&'b String>> = IndexMap::new();
 
-        substring_map.par_iter().for_each(|x| {
+        substring_map.iter().for_each(|x| {
             for umi in x.1 {
-                neighbors.lock().entry(umi).or_insert(HashSet::new());
+                neighbors.entry(umi).or_insert(HashSet::new());
                 let mut observed: HashSet<&'b String> = HashSet::new();
 
                 let sub2 = (
@@ -102,76 +90,108 @@ impl<'b> Grouper<'b> {
                     (None, None) => {}
                 }
 
-                neighbors.lock()[umi].extend(observed);
+                neighbors[umi].extend(observed);
             }
         });
 
-        neighbors.lock().sort_unstable_keys();
-        return Arc::try_unwrap(neighbors).unwrap().into_inner();
+        return neighbors;
     }
 
     // groups umis via directional algorithm
-    pub fn get_adj_list_substring(
+    pub fn get_adj_list_directional(
         &self,
         counts: &HashMap<&String, i32>,
         substring_neighbors: IndexMap<&'b String, HashSet<&'b String>>,
         threshold: usize,
-    ) -> IndexMap<&'b String, HashSet<&'b String>> {
-        let adj_list: Arc<Mutex<IndexMap<&'b String, HashSet<&'b String>>>> = Arc::new(Mutex::new(
-            IndexMap::with_capacity(substring_neighbors.values().len()),
-        ));
+    ) -> IndexMap<&'b String, Vec<&'b String>> {
+        let mut adj_list: IndexMap<&'b String, Vec<&'b String>> =
+            IndexMap::with_capacity(substring_neighbors.values().len());
 
-        substring_neighbors.par_iter().for_each(|x| {
+        substring_neighbors.iter().for_each(|x| {
             let umi = x.0;
             let neighbors = x.1;
-            adj_list.lock().entry(umi).or_insert(HashSet::new());
+            adj_list.entry(umi).or_insert(Vec::new());
 
             for neighbor in neighbors {
-                adj_list.lock().entry(neighbor).or_insert(HashSet::new());
+                adj_list.entry(neighbor).or_insert(Vec::new());
                 if Grouper::edit_distance(umi, neighbor) <= threshold && umi != neighbor {
                     if *counts.get(umi).unwrap() >= (counts.get(neighbor).unwrap() * 2 - 1) {
-                        adj_list.lock()[umi].insert(neighbor);
+                        adj_list[umi].push(neighbor);
                     } else if *counts.get(neighbor).unwrap() >= (counts.get(umi).unwrap() * 2 - 1) {
-                        adj_list.lock()[umi].insert(neighbor);
+                        adj_list[neighbor].push(umi);
                     }
                 } else {
                 }
             }
         });
 
-        // this sort is necessary for reproducible number of reads after deduplication
-        adj_list.lock().sort_unstable_keys();
+        return adj_list;
+    }
 
-        return Arc::try_unwrap(adj_list).unwrap().into_inner();
+    // groups umis via bidirectional algorithm
+    pub fn get_adj_list_bidirectional(
+        &self,
+        counts: &HashMap<&String, i32>,
+        substring_neighbors: IndexMap<&'b String, HashSet<&'b String>>,
+        threshold: usize,
+    ) -> IndexMap<&'b String, Vec<&'b String>> {
+        let mut adj_list: IndexMap<&'b String, Vec<&'b String>> =
+            IndexMap::with_capacity(substring_neighbors.values().len());
+
+        // if a barcode is already part of a tree, don't group it again
+        let mut found: HashSet<&String> = HashSet::with_capacity(adj_list.len());
+
+        substring_neighbors.iter().for_each(|x| {
+            let umi = x.0;
+            let neighbors = x.1;
+
+            if !found.contains(umi) {
+                adj_list.entry(umi).or_insert(Vec::new());
+
+                for neighbor in neighbors {
+                    if !found.contains(neighbor) {
+                        if Grouper::edit_distance(umi, neighbor) <= threshold && umi != neighbor {
+                            if *counts.get(umi).unwrap() >= (counts.get(neighbor).unwrap() * 2 - 1)
+                            {
+                                adj_list[umi].push(neighbor);
+                                found.insert(neighbor);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        return adj_list;
     }
 
     // return a list of lists, comprising a UMI
     // with a list of grouped UMIs.
-    // via breadth-first-search
+    // via depth-first-search
     // this is fed directly into the main_grouper function
     pub fn get_connected_components_par(
         &self,
-        adj_list: IndexMap<&'b String, HashSet<&'b String>>,
+        adj_list: IndexMap<&'b String, Vec<&'b String>>,
     ) -> Option<Vec<HashSet<&String>>> {
-        let components: Arc<Mutex<Vec<HashSet<&String>>>> = Arc::new(Mutex::new(Vec::new()));
-        let found: Arc<Mutex<HashSet<&String>>> = Arc::new(Mutex::new(HashSet::new()));
+        let mut components: Vec<HashSet<&String>> = Vec::new();
+        let mut found: HashSet<&String> = HashSet::new();
 
         if adj_list.len() > 0 {
-            adj_list.par_keys().for_each(|node| {
-                if !found.lock().contains(node) {
+            adj_list.keys().for_each(|node| {
+                if !found.contains(node) {
                     let component = Grouper::depth_first_search(node, &adj_list);
-                    found.lock().extend(&component);
-                    components.lock().push(component);
+                    found.extend(&component);
+                    components.push(component);
                 }
             });
-            return Some(Arc::try_unwrap(components).unwrap().into_inner());
+            return Some(components);
         } else {
             return None;
         }
     }
 
     // get a list of UMIs, each with their own list of UMIs belonging to their group
-    pub fn group_directional(&self, clusters: Vec<HashSet<&'b String>>) -> Vec<Vec<&'b String>> {
+    pub fn get_umi_groups(&self, clusters: Vec<HashSet<&'b String>>) -> Vec<Vec<&'b String>> {
         let mut observed: HashSet<&String> = HashSet::new();
         let mut groups: Vec<Vec<&String>> = Vec::new();
 
@@ -202,12 +222,12 @@ impl<'b> Grouper<'b> {
     ) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
         let substring_map = self.get_substring_map();
         let neighbors = self.iter_substring_neighbors(substring_map);
-        let directional_output = self.get_adj_list_substring(&counts, neighbors, 1);
+        let directional_output = self.get_adj_list_directional(&counts, neighbors, 1);
         let adj_list = directional_output;
         let final_umis;
         if adj_list.len() > 0 {
             let clusters = self.get_connected_components_par(adj_list).unwrap();
-            final_umis = Some(self.group_directional(clusters));
+            final_umis = Some(self.get_umi_groups(clusters));
         } else {
             final_umis = None;
         }
@@ -215,17 +235,34 @@ impl<'b> Grouper<'b> {
         return (counts, final_umis);
     }
 
+    pub fn bidirectional_clustering(
+        &self,
+        counts: HashMap<&'b String, i32>,
+    ) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
+        let substring_map = self.get_substring_map();
+        let neighbors = self.iter_substring_neighbors(substring_map);
+        let directional_output = self.get_adj_list_bidirectional(&counts, neighbors, 1);
+        let adj_list = directional_output;
+        let final_umis;
+        if adj_list.len() > 0 {
+            let clusters = self.get_connected_components_par(adj_list).unwrap();
+            final_umis = Some(self.get_umi_groups(clusters));
+        } else {
+            final_umis = None;
+        }
+        return (counts, final_umis);
+    }
+
     pub fn no_clustering(
         &self,
         counts: HashMap<&'b String, i32>,
     ) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
-        // let umis = self.umis.iter().collect::<HashSet<&'b String>>();
         let umis = self
             .umis
             .iter()
             .map(|x| HashSet::from([x]))
             .collect::<Vec<HashSet<&'b String>>>();
-        let final_umis = Some(self.group_directional(umis));
+        let final_umis = Some(self.get_umi_groups(umis));
 
         return (counts, final_umis);
     }

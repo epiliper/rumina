@@ -25,7 +25,7 @@ def init_args():
         "--grouping_method",
         required=True,
         type=str,
-        choices=["raw", "directional"],
+        choices=["raw", "directional", "acyclic"],
         help="""Specifies how/if to merge UMIs based on edit distance, to account for PCR mutations and NGS errors in UMI sequence.
 Options are:
 - directional: Merge UMIs via directinal clustering.
@@ -54,6 +54,12 @@ Options are:
         "--length",
         action="store_true",
         help="if used, groups reads by length in addition to reference coordinate. Recommended for metagenomics data with high read depth.",
+    )
+
+    flags.add_argument(
+        "--only-group",
+        action="store_true",
+        help="if used, reads are grouped and tagged but not deduplicated or error corrected. This is useful if you want to manually review what grouping looks like.",
     )
 
     optional.add_argument(

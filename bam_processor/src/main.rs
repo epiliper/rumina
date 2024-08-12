@@ -7,6 +7,8 @@ use clap::ValueEnum;
 use indexmap::IndexMap;
 use std::fs;
 use std::fs::File;
+use std::hash::DefaultHasher;
+use std::hash::Hasher;
 use std::io::Write;
 use std::mem::drop;
 use std::path::Path;
@@ -15,6 +17,8 @@ use std::time::Instant;
 use bam::Record;
 use std::sync::mpsc::channel;
 use std::thread;
+
+use std::hash::Hash;
 
 use clap::Parser;
 use rayon::ThreadPoolBuilder;
@@ -30,6 +34,7 @@ mod read_picker;
 
 #[derive(ValueEnum, Debug, Clone)]
 enum GroupingMethod {
+    Acyclic,
     Directional,
     Raw,
 }
@@ -49,6 +54,8 @@ struct Args {
     threads: usize,
     #[arg(long = "length")]
     length: bool,
+    #[arg(long = "only-group")]
+    only_group: bool,
 }
 
 fn main() {
@@ -70,6 +77,11 @@ fn main() {
     let output_file = args.output;
     let separator = args.separator;
     let grouping_method = args.grouping_method;
+
+    // create tag seed based on input file name
+    let mut hasher = DefaultHasher::new();
+    input_file.hash(&mut hasher);
+    let seed = hasher.finish();
 
     let bam = bam::BamReader::from_path(&input_file, (args.threads - 1) as u16).unwrap();
     let header = bam::BamReader::from_path(&input_file, 0)
@@ -109,13 +121,14 @@ fn main() {
     }));
 
     // holds filtered reads awaiting writing to output bam file
-
     let mut read_handler = ChunkProcessor {
         separator: &separator,
         reads_to_output: tx,
         min_max: Arc::clone(&min_maxes),
         grouping_method,
         group_by_length: args.length,
+        seed: seed,
+        only_group: args.only_group,
     };
 
     // do grouping and processing
