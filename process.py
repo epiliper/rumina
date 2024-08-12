@@ -179,6 +179,9 @@ def group_bam(input_file, split):
     if args.only_group:
         tag_cmd.append("--only-group")
 
+    if args.singletons:
+        tag_cmd.append("--singletons")
+
     subprocess.run(tag_cmd)
 
     if not args.no_report:
@@ -189,6 +192,7 @@ def group_bam(input_file, split):
 
 
 def sort_and_index(input_file, output_file):
+    print("sorting and indexing output BAM...\r")
     temp_file = output_file.split(".bam")[0] + "_s.bam"
     os.rename(output_file, temp_file)
 
@@ -199,4 +203,5 @@ def sort_and_index(input_file, output_file):
     os.remove(temp_file)
 
     pysam.index(f"-@ {args.threads}", output_file)
+    print("getting coverage/depth report...\r")
     generate_report(input_file, output_file)

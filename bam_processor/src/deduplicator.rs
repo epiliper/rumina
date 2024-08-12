@@ -21,6 +21,7 @@ const UMI_TAG_LEN: usize = 8;
 pub struct Deduplicator {
     pub seed: u64,
     pub group_only: bool,
+    pub singletons: bool,
 }
 
 pub fn generate_tag(
@@ -89,9 +90,14 @@ impl Deduplicator {
         group_report.num_groups = 0;
         group_report.num_groups += final_umis.len() as i64;
 
+        let read_count_thres = match self.singletons {
+            true => 0,
+            false => 3, // groups should have 3+ reads for reliable majority rule
+        };
+
         for top_umi in final_umis.drain(0..) {
             let num_reads_in_group = get_counts(&top_umi, &counts);
-            if num_reads_in_group >= 3 {
+            if num_reads_in_group >= read_count_thres {
                 let ug_tag = generate_tag(&mut rng, &mut used_tags);
 
                 if first {

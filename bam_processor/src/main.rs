@@ -1,6 +1,7 @@
 use crate::fs::OpenOptions;
 use crate::read_io::ChunkProcessor;
 use crate::read_io::GroupReport;
+use bam::bam_writer::BamWriterBuilder;
 use bam::BamWriter;
 use bam::RecordWriter;
 use clap::ValueEnum;
@@ -56,6 +57,8 @@ struct Args {
     length: bool,
     #[arg(long = "only-group")]
     only_group: bool,
+    #[arg(long = "singletons")]
+    singletons: bool,
 }
 
 fn main() {
@@ -99,7 +102,10 @@ fn main() {
 
     // writes reads in the read channel to output bam
     let writer_handle = thread::spawn(move || {
-        let mut bam_writer = BamWriter::from_path(out_bam, header).unwrap();
+        let mut bam_writer = BamWriterBuilder::new()
+            .additional_threads(args.threads.try_into().unwrap())
+            .from_path(&out_bam, header)
+            .unwrap();
 
         while let Ok(reads) = rx.recv() {
             for read in reads {
@@ -129,6 +135,7 @@ fn main() {
         group_by_length: args.length,
         seed: seed,
         only_group: args.only_group,
+        singletons: args.singletons,
     };
 
     // do grouping and processing
@@ -145,6 +152,7 @@ fn main() {
     if group_report.min_reads != i64::MAX {
         println! {"minimum number of reads per group:     {},    group: {:?}", group_report.min_reads, String::from_utf8(group_report.min_reads_group.to_vec()).unwrap()};
         println! {"maximum number of reads per group:     {},    group: {:?}", group_report.max_reads, String::from_utf8(group_report.max_reads_group.to_vec()).unwrap()};
+        println! {"writing remaining reads..."};
 
         let minmax_file = Path::new(&output_file).parent().unwrap().join("minmax.txt");
 

@@ -36,6 +36,7 @@ pub struct ChunkProcessor<'a> {
     pub group_by_length: bool,
     pub seed: u64,
     pub only_group: bool,
+    pub singletons: bool,
 }
 
 impl<'a> ChunkProcessor<'a> {
@@ -75,6 +76,7 @@ impl<'a> ChunkProcessor<'a> {
                 let mut grouper = Deduplicator {
                     seed: self.seed + position.0 as u64, // make seed unique per position
                     group_only: self.only_group,
+                    singletons: self.singletons,
                 };
 
                 // get grouping method
