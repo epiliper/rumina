@@ -3,34 +3,23 @@ import os
 import warnings
 import pysam
 
-import pybedtools
-
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 COLUMNS = [
     "num_reads_input_file",
-    "num_reads_output_file",
     "num_raw_umis",
     "num_total_groups",
     "num_passing_groups",
     "least_reads_group",
-    "min reads per group",
+    "least_reads_per_group",
     "most_reads_group",
-    "max reads per group",
-    "min_depth",
-    "max_depth",
-    "median_depth",
-    "mean_depth",
-    "coverage_percent",
-    "query_name",
+    "most_reads_per_group",
 ]
 
 
 def generate_report(original_file, final_file):
     work_path = os.path.dirname(final_file)
     minmax_file = os.path.join(work_path, "minmax.txt")
-
-    inreads, outreads = get_counts(original_file, final_file)
 
     df = pd.read_csv(
         minmax_file,
@@ -45,98 +34,47 @@ def generate_report(original_file, final_file):
             "num_umis",
         ],
     )
-    true_min = int(df["mins"].min())
-    true_min_group = df.iloc[df["mins"].idxmin()].min_groups
-    true_max = int(df["maxes"].max())
-    true_max_group = df.iloc[df["maxes"].idxmax()].max_groups
-    num_passing_groups = df["num_passing_groups"].sum()
-    num_total_groups = df["num_total_groups"].sum()
-    num_umis = df["num_umis"].sum()
 
-    report_coverage(
-        inreads,
-        outreads,
-        final_file,
-        num_umis,
-        num_total_groups,
-        num_passing_groups,
-        true_min_group,
-        true_min,
-        true_max_group,
-        true_max,
-    )
-    os.remove(minmax_file)
+    report = pd.DataFrame(columns=COLUMNS)
+    report["least_reads_per_group"] = [int(df["mins"].min())]
 
+    report["least_reads_group"] = [df.iloc[df["mins"].idxmin()].min_groups]
 
-def get_counts(infile, outfile):
-    infile_reads = pysam.AlignmentFile(infile).count(until_eof=True)
-    outfile_reads = pysam.AlignmentFile(outfile).count(until_eof=True)
-    print(f"Written {outfile_reads} reads...")
+    report["most_reads_per_group"] = [int(df["maxes"].max())]
 
-    return infile_reads, outfile_reads
+    report["most_reads_group"] = [df.iloc[df["maxes"].idxmax()].max_groups]
 
+    report["num_passing_groups"] = [df["num_passing_groups"].sum()]
 
-def report_coverage(
-    input_reads,
-    output_reads,
-    input,
-    num_umis,
-    num_total_groups,
-    num_passing_groups,
-    min_group,
-    min_groupsize,
-    max_group,
-    max_groupsize,
-):
-    # infile = os.path.basename(input)
-    save_dir = os.path.dirname(input)
-    outfile = os.path.basename(input).split(".bam")[0] + "_depth.tsv"
-    query_name = os.path.basename(input).split(".bam")[0]
+    report["num_total_groups"] = [df["num_total_groups"].sum()]
 
-    # run bedtools genomecov via pybedtools API
-    pybedtools.example_bedtool(os.path.abspath(input)).genome_coverage(d=True).saveas(
-        outfile
-    )
+    report["num_raw_umis"] = [df["num_umis"].sum()]
 
-    df = pd.read_csv(outfile, sep="\t", names=["reference", "position", "num_reads"])
-
-    # depth statistics
-    min_depth = df["num_reads"].min()
-    max_depth = df["num_reads"].max()
-    median_depth = df["num_reads"].median()
-    mean_depth = df["num_reads"].mean()
-
-    # coverage statistics
-    num_positions = df["position"].max()
-    coverage = 100 * (num_positions - len(df.loc[df["num_reads"] == 0])) / num_positions
-
-    data = [
-        COLUMNS,
-        [
-            input_reads,
-            output_reads,
-            num_umis,
-            num_total_groups,
-            num_passing_groups,
-            min_group,
-            min_groupsize,
-            max_group,
-            max_groupsize,
-            min_depth,
-            max_depth,
-            median_depth,
-            mean_depth,
-            coverage,
-            query_name,
-        ],
+    report["num_reads_input_file"] = [
+        pysam.AlignmentFile(original_file).count(until_eof=True)
     ]
 
-    report = pd.DataFrame(data)
+    report["num_reads_output_file"] = [
+        pysam.AlignmentFile(final_file).count(until_eof=True)
+    ]
 
-    csv_name = os.path.join(save_dir, outfile.split("_depth.tsv")[0] + "_coverage.tsv")
+    try:
+        cov_stats = pysam.coverage(final_file).split("\n")
+        cov_stats = zip(cov_stats[0].split("\t"), cov_stats[1].split("\t"))
 
-    report.to_csv(csv_name, sep="\t", header=0, index=None)
-    os.remove(outfile)
+        for col_val in cov_stats:
+            report[col_val[0]] = [col_val[1]]
+
+    except pysam.utils.SamtoolsError:
+        print(
+            "coverage and depth reporting failed. Output BAM could not be read by pysam."
+        )
+
+    save_dir = os.path.dirname(final_file)
+    report["query_name"] = os.path.basename(original_file).split(".bam")[0]
+
+    csv_name = os.path.join(save_dir, final_file.split(".bam")[0] + "_coverage.tsv")
+    report.to_csv(csv_name, sep="\t", index=None)
 
 
 def summarize_coverage(work_dir):
@@ -154,7 +92,7 @@ def summarize_coverage(work_dir):
             read_file = pd.read_csv(
                 os.path.join(work_dir, file), sep="\t", header=0, index_col=False
             )
-            total_df = pd.concat([total_df, read_file])
+    total_df = pd.concat([total_df, read_file])
 
     total_df.to_csv(final_file)
 
