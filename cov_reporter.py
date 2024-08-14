@@ -78,6 +78,12 @@ def generate_report(original_file, final_file):
     csv_name = os.path.join(save_dir, final_file.split(".bam")[0] + "_coverage.tsv")
     report.to_csv(csv_name, sep="\t", index=None)
 
+    # IMPORTANT:
+    # for accurate reporting of split files,
+    # rumina will append to minmax file,
+    # delete it after each sample
+    os.remove(minmax_file)
+
 
 def summarize_coverage(work_dir):
     if not os.path.isabs(work_dir):
