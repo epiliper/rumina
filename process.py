@@ -18,7 +18,6 @@ else:
 
 exec_path = os.path.dirname(os.path.abspath(__file__))
 
-print(f"Working path: {work_path}")
 
 # convert sam files to temporary bam files for processing
 # delete temp bams once done
@@ -39,6 +38,7 @@ def process_file(file, split):
 
 
 def get_all_files(input):
+    print(f"Working path: {work_path}")
     files_to_clean = []
 
     print("gathering files...\r")

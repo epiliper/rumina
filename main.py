@@ -8,10 +8,12 @@ from process import (
     process_file,
 )
 
+from logo import LOGO
 from args import init_args
 import time
 from shutil import rmtree
 
+print(LOGO)
 args = init_args()
 
 suffix = ".bam"

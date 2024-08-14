@@ -58,6 +58,8 @@ def generate_report(original_file, final_file):
         pysam.AlignmentFile(final_file).count(until_eof=True)
     ]
 
+    print(f"written {report["num_reads_output_file"].values[0]} reads...")
+
     try:
         cov_stats = pysam.coverage(final_file).split("\n")
         cov_stats = zip(cov_stats[0].split("\t"), cov_stats[1].split("\t"))
