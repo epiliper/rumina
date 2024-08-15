@@ -22,15 +22,14 @@ pub struct BottomHashMap {
 }
 
 impl BottomHashMap {
-    pub fn update_dict(&mut self, position: &i32, key: i32, umi: &String, read: &Record) {
+    pub fn update_dict(&mut self, position: i32, key: i32, umi: &String, read: &Record) {
         self.bottom_dict
-            .entry((*position).into())
+            .entry(position)
             .or_default()
             .entry((key).into())
             .or_default()
             .entry(umi.into())
             .or_insert(ReadsAndCount {
-                // reads: Mutex::from(Vec::new()),
                 reads: Vec::new(),
                 count: 0,
             })

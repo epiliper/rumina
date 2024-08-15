@@ -32,6 +32,7 @@ mod deduplicator;
 mod grouper;
 mod read_io;
 mod read_picker;
+mod utils;
 
 #[derive(ValueEnum, Debug, Clone)]
 enum GroupingMethod {
@@ -100,11 +101,6 @@ fn main() {
 
     let out_bam = output_file.clone();
 
-    let mut bam_writer = BamWriterBuilder::new()
-        .additional_threads(args.threads.try_into().unwrap())
-        .from_path(&out_bam, header)
-        .unwrap();
-
     // records min and max reads per group
     let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(GroupReport {
         min_reads: i64::MAX,
@@ -135,6 +131,11 @@ fn main() {
     println! {"Time elapsed {:.2?}", elapsed};
 
     drop(read_handler);
+
+    let mut bam_writer = BamWriterBuilder::new()
+        .additional_threads(args.threads.try_into().unwrap())
+        .from_path(&out_bam, header)
+        .unwrap();
 
     for read in reads_to_write.lock().drain(0..) {
         bam_writer.write(&read);

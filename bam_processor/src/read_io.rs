@@ -16,6 +16,27 @@ fn get_umi(record: &Record, separator: &String) -> String {
     umi.unwrap().split(separator).last().unwrap().to_string()
 }
 
+pub fn get_read_pos(read: &Record) -> Option<i32> {
+    if read.flag().is_reverse_strand() {
+        let mut start = read.calculate_end();
+
+        if !read.cigar().is_empty() {
+            // set end pos as start to group with forward-reads covering same region
+            start += read.cigar().soft_clipping(false) as i32; // pad with right-side soft clip
+            return Some(start);
+        }
+    } else {
+        let mut start = read.start();
+
+        if !read.cigar().is_empty() {
+            start -= read.cigar().soft_clipping(true) as i32; // pad with left-side soft clip
+            return Some(start);
+        }
+    };
+
+    return None;
+}
+
 #[derive(Default, Debug)]
 pub struct GroupReport {
     pub min_reads: i64,
@@ -129,38 +150,25 @@ impl<'a> ChunkProcessor<'a> {
 
     // organize reads in bottomhash based on position
     pub fn pull_read(&mut self, read: &Record, bottomhash: &mut BottomHashMap, separator: &String) {
-        // if read is reverse to reference, group it by its last aligned base to the reference
-        if read.flag().is_mapped() && read.flag().is_reverse_strand() {
+        if read.flag().is_mapped() {
             bottomhash.update_dict(
-                &(&read.calculate_end() + 1),
+                get_read_pos(read).expect("ERROR: mapped read does not have usable CIGAR string."),
                 0,
                 &get_umi(&read, separator),
                 &read,
             );
-
-        // otherwise, use its first position to reference
-        } else if read.flag().is_mapped() {
-            bottomhash.update_dict(&(&read.start() + 1), 0, &get_umi(&read, separator), &read);
         }
     }
+
     pub fn pull_read_w_length(
         &mut self,
         read: &Record,
         bottomhash: &mut BottomHashMap,
         separator: &String,
     ) {
-        if read.flag().is_mapped() && read.flag().is_reverse_strand() {
+        if read.flag().is_mapped() {
             bottomhash.update_dict(
-                &(&read.calculate_end() + 1),
-                read.query_len() as i32,
-                &get_umi(&read, separator),
-                &read,
-            );
-
-        // otherwise, use its first position to reference
-        } else if read.flag().is_mapped() {
-            bottomhash.update_dict(
-                &(&read.start() + 1),
+                get_read_pos(read).expect("ERROR: mapped read does not have usable CIGAR string."),
                 read.query_len() as i32,
                 &get_umi(&read, separator),
                 &read,
