@@ -8,7 +8,7 @@ from process import (
     process_file,
 )
 
-from logo import LOGO
+from logo import r, M, C, LOGO
 from args import init_args
 import time
 from shutil import rmtree
@@ -22,9 +22,16 @@ window_size = 0
 split_dirs = []
 
 
+print(f"{M}Initializing...{r}")
+print(f"{M}============================={r}")
+print("parameters:")
+for arg in vars(args):
+    print(f"{M}{arg}{r}: {getattr(args, arg)}")
 temp_bams = prepare_files(get_all_files(args.input))
 
-for file in temp_bams:
+for i, file in enumerate(temp_bams, 1):
+    print(f"\n{C}FILE {i}/{len(temp_bams)}:{r} {file.split("/")[-1]}")
+    print(f"{C}============================={r}")
     match args.split_window:
         # calculate recommended split window size for each file
         case "auto":

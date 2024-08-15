@@ -2,7 +2,6 @@ use crate::fs::OpenOptions;
 use crate::read_io::ChunkProcessor;
 use crate::read_io::GroupReport;
 use bam::bam_writer::BamWriterBuilder;
-use bam::BamWriter;
 use bam::RecordWriter;
 use clap::ValueEnum;
 use indexmap::IndexMap;
@@ -16,8 +15,6 @@ use std::path::Path;
 use std::time::Instant;
 
 use bam::Record;
-use std::sync::mpsc::channel;
-use std::thread;
 
 use std::hash::Hash;
 
@@ -32,7 +29,6 @@ mod deduplicator;
 mod grouper;
 mod read_io;
 mod read_picker;
-mod utils;
 
 #[derive(ValueEnum, Debug, Clone)]
 enum GroupingMethod {
@@ -94,10 +90,6 @@ fn main() {
         .unwrap()
         .header()
         .clone();
-
-    // This gets the reads processed per position and sends them for file writing
-    // this is pending renaming/polish
-    let (tx, rx) = channel::<Vec<Record>>();
 
     let out_bam = output_file.clone();
 

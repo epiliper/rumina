@@ -19,10 +19,6 @@ else:
 exec_path = os.path.dirname(os.path.abspath(__file__))
 
 
-# convert sam files to temporary bam files for processing
-# delete temp bams once done
-
-
 def process_dir(dir, split):
     temp_bams = []
 
