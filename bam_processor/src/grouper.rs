@@ -1,6 +1,6 @@
 extern crate bam;
 use crate::GroupingMethod;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -62,13 +62,13 @@ impl<'b> Grouper<'b> {
     pub fn iter_substring_neighbors(
         &self,
         substring_map: IndexMap<&'b str, Vec<&'b String>>,
-    ) -> IndexMap<&'b String, HashSet<&'b String>> {
-        let mut neighbors: IndexMap<&'b String, HashSet<&'b String>> = IndexMap::new();
+    ) -> IndexMap<&'b String, IndexSet<&'b String>> {
+        let mut neighbors: IndexMap<&'b String, IndexSet<&'b String>> = IndexMap::new();
 
         substring_map.iter().for_each(|x| {
             for umi in x.1 {
-                neighbors.entry(umi).or_insert(HashSet::new());
-                let mut observed: HashSet<&'b String> = HashSet::new();
+                neighbors.entry(umi).or_insert(IndexSet::new());
+                let mut observed: IndexSet<&'b String> = IndexSet::new();
 
                 let sub2 = (
                     substring_map.get(umi.split(x.0).next().unwrap()),
@@ -102,7 +102,7 @@ impl<'b> Grouper<'b> {
     pub fn get_adj_list_directional(
         &self,
         counts: &HashMap<&String, i32>,
-        substring_neighbors: IndexMap<&'b String, HashSet<&'b String>>,
+        substring_neighbors: IndexMap<&'b String, IndexSet<&'b String>>,
         threshold: usize,
     ) -> IndexMap<&'b String, Vec<&'b String>> {
         let mut adj_list: IndexMap<&'b String, Vec<&'b String>> =
@@ -133,7 +133,7 @@ impl<'b> Grouper<'b> {
     pub fn get_adj_list_bidirectional(
         &self,
         counts: &HashMap<&String, i32>,
-        substring_neighbors: IndexMap<&'b String, HashSet<&'b String>>,
+        substring_neighbors: IndexMap<&'b String, IndexSet<&'b String>>,
         threshold: usize,
     ) -> IndexMap<&'b String, Vec<&'b String>> {
         let mut adj_list: IndexMap<&'b String, Vec<&'b String>> =
