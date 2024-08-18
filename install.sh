@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# export RUSTFLAGS="-C target-cpu=native -C target-feature=+avx2,+fma,+bmi,+bmi2,+popcnt,+f16c"
-export RUSTFLAGS="-C target-cpu=znver4 -C target-feature=+avx2,+fma,+bmi,+bmi2,+f16c,+fma,+pclmulqdq,+popcnt,+sse4.1,+sse4.2,+ssse3"
-
+export RUSTFLAGS="-C target-cpu=native"
+GREEN=$'\e[0;32m'
+NC=$'\e[0m'
 
 cd bam_processor
 cargo build --release 
@@ -24,11 +24,10 @@ if [ ! -d "$install_dir" ]; then
 	mkdir -p "$install_dir"
 fi
 
-# echo "#!/usr/bin/env bash" > "$install_dir"/rumina
 echo "#!/usr/bin/env bash" > "$install_dir"/rumina
 echo "source $home_dir/python_env/bin/activate" >> "$install_dir"/rumina
 echo "python3.12 $home_dir/main.py \"\$@\"" >> "$install_dir"/rumina
 echo "deactivate" >> "$install_dir"/rumina
 chmod +x "$install_dir"/rumina
 echo "-------------------------"
-echo "RUMINA installed successfully!\nTry running "rumina -h" to see the help screen.\nRUMINA installation dir: $home_dir"
+echo "${GREEN}RUMINA installed successfully!${NC}\nRUMINA installation dir: $home_dir\nTry running "rumina -h" to see the help screen.\nIf this doesn't work, make sure $HOME/.cargo/bin is in your '\$PATH'."

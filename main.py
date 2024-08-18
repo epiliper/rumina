@@ -8,12 +8,12 @@ from process import (
     process_file,
 )
 
-from logo import r, M, C, LOGO
+from logo import r, M, C, print_logo
 from args import init_args
 import time
 from shutil import rmtree
 
-print(LOGO)
+print_logo()
 args = init_args()
 
 suffix = ".bam"
