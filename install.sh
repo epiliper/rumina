@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# export RUSTFLAGS="-C target-cpu=native -C target-feature=+avx2,+fma,+bmi,+bmi2,+popcnt,+f16c"
+export RUSTFLAGS="-C target-cpu=znver4 -C target-feature=+avx2,+fma,+bmi,+bmi2,+f16c,+fma,+pclmulqdq,+popcnt,+sse4.1,+sse4.2,+ssse3"
+
 
 cd bam_processor
 cargo build --release 

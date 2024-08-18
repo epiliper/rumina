@@ -17,9 +17,9 @@ parking_lot = {version = "0.12.2"}
 clap = {version = "4.5.4", features = ["derive"]}
 
 [profile.release]
-# codegen-units = 1
+codegen-units = 1
 lto = "fat"
-target-cpu = "native"
+# target-cpu = "native"
 opt-level = 3
 panic = 'abort'
 

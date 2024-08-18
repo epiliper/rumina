@@ -66,6 +66,7 @@ impl<'a> ChunkProcessor<'a> {
 
     pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap) {
         let progressbar = ProgressBar::new(bottomhash.bottom_dict.keys().len().try_into().unwrap());
+        let grouping_method = Arc::new(&self.grouping_method);
 
         bottomhash.bottom_dict.par_drain(0..).for_each(|position| {
             for umi in position.1 {
@@ -99,18 +100,9 @@ impl<'a> ChunkProcessor<'a> {
                     singletons: self.singletons,
                 };
 
-                // get grouping method
-                match self.grouping_method {
-                    GroupingMethod::Directional => {
-                        groupies = processor.directional_clustering(counts);
-                    }
-                    GroupingMethod::Raw => {
-                        groupies = processor.no_clustering(counts);
-                    }
-                    GroupingMethod::Acyclic => {
-                        groupies = processor.bidirectional_clustering(counts);
-                    }
-                }
+                // perform UMI clustering per the method specified
+                groupies = processor.cluster(counts, Arc::clone(&grouping_method), num_umis);
+
                 let tagged_reads = grouper.tag_records(groupies, umis_reads);
                 let mut min_max = self.min_max.lock();
 
