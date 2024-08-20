@@ -136,7 +136,8 @@ impl Deduplicator {
                 to_write.iter_mut().for_each(|read| {
                     read.tags_mut().push_string(b"UG", &ug_tag);
                     read.tags_mut()
-                        .push_string(b"BX", &top_umi.iter().next().unwrap().as_bytes())
+                        .push_string(b"BX", &top_umi.iter().next().unwrap().as_bytes());
+                    group_report.num_reads_output_file += 1;
                 });
 
                 output_list.extend(to_write);

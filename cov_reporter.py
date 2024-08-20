@@ -8,6 +8,7 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 
 COLUMNS = [
     "num_reads_input_file",
+    "num_reads_output_file",
     "num_raw_umis",
     "num_total_groups",
     "num_passing_groups",
@@ -38,35 +39,25 @@ def generate_report(original_file, final_file):
     df = pd.read_csv(
         minmax_file,
         sep="\t",
-        names=[
-            "min_groups",
-            "mins",
-            "max_groups",
-            "maxes",
-            "num_passing_groups",
-            "num_total_groups",
-            "num_umis",
-        ],
+        names=COLUMNS,
     )
 
     group_report = pd.DataFrame(columns=COLUMNS)
     cov_report = pd.DataFrame()
 
-    group_report["least_reads_per_group"] = [int(df["mins"].min())]
-    group_report["least_reads_group"] = [df.iloc[df["mins"].idxmin()].min_groups]
-    group_report["most_reads_per_group"] = [int(df["maxes"].max())]
-    group_report["most_reads_group"] = [df.iloc[df["maxes"].idxmax()].max_groups]
+    group_report["num_reads_input_file"] = [df["num_reads_input_file"].sum()]
+    group_report["num_reads_output_file"] = [df["num_reads_output_file"].sum()]
+    group_report["least_reads_per_group"] = [int(df["least_reads_per_group"].min())]
+    group_report["least_reads_group"] = [
+        df.iloc[df["least_reads_per_group"].idxmin()].least_reads_group
+    ]
+    group_report["most_reads_per_group"] = [int(df["most_reads_per_group"].max())]
+    group_report["most_reads_group"] = [
+        df.iloc[df["most_reads_per_group"].idxmax()].most_reads_group
+    ]
     group_report["num_passing_groups"] = [df["num_passing_groups"].sum()]
     group_report["num_total_groups"] = [df["num_total_groups"].sum()]
-    group_report["num_raw_umis"] = [df["num_umis"].sum()]
-
-    group_report["num_reads_input_file"] = [
-        pysam.AlignmentFile(original_file).count(until_eof=True)
-    ]
-
-    group_report["num_reads_output_file"] = [
-        pysam.AlignmentFile(final_file).count(until_eof=True)
-    ]
+    group_report["num_raw_umis"] = [df["num_raw_umis"].sum()]
 
     print(f"written {group_report["num_reads_output_file"].values[0]} reads...")
 

@@ -46,10 +46,13 @@ pub struct GroupReport {
     pub num_passing_groups: i64,
     pub num_groups: i64,
     pub num_umis: i64,
+    pub num_reads_input_file: i64,
+    pub num_reads_output_file: i64,
 }
 
 pub struct ChunkProcessor<'a> {
     pub separator: &'a String,
+    pub read_counter: i64,
     pub reads_to_output: Arc<Mutex<Vec<Record>>>,
     pub min_max: Arc<Mutex<GroupReport>>,
     pub grouping_method: GroupingMethod,
@@ -83,7 +86,7 @@ impl<'a> ChunkProcessor<'a> {
                     .map(|x| x.to_string())
                     .collect::<Vec<String>>();
 
-                let processor = Grouper { umis: &umis };
+                let clusterer = Grouper { umis: &umis };
                 let mut counts: HashMap<&String, i32> = HashMap::with_capacity(umis_reads.len());
 
                 // get number of reads for each raw UMI
@@ -93,17 +96,16 @@ impl<'a> ChunkProcessor<'a> {
                     num_umis += 1;
                 }
 
-                let groupies: (HashMap<&String, i32>, Option<Vec<Vec<&String>>>);
-                let mut grouper = Deduplicator {
+                let mut cluster_handler = Deduplicator {
                     seed: self.seed + position.0 as u64, // make seed unique per position
                     group_only: self.only_group,
                     singletons: self.singletons,
                 };
 
                 // perform UMI clustering per the method specified
-                groupies = processor.cluster(counts, Arc::clone(&grouping_method), num_umis);
+                let groupies = clusterer.cluster(counts, Arc::clone(&grouping_method), num_umis);
 
-                let tagged_reads = grouper.tag_records(groupies, umis_reads);
+                let tagged_reads = cluster_handler.tag_records(groupies, umis_reads);
                 let mut min_max = self.min_max.lock();
 
                 // update the groups with mininum and maximum observed reads
@@ -128,6 +130,9 @@ impl<'a> ChunkProcessor<'a> {
                                 min_max.num_passing_groups += x.num_passing_groups;
                                 min_max.num_groups += x.num_groups;
                                 min_max.num_umis += num_umis;
+
+                                // record the number of reads to be written
+                                min_max.num_reads_output_file += x.num_reads_output_file;
                             }
                             _ => (),
                         }
@@ -175,16 +180,15 @@ impl<'a> ChunkProcessor<'a> {
             true => ChunkProcessor::pull_read_w_length,
         };
 
-        let mut counter = 0;
         for r in input_file {
             let read = &r.unwrap();
             read_puller(self, read, &mut bottomhash, self.separator);
-            counter += 1;
-            if counter % 100_000 == 0 {
-                print! {"\rRead in {counter} reads" }
+            self.read_counter += 1;
+            if self.read_counter % 100_000 == 0 {
+                print! {"\rRead in {} reads", self.read_counter}
             }
         }
-        print! {"\r Grouping {counter} reads...\n"}
+        print! {"\r Grouping {} reads...\n", self.read_counter}
 
         Self::group_reads(self, &mut bottomhash);
     }

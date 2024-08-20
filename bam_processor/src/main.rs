@@ -105,6 +105,8 @@ fn main() {
         num_passing_groups: 0,
         num_groups: 0,
         num_umis: 0,
+        num_reads_input_file: 0,
+        num_reads_output_file: 0,
     }));
 
     // holds filtered reads awaiting writing to output bam file
@@ -117,15 +119,15 @@ fn main() {
         seed: seed,
         only_group: args.only_group,
         singletons: args.singletons,
+        read_counter: 0,
     };
 
     // do grouping and processing
     read_handler.process_chunks(bam, bottomhash);
+    let num_reads_in = read_handler.read_counter;
 
     let elapsed = now.elapsed();
     println! {"Time elapsed {:.2?}", elapsed};
-
-    drop(read_handler);
 
     let mut bam_writer = BamWriterBuilder::new()
         .additional_threads(args.threads.try_into().unwrap())
@@ -136,7 +138,10 @@ fn main() {
         bam_writer.write(&read);
     }
 
-    let group_report = Arc::try_unwrap(min_maxes).unwrap().into_inner();
+    drop(read_handler);
+
+    let mut group_report = Arc::try_unwrap(min_maxes).unwrap().into_inner();
+    group_report.num_reads_input_file = num_reads_in;
 
     // report on min and max number of reads per group
     // this creates minmax.txt
@@ -158,14 +163,16 @@ fn main() {
 
         let _ = f.write(
             format!(
-                "{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+                "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+                group_report.num_reads_input_file,
+                group_report.num_reads_output_file,
+                group_report.num_umis,
+                group_report.num_groups,
+                group_report.num_passing_groups,
                 String::from_utf8(group_report.min_reads_group.to_vec()).unwrap(),
                 group_report.min_reads,
                 String::from_utf8(group_report.max_reads_group.to_vec()).unwrap(),
                 group_report.max_reads,
-                group_report.num_passing_groups,
-                group_report.num_groups,
-                group_report.num_umis,
             )
             .as_bytes(),
         );
