@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import warnings
 import pysam
+from concurrent.futures import ThreadPoolExecutor
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -15,6 +16,19 @@ COLUMNS = [
     "most_reads_group",
     "most_reads_per_group",
 ]
+
+
+def get_coverage(input_file, region):
+    region_df = pd.DataFrame()
+
+    cov_stats = pysam.coverage("-r", region, input_file)
+    cov_stats = cov_stats.split("\n")
+    cov_stats = zip(cov_stats[0].split("\t"), cov_stats[1].split("\t"))
+
+    for col_val in cov_stats:
+        region_df[col_val[0]] = [col_val[1]]
+
+    return region_df
 
 
 def generate_report(original_file, final_file):
@@ -35,75 +49,49 @@ def generate_report(original_file, final_file):
         ],
     )
 
-    report = pd.DataFrame(columns=COLUMNS)
-    report["least_reads_per_group"] = [int(df["mins"].min())]
+    group_report = pd.DataFrame(columns=COLUMNS)
+    cov_report = pd.DataFrame()
 
-    report["least_reads_group"] = [df.iloc[df["mins"].idxmin()].min_groups]
+    group_report["least_reads_per_group"] = [int(df["mins"].min())]
+    group_report["least_reads_group"] = [df.iloc[df["mins"].idxmin()].min_groups]
+    group_report["most_reads_per_group"] = [int(df["maxes"].max())]
+    group_report["most_reads_group"] = [df.iloc[df["maxes"].idxmax()].max_groups]
+    group_report["num_passing_groups"] = [df["num_passing_groups"].sum()]
+    group_report["num_total_groups"] = [df["num_total_groups"].sum()]
+    group_report["num_raw_umis"] = [df["num_umis"].sum()]
 
-    report["most_reads_per_group"] = [int(df["maxes"].max())]
-
-    report["most_reads_group"] = [df.iloc[df["maxes"].idxmax()].max_groups]
-
-    report["num_passing_groups"] = [df["num_passing_groups"].sum()]
-
-    report["num_total_groups"] = [df["num_total_groups"].sum()]
-
-    report["num_raw_umis"] = [df["num_umis"].sum()]
-
-    report["num_reads_input_file"] = [
+    group_report["num_reads_input_file"] = [
         pysam.AlignmentFile(original_file).count(until_eof=True)
     ]
 
-    report["num_reads_output_file"] = [
+    group_report["num_reads_output_file"] = [
         pysam.AlignmentFile(final_file).count(until_eof=True)
     ]
 
-    print(f"written {report["num_reads_output_file"].values[0]} reads...")
+    print(f"written {group_report["num_reads_output_file"].values[0]} reads...")
 
-    try:
-        cov_stats = pysam.coverage(final_file).split("\n")
-        cov_stats = zip(cov_stats[0].split("\t"), cov_stats[1].split("\t"))
+    with pysam.AlignmentFile(final_file, "rb") as outbam:
+        references = outbam.references
 
-        for col_val in cov_stats:
-            report[col_val[0]] = [col_val[1]]
-
-    except pysam.utils.SamtoolsError:
-        print(
-            "coverage and depth reporting failed. Output BAM could not be read by pysam."
-        )
+    # use a thread for each region
+    with ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(get_coverage, final_file, region) for region in references
+        ]
+        for future in futures:
+            cov_report = pd.concat([cov_report, future.result()], ignore_index=True)
 
     save_dir = os.path.dirname(final_file)
-    report["query_name"] = os.path.basename(original_file).split(".bam")[0]
+    group_report["query_name"] = os.path.basename(original_file).split(".bam")[0]
 
-    csv_name = os.path.join(save_dir, final_file.split(".bam")[0] + "_coverage.tsv")
-    report.to_csv(csv_name, sep="\t", index=None)
+    group_tsv = os.path.join(save_dir, final_file.split(".bam")[0] + "_grouping.tsv")
+    cov_tsv = os.path.join(save_dir, final_file.split(".bam")[0] + "_coverage.tsv")
+
+    group_report.to_csv(group_tsv, sep="\t", index=None)
+    cov_report.to_csv(cov_tsv, sep="\t", index=None)
 
     # IMPORTANT:
     # for accurate reporting of split files,
     # rumina will append to minmax file,
     # delete it after each sample
     os.remove(minmax_file)
-
-
-def summarize_coverage(work_dir):
-    if not os.path.isabs(work_dir):
-        work_dir = os.path.abspath(work_dir)
-
-    total_df = pd.DataFrame(columns=COLUMNS)
-
-    final_file = os.path.join(work_dir, "COVERAGE_REPORT.csv")
-
-    print(f"Combining coverage reports...\nCoverage csv name: {final_file}")
-
-    for file in os.listdir(work_dir):
-        if file.endswith("_coverage.tsv"):
-            read_file = pd.read_csv(
-                os.path.join(work_dir, file), sep="\t", header=0, index_col=False
-            )
-    total_df = pd.concat([total_df, read_file])
-
-    total_df.to_csv(final_file)
-
-    for file in os.listdir(work_dir):
-        if file.endswith("_coverage.tsv"):
-            os.remove(os.path.join(work_dir, file))
