@@ -108,7 +108,7 @@ def split_bam(input, window_size):
 
 
 def merge_processed_splits(file):
-    clean_dir = os.path.join(work_path, "rumina_output")
+    clean_dir = os.path.join(work_path, args.outdir)
 
     bam_name = os.path.basename(file).split(".bam")[0]
 
@@ -147,7 +147,7 @@ def group_bam(input_file, split):
     else:
         suffix = "_rumina.bam"
 
-    output_dir = os.path.join(work_path, "rumina_output")
+    output_dir = os.path.join(work_path, args.outdir)
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 

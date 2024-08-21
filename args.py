@@ -77,6 +77,7 @@ Options are:
     )
 
     optional.add_argument("--threads", action="store", type=str)
+    optional.add_argument("--outdir", action="store", type=str, default="rumina_output")
 
     args = parser.parse_args()
 
