@@ -12,8 +12,14 @@ use std::fs::File;
 use std::sync::Arc;
 
 fn get_umi(record: &Record, separator: &String) -> String {
-    let umi = String::from_utf8(record.name().to_vec());
-    umi.unwrap().split(separator).last().unwrap().to_string()
+    unsafe {
+        std::str::from_utf8_unchecked(record.name())
+            // .unwrap()
+            .rsplit_once(separator)
+            .unwrap()
+            .1
+            .to_string()
+    }
 }
 
 pub fn get_read_pos(read: &Record) -> Option<i32> {
