@@ -170,7 +170,7 @@ impl<'b> Grouper<'b> {
     // with a list of grouped UMIs.
     // via depth-first-search
     // this is fed directly into the main_grouper function
-    pub fn get_connected_components_par(
+    pub fn get_connected_components(
         &self,
         adj_list: IndexMap<&'b String, Vec<&'b String>>,
     ) -> Option<Vec<HashSet<&String>>> {
@@ -233,7 +233,6 @@ impl<'b> Grouper<'b> {
         &self,
         counts: HashMap<&'b String, i32>,
         grouping_method: Arc<&GroupingMethod>,
-        num_umis: i64,
     ) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
         let clusterer = match *grouping_method {
             GroupingMethod::Directional => Grouper::get_adj_list_directional,
@@ -249,7 +248,7 @@ impl<'b> Grouper<'b> {
         let final_umis;
 
         if !adj_list.is_empty() {
-            let clusters = self.get_connected_components_par(adj_list).unwrap();
+            let clusters = self.get_connected_components(adj_list).unwrap();
             final_umis = Some(self.get_umi_groups(clusters));
         } else {
             final_umis = None;

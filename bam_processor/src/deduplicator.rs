@@ -18,7 +18,7 @@ const UMI_TAG_LEN: usize = 8;
 // this struct holds methods to
 // 1. modify the records within the bottomhash by lookup
 // 2. for every bundle, write the UG-tagged reads to output bam
-pub struct Deduplicator {
+pub struct GroupHandler {
     pub seed: u64,
     pub group_only: bool,
     pub singletons: bool,
@@ -45,7 +45,7 @@ pub fn generate_tag(
     }
 }
 
-impl Deduplicator {
+impl GroupHandler {
     // remove the reads associated with each UMI from the bundle
     // deduplicate and error correct them
     // tag filtered reads

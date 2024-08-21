@@ -35,7 +35,7 @@ pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
     // the sequence with the most reads is at index 0 (can be tied)
     sequences.sort_by(|_a, b, _c, d| d.1.cmp(&b.1));
 
-    let mut phreddies: Vec<Vec<Record>> = Vec::with_capacity(100_000);
+    let mut most_reads_groups: Vec<Vec<Record>> = Vec::with_capacity(100_000);
     let mut first = true;
     let mut max = 0;
 
@@ -44,10 +44,10 @@ pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
     for cluster in sequences.drain(0..) {
         if first {
             max = cluster.1 .1;
-            phreddies.push(cluster.1 .0);
+            most_reads_groups.push(cluster.1 .0);
             first = false;
         } else if cluster.1 .1 == max {
-            phreddies.push(cluster.1 .0);
+            most_reads_groups.push(cluster.1 .0);
         // once we hit groups with fewer reads, stop searching
         } else {
             break;
@@ -55,7 +55,7 @@ pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
     }
     // get the group with the best overall phred score
     // and return the best phred score read from it
-    return vec![get_best_phred(phreddies)];
+    return vec![get_best_phred(most_reads_groups)];
 }
 
 // used with the --group_only arg to return all reads within a group with a group tag

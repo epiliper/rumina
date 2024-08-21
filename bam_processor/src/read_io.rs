@@ -1,5 +1,5 @@
 use crate::bottomhash::BottomHashMap;
-use crate::deduplicator::Deduplicator;
+use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::GroupingMethod;
 use bam::BamReader;
@@ -86,7 +86,7 @@ impl<'a> ChunkProcessor<'a> {
                     .map(|x| x.to_string())
                     .collect::<Vec<String>>();
 
-                let clusterer = Grouper { umis: &umis };
+                let grouper = Grouper { umis: &umis };
                 let mut counts: HashMap<&String, i32> = HashMap::with_capacity(umis_reads.len());
 
                 // get number of reads for each raw UMI
@@ -96,16 +96,16 @@ impl<'a> ChunkProcessor<'a> {
                     num_umis += 1;
                 }
 
-                let mut cluster_handler = Deduplicator {
+                let mut group_handler = GroupHandler {
                     seed: self.seed + position.0 as u64, // make seed unique per position
                     group_only: self.only_group,
                     singletons: self.singletons,
                 };
 
                 // perform UMI clustering per the method specified
-                let groupies = clusterer.cluster(counts, Arc::clone(&grouping_method), num_umis);
+                let groupies = grouper.cluster(counts, Arc::clone(&grouping_method));
 
-                let tagged_reads = cluster_handler.tag_records(groupies, umis_reads);
+                let tagged_reads = group_handler.tag_records(groupies, umis_reads);
                 let mut min_max = self.min_max.lock();
 
                 // update the groups with mininum and maximum observed reads
