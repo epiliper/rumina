@@ -66,7 +66,7 @@ fn main() {
 
     ThreadPoolBuilder::new()
         .num_threads(args.threads)
-        .build_global()
+        .build()
         .expect("ERROR: Invalid number of threads specified!");
 
     let now = Instant::now();
@@ -88,7 +88,7 @@ fn main() {
 
     let reads_to_write: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
 
-    let bam = bam::BamReader::from_path(&input_file, (args.threads - 1) as u16).unwrap();
+    let bam = bam::BamReader::from_path(&input_file, (args.threads) as u16).unwrap();
     let header = bam::BamReader::from_path(&input_file, 0)
         .unwrap()
         .header()
