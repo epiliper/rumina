@@ -1,7 +1,10 @@
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 use crate::fs::OpenOptions;
 use crate::read_io::ChunkProcessor;
 use crate::read_io::GroupReport;
-use bam::BamWriter;
+use bam::bam_writer::BamWriterBuilder;
 use bam::RecordWriter;
 use clap::ValueEnum;
 use indexmap::IndexMap;
@@ -15,8 +18,6 @@ use std::path::Path;
 use std::time::Instant;
 
 use bam::Record;
-use std::sync::mpsc::channel;
-use std::thread;
 
 use std::hash::Hash;
 
@@ -56,6 +57,8 @@ struct Args {
     length: bool,
     #[arg(long = "only-group")]
     only_group: bool,
+    #[arg(long = "singletons")]
+    singletons: bool,
 }
 
 fn main() {
@@ -83,31 +86,15 @@ fn main() {
     input_file.hash(&mut hasher);
     let seed = hasher.finish();
 
+    let reads_to_write: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
+
     let bam = bam::BamReader::from_path(&input_file, (args.threads - 1) as u16).unwrap();
     let header = bam::BamReader::from_path(&input_file, 0)
         .unwrap()
         .header()
         .clone();
 
-    // This gets the reads processed per position and sends them for file writing
-    // this is pending renaming/polish
-    let (tx, rx) = channel::<Vec<Record>>();
-
     let out_bam = output_file.clone();
-
-    let _ = BamWriter::from_path(&out_bam, header.clone()).unwrap();
-
-    // writes reads in the read channel to output bam
-    let writer_handle = thread::spawn(move || {
-        let mut bam_writer = BamWriter::from_path(out_bam, header).unwrap();
-
-        while let Ok(reads) = rx.recv() {
-            for read in reads {
-                bam_writer.write(&read).unwrap();
-            }
-            bam_writer.flush().unwrap();
-        }
-    });
 
     // records min and max reads per group
     let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(GroupReport {
@@ -118,33 +105,50 @@ fn main() {
         num_passing_groups: 0,
         num_groups: 0,
         num_umis: 0,
+        num_reads_input_file: 0,
+        num_reads_output_file: 0,
     }));
 
     // holds filtered reads awaiting writing to output bam file
     let mut read_handler = ChunkProcessor {
         separator: &separator,
-        reads_to_output: tx,
+        reads_to_output: Arc::clone(&reads_to_write),
         min_max: Arc::clone(&min_maxes),
         grouping_method,
         group_by_length: args.length,
         seed: seed,
         only_group: args.only_group,
+        singletons: args.singletons,
+        read_counter: 0,
     };
 
     // do grouping and processing
     read_handler.process_chunks(bam, bottomhash);
+    let num_reads_in = read_handler.read_counter;
 
     let elapsed = now.elapsed();
     println! {"Time elapsed {:.2?}", elapsed};
 
+    let mut bam_writer = BamWriterBuilder::new()
+        .additional_threads(args.threads.try_into().unwrap())
+        .from_path(&out_bam, header)
+        .unwrap();
+
+    for read in reads_to_write.lock().drain(0..) {
+        bam_writer.write(&read);
+    }
+
     drop(read_handler);
-    let group_report = Arc::try_unwrap(min_maxes).unwrap().into_inner();
+
+    let mut group_report = Arc::try_unwrap(min_maxes).unwrap().into_inner();
+    group_report.num_reads_input_file = num_reads_in;
 
     // report on min and max number of reads per group
     // this creates minmax.txt
     if group_report.min_reads != i64::MAX {
         println! {"minimum number of reads per group:     {},    group: {:?}", group_report.min_reads, String::from_utf8(group_report.min_reads_group.to_vec()).unwrap()};
         println! {"maximum number of reads per group:     {},    group: {:?}", group_report.max_reads, String::from_utf8(group_report.max_reads_group.to_vec()).unwrap()};
+        println! {"writing remaining reads..."};
 
         let minmax_file = Path::new(&output_file).parent().unwrap().join("minmax.txt");
 
@@ -159,18 +163,18 @@ fn main() {
 
         let _ = f.write(
             format!(
-                "{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+                "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+                group_report.num_reads_input_file,
+                group_report.num_reads_output_file,
+                group_report.num_umis,
+                group_report.num_groups,
+                group_report.num_passing_groups,
                 String::from_utf8(group_report.min_reads_group.to_vec()).unwrap(),
                 group_report.min_reads,
                 String::from_utf8(group_report.max_reads_group.to_vec()).unwrap(),
                 group_report.max_reads,
-                group_report.num_passing_groups,
-                group_report.num_groups,
-                group_report.num_umis,
             )
             .as_bytes(),
         );
     }
-
-    writer_handle.join().unwrap();
 }

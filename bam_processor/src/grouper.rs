@@ -1,9 +1,10 @@
 extern crate bam;
-use bam::bgzip::write;
-use indexmap::IndexMap;
+use crate::GroupingMethod;
+use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 use std::str;
 use strsim::hamming;
@@ -61,13 +62,13 @@ impl<'b> Grouper<'b> {
     pub fn iter_substring_neighbors(
         &self,
         substring_map: IndexMap<&'b str, Vec<&'b String>>,
-    ) -> IndexMap<&'b String, HashSet<&'b String>> {
-        let mut neighbors: IndexMap<&'b String, HashSet<&'b String>> = IndexMap::new();
+    ) -> IndexMap<&'b String, IndexSet<&'b String>> {
+        let mut neighbors: IndexMap<&'b String, IndexSet<&'b String>> = IndexMap::new();
 
         substring_map.iter().for_each(|x| {
             for umi in x.1 {
-                neighbors.entry(umi).or_insert(HashSet::new());
-                let mut observed: HashSet<&'b String> = HashSet::new();
+                neighbors.entry(umi).or_insert(IndexSet::new());
+                let mut observed: IndexSet<&'b String> = IndexSet::new();
 
                 let sub2 = (
                     substring_map.get(umi.split(x.0).next().unwrap()),
@@ -101,7 +102,7 @@ impl<'b> Grouper<'b> {
     pub fn get_adj_list_directional(
         &self,
         counts: &HashMap<&String, i32>,
-        substring_neighbors: IndexMap<&'b String, HashSet<&'b String>>,
+        substring_neighbors: IndexMap<&'b String, IndexSet<&'b String>>,
         threshold: usize,
     ) -> IndexMap<&'b String, Vec<&'b String>> {
         let mut adj_list: IndexMap<&'b String, Vec<&'b String>> =
@@ -132,7 +133,7 @@ impl<'b> Grouper<'b> {
     pub fn get_adj_list_bidirectional(
         &self,
         counts: &HashMap<&String, i32>,
-        substring_neighbors: IndexMap<&'b String, HashSet<&'b String>>,
+        substring_neighbors: IndexMap<&'b String, IndexSet<&'b String>>,
         threshold: usize,
     ) -> IndexMap<&'b String, Vec<&'b String>> {
         let mut adj_list: IndexMap<&'b String, Vec<&'b String>> =
@@ -169,7 +170,7 @@ impl<'b> Grouper<'b> {
     // with a list of grouped UMIs.
     // via depth-first-search
     // this is fed directly into the main_grouper function
-    pub fn get_connected_components_par(
+    pub fn get_connected_components(
         &self,
         adj_list: IndexMap<&'b String, Vec<&'b String>>,
     ) -> Option<Vec<HashSet<&String>>> {
@@ -214,45 +215,6 @@ impl<'b> Grouper<'b> {
         return groups;
     }
 
-    // driver code for directional method,
-    // and UMI organization and grouping
-    pub fn directional_clustering(
-        &self,
-        counts: HashMap<&'b String, i32>,
-    ) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
-        let substring_map = self.get_substring_map();
-        let neighbors = self.iter_substring_neighbors(substring_map);
-        let directional_output = self.get_adj_list_directional(&counts, neighbors, 1);
-        let adj_list = directional_output;
-        let final_umis;
-        if adj_list.len() > 0 {
-            let clusters = self.get_connected_components_par(adj_list).unwrap();
-            final_umis = Some(self.get_umi_groups(clusters));
-        } else {
-            final_umis = None;
-        }
-
-        return (counts, final_umis);
-    }
-
-    pub fn bidirectional_clustering(
-        &self,
-        counts: HashMap<&'b String, i32>,
-    ) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
-        let substring_map = self.get_substring_map();
-        let neighbors = self.iter_substring_neighbors(substring_map);
-        let directional_output = self.get_adj_list_bidirectional(&counts, neighbors, 1);
-        let adj_list = directional_output;
-        let final_umis;
-        if adj_list.len() > 0 {
-            let clusters = self.get_connected_components_par(adj_list).unwrap();
-            final_umis = Some(self.get_umi_groups(clusters));
-        } else {
-            final_umis = None;
-        }
-        return (counts, final_umis);
-    }
-
     pub fn no_clustering(
         &self,
         counts: HashMap<&'b String, i32>,
@@ -264,6 +226,33 @@ impl<'b> Grouper<'b> {
             .collect::<Vec<HashSet<&'b String>>>();
         let final_umis = Some(self.get_umi_groups(umis));
 
+        return (counts, final_umis);
+    }
+
+    pub fn cluster(
+        &self,
+        counts: HashMap<&'b String, i32>,
+        grouping_method: Arc<&GroupingMethod>,
+    ) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
+        let clusterer = match *grouping_method {
+            GroupingMethod::Directional => Grouper::get_adj_list_directional,
+            GroupingMethod::Acyclic => Grouper::get_adj_list_bidirectional,
+            GroupingMethod::Raw => {
+                return self.no_clustering(counts);
+            }
+        };
+
+        let substring_map = self.get_substring_map();
+        let umis_to_compare = self.iter_substring_neighbors(substring_map);
+        let adj_list = clusterer(&self, &counts, umis_to_compare, 1);
+        let final_umis;
+
+        if !adj_list.is_empty() {
+            let clusters = self.get_connected_components(adj_list).unwrap();
+            final_umis = Some(self.get_umi_groups(clusters));
+        } else {
+            final_umis = None;
+        }
         return (counts, final_umis);
     }
 }

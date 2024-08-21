@@ -18,9 +18,10 @@ const UMI_TAG_LEN: usize = 8;
 // this struct holds methods to
 // 1. modify the records within the bottomhash by lookup
 // 2. for every bundle, write the UG-tagged reads to output bam
-pub struct Deduplicator {
+pub struct GroupHandler {
     pub seed: u64,
     pub group_only: bool,
+    pub singletons: bool,
 }
 
 pub fn generate_tag(
@@ -44,7 +45,7 @@ pub fn generate_tag(
     }
 }
 
-impl Deduplicator {
+impl GroupHandler {
     // remove the reads associated with each UMI from the bundle
     // deduplicate and error correct them
     // tag filtered reads
@@ -89,9 +90,14 @@ impl Deduplicator {
         group_report.num_groups = 0;
         group_report.num_groups += final_umis.len() as i64;
 
+        let read_count_thres = match self.singletons {
+            true => 0,
+            false => 3, // groups should have 3+ reads for reliable majority rule
+        };
+
         for top_umi in final_umis.drain(0..) {
             let num_reads_in_group = get_counts(&top_umi, &counts);
-            if num_reads_in_group >= 3 {
+            if num_reads_in_group >= read_count_thres {
                 let ug_tag = generate_tag(&mut rng, &mut used_tags);
 
                 if first {
@@ -130,7 +136,8 @@ impl Deduplicator {
                 to_write.iter_mut().for_each(|read| {
                     read.tags_mut().push_string(b"UG", &ug_tag);
                     read.tags_mut()
-                        .push_string(b"BX", &top_umi.iter().next().unwrap().as_bytes())
+                        .push_string(b"BX", &top_umi.iter().next().unwrap().as_bytes());
+                    group_report.num_reads_output_file += 1;
                 });
 
                 output_list.extend(to_write);

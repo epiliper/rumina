@@ -1,5 +1,5 @@
 use crate::bottomhash::BottomHashMap;
-use crate::deduplicator::Deduplicator;
+use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::GroupingMethod;
 use bam::BamReader;
@@ -9,12 +9,32 @@ use parking_lot::Mutex;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs::File;
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 fn get_umi(record: &Record, separator: &String) -> String {
     let umi = String::from_utf8(record.name().to_vec());
     umi.unwrap().split(separator).last().unwrap().to_string()
+}
+
+pub fn get_read_pos(read: &Record) -> Option<i32> {
+    if read.flag().is_reverse_strand() {
+        let mut start = read.calculate_end();
+
+        if !read.cigar().is_empty() {
+            // set end pos as start to group with forward-reads covering same region
+            start += read.cigar().soft_clipping(false) as i32; // pad with right-side soft clip
+            return Some(start);
+        }
+    } else {
+        let mut start = read.start();
+
+        if !read.cigar().is_empty() {
+            start -= read.cigar().soft_clipping(true) as i32; // pad with left-side soft clip
+            return Some(start);
+        }
+    };
+
+    return None;
 }
 
 #[derive(Default, Debug)]
@@ -26,16 +46,20 @@ pub struct GroupReport {
     pub num_passing_groups: i64,
     pub num_groups: i64,
     pub num_umis: i64,
+    pub num_reads_input_file: i64,
+    pub num_reads_output_file: i64,
 }
 
 pub struct ChunkProcessor<'a> {
     pub separator: &'a String,
-    pub reads_to_output: Sender<Vec<Record>>,
+    pub read_counter: i64,
+    pub reads_to_output: Arc<Mutex<Vec<Record>>>,
     pub min_max: Arc<Mutex<GroupReport>>,
     pub grouping_method: GroupingMethod,
     pub group_by_length: bool,
     pub seed: u64,
     pub only_group: bool,
+    pub singletons: bool,
 }
 
 impl<'a> ChunkProcessor<'a> {
@@ -45,6 +69,7 @@ impl<'a> ChunkProcessor<'a> {
 
     pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap) {
         let progressbar = ProgressBar::new(bottomhash.bottom_dict.keys().len().try_into().unwrap());
+        let grouping_method = Arc::new(&self.grouping_method);
 
         bottomhash.bottom_dict.par_drain(0..).for_each(|position| {
             for umi in position.1 {
@@ -61,7 +86,7 @@ impl<'a> ChunkProcessor<'a> {
                     .map(|x| x.to_string())
                     .collect::<Vec<String>>();
 
-                let processor = Grouper { umis: &umis };
+                let grouper = Grouper { umis: &umis };
                 let mut counts: HashMap<&String, i32> = HashMap::with_capacity(umis_reads.len());
 
                 // get number of reads for each raw UMI
@@ -71,33 +96,23 @@ impl<'a> ChunkProcessor<'a> {
                     num_umis += 1;
                 }
 
-                let groupies: (HashMap<&String, i32>, Option<Vec<Vec<&String>>>);
-                let mut grouper = Deduplicator {
+                let mut group_handler = GroupHandler {
                     seed: self.seed + position.0 as u64, // make seed unique per position
                     group_only: self.only_group,
+                    singletons: self.singletons,
                 };
 
-                // get grouping method
-                match self.grouping_method {
-                    GroupingMethod::Directional => {
-                        groupies = processor.directional_clustering(counts);
-                    }
-                    GroupingMethod::Raw => {
-                        groupies = processor.no_clustering(counts);
-                    }
-                    GroupingMethod::Acyclic => {
-                        groupies = processor.bidirectional_clustering(counts);
-                    }
-                }
-                let tagged_reads = grouper.tag_records(groupies, umis_reads);
+                // perform UMI clustering per the method specified
+                let groupies = grouper.cluster(counts, Arc::clone(&grouping_method));
+
+                let tagged_reads = group_handler.tag_records(groupies, umis_reads);
                 let mut min_max = self.min_max.lock();
 
                 // update the groups with mininum and maximum observed reads
                 match tagged_reads {
                     Some(tagged_reads) => {
-                        self.reads_to_output
-                            .send(tagged_reads.1)
-                            .expect("Read channel not recieving!");
+                        self.reads_to_output.lock().extend(tagged_reads.1);
+                        // .expect("Read channel not recieving!");
 
                         match tagged_reads.0 {
                             Some(x) => {
@@ -115,6 +130,9 @@ impl<'a> ChunkProcessor<'a> {
                                 min_max.num_passing_groups += x.num_passing_groups;
                                 min_max.num_groups += x.num_groups;
                                 min_max.num_umis += num_umis;
+
+                                // record the number of reads to be written
+                                min_max.num_reads_output_file += x.num_reads_output_file;
                             }
                             _ => (),
                         }
@@ -129,38 +147,25 @@ impl<'a> ChunkProcessor<'a> {
 
     // organize reads in bottomhash based on position
     pub fn pull_read(&mut self, read: &Record, bottomhash: &mut BottomHashMap, separator: &String) {
-        // if read is reverse to reference, group it by its last aligned base to the reference
-        if read.flag().is_mapped() && read.flag().is_reverse_strand() {
+        if read.flag().is_mapped() {
             bottomhash.update_dict(
-                &(&read.calculate_end() + 1),
+                get_read_pos(read).expect("ERROR: mapped read does not have usable CIGAR string."),
                 0,
                 &get_umi(&read, separator),
                 &read,
             );
-
-        // otherwise, use its first position to reference
-        } else if read.flag().is_mapped() {
-            bottomhash.update_dict(&(&read.start() + 1), 0, &get_umi(&read, separator), &read);
         }
     }
+
     pub fn pull_read_w_length(
         &mut self,
         read: &Record,
         bottomhash: &mut BottomHashMap,
         separator: &String,
     ) {
-        if read.flag().is_mapped() && read.flag().is_reverse_strand() {
+        if read.flag().is_mapped() {
             bottomhash.update_dict(
-                &(&read.calculate_end() + 1),
-                read.query_len() as i32,
-                &get_umi(&read, separator),
-                &read,
-            );
-
-        // otherwise, use its first position to reference
-        } else if read.flag().is_mapped() {
-            bottomhash.update_dict(
-                &(&read.start() + 1),
+                get_read_pos(read).expect("ERROR: mapped read does not have usable CIGAR string."),
                 read.query_len() as i32,
                 &get_umi(&read, separator),
                 &read,
@@ -175,16 +180,15 @@ impl<'a> ChunkProcessor<'a> {
             true => ChunkProcessor::pull_read_w_length,
         };
 
-        let mut counter = 0;
         for r in input_file {
             let read = &r.unwrap();
             read_puller(self, read, &mut bottomhash, self.separator);
-            counter += 1;
-            if counter % 100_000 == 0 {
-                print! {"\rRead in {counter} reads" }
+            self.read_counter += 1;
+            if self.read_counter % 100_000 == 0 {
+                print! {"\rRead in {} reads", self.read_counter}
             }
         }
-        print! {"\r Grouping {counter} reads...\n"}
+        print! {"\r Grouping {} reads...\n", self.read_counter}
 
         Self::group_reads(self, &mut bottomhash);
     }

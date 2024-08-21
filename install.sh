@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
+export RUSTFLAGS="-C target-cpu=native"
+GREEN=$'\e[0;32m'
+NC=$'\e[0m'
 
 cd bam_processor
-cargo build --release
+cargo build --release 
 
 cd ../multibam 
 cargo build --release
@@ -15,13 +18,16 @@ python3.12 -m pip install -r requirements.txt
 deactivate
 
 home_dir=$PWD
+install_dir="$HOME/.cargo/bin"
 
-echo "#!/usr/bin/env bash" > $HOME/.cargo/bin/rumina
-echo "source $home_dir/python_env/bin/activate" >> $HOME/.cargo/bin/rumina
-echo "python3.12 $home_dir/main.py \"\$@\"" >> $HOME/.cargo/bin/rumina
-echo "deactivate" >> $HOME/.cargo/bin/rumina
-chmod +x $HOME/.cargo/bin/rumina
+if [ ! -d "$install_dir" ]; then
+	mkdir -p "$install_dir"
+fi
 
-
-
-
+echo "#!/usr/bin/env bash" > "$install_dir"/rumina
+echo "source $home_dir/python_env/bin/activate" >> "$install_dir"/rumina
+echo "python3.12 $home_dir/main.py \"\$@\"" >> "$install_dir"/rumina
+echo "deactivate" >> "$install_dir"/rumina
+chmod +x "$install_dir"/rumina
+echo "-------------------------"
+echo "${GREEN}RUMINA installed successfully!${NC}\nRUMINA installation dir: $home_dir\nTry running "rumina -h" to see the help screen.\nIf this doesn't work, make sure $HOME/.cargo/bin is in your '\$PATH'."

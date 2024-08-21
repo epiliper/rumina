@@ -62,6 +62,8 @@ Options are:
         help="if used, reads are grouped and tagged but not deduplicated or error corrected. This is useful if you want to manually review what grouping looks like.",
     )
 
+    flags.add_argument("--singletons", action="store_true")
+
     optional.add_argument(
         "--split_window",
         nargs="?",
@@ -75,6 +77,7 @@ Options are:
     )
 
     optional.add_argument("--threads", action="store", type=str)
+    optional.add_argument("--outdir", action="store", type=str, default="rumina_output")
 
     args = parser.parse_args()
 

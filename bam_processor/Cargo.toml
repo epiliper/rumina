@@ -15,11 +15,12 @@ indexmap = {version = "2.2.6", features = ["rayon"]}
 rayon = "1.10.0"
 parking_lot = {version = "0.12.2"}
 clap = {version = "4.5.4", features = ["derive"]}
+tikv-jemallocator = "0.5"
 
 [profile.release]
-# codegen-units = 1
+codegen-units = 1
 lto = "fat"
-target-cpu = "native"
+# target-cpu = "native"
 opt-level = 3
 panic = 'abort'
 

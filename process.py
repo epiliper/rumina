@@ -18,11 +18,6 @@ else:
 
 exec_path = os.path.dirname(os.path.abspath(__file__))
 
-print(f"Working path: {work_path}")
-
-# convert sam files to temporary bam files for processing
-# delete temp bams once done
-
 
 def process_dir(dir, split):
     temp_bams = []
@@ -39,6 +34,7 @@ def process_file(file, split):
 
 
 def get_all_files(input):
+    print(f"Working path: {work_path}")
     files_to_clean = []
 
     print("gathering files...\r")
@@ -112,9 +108,9 @@ def split_bam(input, window_size):
 
 
 def merge_processed_splits(file):
-    clean_dir = os.path.join(work_path, "rumina_output")
+    clean_dir = os.path.join(work_path, args.outdir)
 
-    bam_name = os.path.basename(file).split(".")[0]
+    bam_name = os.path.basename(file).split(".bam")[0]
 
     prefixes_for_merging = set()
 
@@ -151,7 +147,7 @@ def group_bam(input_file, split):
     else:
         suffix = "_rumina.bam"
 
-    output_dir = os.path.join(work_path, "rumina_output")
+    output_dir = os.path.join(work_path, args.outdir)
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
 
@@ -160,8 +156,8 @@ def group_bam(input_file, split):
         os.path.basename(input_file).split(".bam")[0] + suffix,
     )
 
-    if not split:
-        tagged_file_name = tagged_file_name.split(".")[0] + suffix
+    # if not split:
+    #     tagged_file_name = tagged_file_name.split(".")[0] + suffix
 
     tag_cmd = os.path.join(exec_path, "bam_processor/target/release/bam_processor")
     tag_cmd = [
@@ -179,6 +175,9 @@ def group_bam(input_file, split):
     if args.only_group:
         tag_cmd.append("--only-group")
 
+    if args.singletons:
+        tag_cmd.append("--singletons")
+
     subprocess.run(tag_cmd)
 
     if not args.no_report:
@@ -189,6 +188,7 @@ def group_bam(input_file, split):
 
 
 def sort_and_index(input_file, output_file):
+    print("sorting and indexing output BAM...\r")
     temp_file = output_file.split(".bam")[0] + "_s.bam"
     os.rename(output_file, temp_file)
 
@@ -199,4 +199,5 @@ def sort_and_index(input_file, output_file):
     os.remove(temp_file)
 
     pysam.index(f"-@ {args.threads}", output_file)
+    print("getting coverage/depth report...\r")
     generate_report(input_file, output_file)
