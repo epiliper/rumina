@@ -1,6 +1,5 @@
-extern crate bam;
-use bam::Record;
 use indexmap::IndexMap;
+use rust_htslib::bam::Record;
 
 /* When main function executes, this struct is populated with
 * all information necessary for grouping/deduplicating.

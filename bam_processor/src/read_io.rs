@@ -2,19 +2,18 @@ use crate::bottomhash::BottomHashMap;
 use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::GroupingMethod;
-use bam::BamReader;
-use bam::Record;
 use indicatif::ProgressBar;
 use parking_lot::Mutex;
 use rayon::prelude::*;
+use rust_htslib::bam::ext::BamRecordExtensions;
+use rust_htslib::bam::{FetchDefinition, Record};
+use rust_htslib::bam::{IndexedReader, Read};
 use std::collections::HashMap;
-use std::fs::File;
 use std::sync::Arc;
 
 fn get_umi(record: &Record, separator: &String) -> String {
     unsafe {
-        std::str::from_utf8_unchecked(record.name())
-            // .unwrap()
+        std::str::from_utf8_unchecked(record.qname())
             .rsplit_once(separator)
             .unwrap()
             .1
@@ -22,23 +21,27 @@ fn get_umi(record: &Record, separator: &String) -> String {
     }
 }
 
-pub fn get_read_pos(read: &Record) -> Option<i32> {
-    if read.flag().is_reverse_strand() {
-        let mut start = read.calculate_end();
+pub fn get_read_pos(read: &Record) -> Option<(i64, i64)> {
+    let mut start;
+    let mut pos;
 
-        if !read.cigar().is_empty() {
+    if !read.cigar().is_empty() {
+        pos = read.reference_end();
+        start = read.pos();
+
+        if read.is_reverse() {
             // set end pos as start to group with forward-reads covering same region
-            start += read.cigar().soft_clipping(false) as i32; // pad with right-side soft clip
-            return Some(start);
-        }
-    } else {
-        let mut start = read.start();
+            pos += read.cigar().leading_softclips(); // pad with right-side soft clip
+            return Some((start, pos));
+        } else {
+            pos = read.pos();
 
-        if !read.cigar().is_empty() {
-            start -= read.cigar().soft_clipping(true) as i32; // pad with left-side soft clip
-            return Some(start);
-        }
-    };
+            pos -= read.cigar().trailing_softclips(); // pad with left-side soft clip
+            start = pos;
+
+            return Some((start, pos));
+        };
+    }
 
     return None;
 }
@@ -73,129 +76,167 @@ impl<'a> ChunkProcessor<'a> {
     // add tags to Records
     // output them to list for writing to bam
 
-    pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap) {
-        let progressbar = ProgressBar::new(bottomhash.bottom_dict.keys().len().try_into().unwrap());
+    pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap, drain_end: usize) {
         let grouping_method = Arc::new(&self.grouping_method);
 
-        bottomhash.bottom_dict.par_drain(0..).for_each(|position| {
-            for umi in position.1 {
-                let mut umis_reads = umi.1;
+        let current_len = bottomhash.bottom_dict.len();
 
-                // sort UMIs by read count
-                // note that this is an unstable sort, so we need to identify read-tied groups
-                umis_reads.par_sort_unstable_by(|_umi1, count1, _umi2, count2| {
-                    count2.count.cmp(&count1.count)
-                });
+        let range = match drain_end {
+            0 => 0..current_len,
+            _ => 0..std::cmp::min(drain_end, current_len),
+        };
 
-                let umis = umis_reads
-                    .keys()
-                    .map(|x| x.to_string())
-                    .collect::<Vec<String>>();
+        bottomhash
+            .bottom_dict
+            .par_drain(range)
+            .for_each(|position| {
+                for umi in position.1 {
+                    let mut umis_reads = umi.1;
 
-                let grouper = Grouper { umis: &umis };
-                let mut counts: HashMap<&String, i32> = HashMap::with_capacity(umis_reads.len());
+                    // sort UMIs by read count
+                    // note that this is an unstable sort, so we need to identify read-tied groups
+                    umis_reads.par_sort_unstable_by(|_umi1, count1, _umi2, count2| {
+                        count2.count.cmp(&count1.count)
+                    });
 
-                // get number of reads for each raw UMI
-                let mut num_umis = 0;
-                for umi in &umis {
-                    counts.entry(umi).or_insert(umis_reads[umi].count);
-                    num_umis += 1;
-                }
+                    let umis = umis_reads
+                        .keys()
+                        .map(|x| x.to_string())
+                        .collect::<Vec<String>>();
 
-                let mut group_handler = GroupHandler {
-                    seed: self.seed + position.0 as u64, // make seed unique per position
-                    group_only: self.only_group,
-                    singletons: self.singletons,
-                };
+                    let grouper = Grouper { umis: &umis };
+                    let mut counts: HashMap<&String, i32> =
+                        HashMap::with_capacity(umis_reads.len());
 
-                // perform UMI clustering per the method specified
-                let groupies = grouper.cluster(counts, Arc::clone(&grouping_method));
-
-                let tagged_reads = group_handler.tag_records(groupies, umis_reads);
-                let mut min_max = self.min_max.lock();
-
-                // update the groups with mininum and maximum observed reads
-                match tagged_reads {
-                    Some(tagged_reads) => {
-                        self.reads_to_output.lock().extend(tagged_reads.1);
-                        // .expect("Read channel not recieving!");
-
-                        match tagged_reads.0 {
-                            Some(x) => {
-                                if x.max_reads > min_max.max_reads {
-                                    min_max.max_reads = x.max_reads;
-                                    min_max.max_reads_group = x.max_reads_group;
-                                }
-
-                                if x.min_reads < min_max.min_reads {
-                                    min_max.min_reads = x.min_reads;
-                                    min_max.min_reads_group = x.min_reads_group;
-                                }
-
-                                // count the number of UMI groups used in consensus
-                                min_max.num_passing_groups += x.num_passing_groups;
-                                min_max.num_groups += x.num_groups;
-                                min_max.num_umis += num_umis;
-
-                                // record the number of reads to be written
-                                min_max.num_reads_output_file += x.num_reads_output_file;
-                            }
-                            _ => (),
-                        }
+                    // get number of reads for each raw UMI
+                    let mut num_umis = 0;
+                    for umi in &umis {
+                        counts.entry(umi).or_insert(umis_reads[umi].count);
+                        num_umis += 1;
                     }
-                    None => (),
+
+                    let mut group_handler = GroupHandler {
+                        seed: self.seed + position.0 as u64, // make seed unique per position
+                        group_only: self.only_group,
+                        singletons: self.singletons,
+                    };
+
+                    // perform UMI clustering per the method specified
+                    let groupies = grouper.cluster(counts, Arc::clone(&grouping_method));
+
+                    let tagged_reads = group_handler.tag_records(groupies, umis_reads);
+                    let mut min_max = self.min_max.lock();
+
+                    // update the groups with mininum and maximum observed reads
+                    match tagged_reads {
+                        Some(tagged_reads) => {
+                            self.reads_to_output.lock().extend(tagged_reads.1);
+                            // .expect("Read channel not recieving!");
+
+                            match tagged_reads.0 {
+                                Some(x) => {
+                                    if x.max_reads > min_max.max_reads {
+                                        min_max.max_reads = x.max_reads;
+                                        min_max.max_reads_group = x.max_reads_group;
+                                    }
+
+                                    if x.min_reads < min_max.min_reads {
+                                        min_max.min_reads = x.min_reads;
+                                        min_max.min_reads_group = x.min_reads_group;
+                                    }
+
+                                    // count the number of UMI groups used in consensus
+                                    min_max.num_passing_groups += x.num_passing_groups;
+                                    min_max.num_groups += x.num_groups;
+                                    min_max.num_umis += num_umis;
+
+                                    // record the number of reads to be written
+                                    min_max.num_reads_output_file += x.num_reads_output_file;
+                                }
+                                _ => (),
+                            }
+                        }
+                        None => (),
+                    }
                 }
-            }
-            progressbar.inc(1);
-        });
-        progressbar.finish();
+            });
     }
 
     // organize reads in bottomhash based on position
-    pub fn pull_read(&mut self, read: &Record, bottomhash: &mut BottomHashMap, separator: &String) {
-        if read.flag().is_mapped() {
-            bottomhash.update_dict(
-                get_read_pos(read).expect("ERROR: mapped read does not have usable CIGAR string."),
-                0,
-                &get_umi(&read, separator),
-                &read,
-            );
-        }
+    pub fn pull_read(
+        &mut self,
+        read: &Record,
+        pos: i32,
+        bottomhash: &mut BottomHashMap,
+        separator: &String,
+    ) {
+        bottomhash.update_dict(pos, 0, &get_umi(&read, separator), &read);
+        self.read_counter += 1;
     }
 
     pub fn pull_read_w_length(
         &mut self,
         read: &Record,
+        pos: i32,
         bottomhash: &mut BottomHashMap,
         separator: &String,
     ) {
-        if read.flag().is_mapped() {
-            bottomhash.update_dict(
-                get_read_pos(read).expect("ERROR: mapped read does not have usable CIGAR string."),
-                read.query_len() as i32,
-                &get_umi(&read, separator),
-                &read,
-            );
-        }
+        bottomhash.update_dict(read.seq_len() as i32, pos, &get_umi(&read, separator), read);
+
+        self.read_counter += 1;
     }
 
     // for every position, group, and process UMIs. output remaining UMIs to write list
-    pub fn process_chunks(&mut self, input_file: BamReader<File>, mut bottomhash: BottomHashMap) {
+    pub fn process_chunks(&mut self, mut input_file: IndexedReader, mut bottomhash: BottomHashMap) {
+        let progressbar = ProgressBar::new(bottomhash.bottom_dict.keys().len().try_into().unwrap());
+
         let read_puller = match self.group_by_length {
             false => ChunkProcessor::pull_read,
             true => ChunkProcessor::pull_read_w_length,
         };
 
-        for r in input_file {
+        let mut last_region = -1;
+        let mut current_region;
+        let mut start;
+        let mut pos;
+        let mut last_pos = 0;
+
+        // todo: make this neater
+        input_file.fetch(FetchDefinition::All).unwrap();
+        for r in input_file.records() {
             let read = &r.unwrap();
-            read_puller(self, read, &mut bottomhash, self.separator);
-            self.read_counter += 1;
+
+            if read.is_unmapped() {
+                break;
+            }
+
+            // get adjusted pos for bottomhash
+            // use start to keep track of position in BAM file.
+            (start, pos) = get_read_pos(read).expect("ERROR: invalid CIGAR string!!!");
+
+            read_puller(self, read, pos as i32, &mut bottomhash, self.separator);
+
+            current_region = read.tid();
+
             if self.read_counter % 100_000 == 0 {
                 print! {"\rRead in {} reads", self.read_counter}
             }
+
+            // if last_pos < (pos - 1000) || last_region != current_region {
+            //     self.group_reads(&mut bottomhash, last_pos as usize);
+
+            //     println!(
+            //         // "last_pos: {}\tpos: {}\tlast_region: {}\tcurrent_region: {}",
+            //         last_pos, pos, last_region, current_region
+            //     );
+            //     last_pos = pos;
+            //     last_region = current_region;
+            // }
         }
         print! {"\r Grouping {} reads...\n", self.read_counter}
 
-        Self::group_reads(self, &mut bottomhash);
+        println!("processing remaining reads...");
+        Self::group_reads(self, &mut bottomhash, 0);
+        progressbar.finish();
     }
 }

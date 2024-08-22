@@ -8,27 +8,26 @@
 * 4. Output one read from the group
 */
 
-extern crate bam;
 use crate::bottomhash::ReadsAndCount;
 use crate::IndexMap;
-use bam::Record;
+use rust_htslib::bam::Record;
 use std::borrow::Cow;
 use std::collections::HashMap;
 
 pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
-    // let mut sequences: IndexMap<Box<[u8]>, (Vec<Record>, i32)> = IndexMap::new();
     let mut sequences: IndexMap<Cow<'static, [u8]>, (Vec<Record>, i32)> =
         IndexMap::with_capacity(clusters.len());
+
     let _counts: IndexMap<&Box<[u8]>, i32> = IndexMap::new();
 
     // group the reads by sequence
     for cluster in clusters {
         cluster.reads.drain(0..).for_each(|x| {
             sequences
-                .entry(Cow::Owned(x.sequence().raw().to_vec()))
+                .entry(Cow::Owned(x.seq().encoded.to_vec()))
                 .or_insert((Vec::new(), 0));
-            sequences[x.sequence().raw()].1 += 1;
-            sequences[x.sequence().raw()].0.push(x);
+            sequences[x.seq().encoded].1 += 1;
+            sequences[x.seq().encoded].0.push(x);
         });
     }
 
@@ -95,12 +94,8 @@ pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
 
                 for read in &cluster {
                     avgs.push(
-                        read.qualities()
-                            .raw()
-                            .iter()
-                            .map(|x| *x as f32)
-                            .sum::<f32>()
-                            / read.qualities().raw().len() as f32,
+                        read.qual().iter().map(|x| *x as f32).sum::<f32>()
+                            / read.qual().len() as f32,
                     );
                 }
 

@@ -1,9 +1,10 @@
-extern crate bam;
 use crate::bottomhash::ReadsAndCount;
 use crate::read_io::GroupReport;
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
 use crate::IndexMap;
-use bam::Record;
+use rust_htslib::bam::record::Aux;
+use rust_htslib::bam::Record;
+
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::collections::HashMap;
@@ -134,9 +135,17 @@ impl GroupHandler {
                 let mut to_write = read_processor(&mut cluster_list);
 
                 to_write.iter_mut().for_each(|read| {
-                    read.tags_mut().push_string(b"UG", &ug_tag);
-                    read.tags_mut()
-                        .push_string(b"BX", &top_umi.iter().next().unwrap().as_bytes());
+                    // add group tag
+                    read.push_aux(b"UG", Aux::ArrayU8((&ug_tag).into()))
+                        .unwrap();
+
+                    // add UMI of root node as tag
+                    read.push_aux(
+                        b"BX",
+                        Aux::ArrayU8(top_umi.iter().next().unwrap().as_bytes().into()),
+                    )
+                    .unwrap();
+
                     group_report.num_reads_output_file += 1;
                 });
 

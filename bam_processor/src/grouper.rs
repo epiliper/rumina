@@ -1,4 +1,3 @@
-extern crate bam;
 use crate::GroupingMethod;
 use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
@@ -29,7 +28,7 @@ impl<'b> Grouper<'b> {
         while queue.len() > 0 {
             node = queue.pop_front().unwrap();
             if adj_list.contains_key(node) {
-                &adj_list[node].iter().for_each(|next_node| {
+                adj_list[node].iter().for_each(|next_node| {
                     if !searched.contains(next_node) {
                         queue.push_back(next_node);
                         searched.insert(next_node);
