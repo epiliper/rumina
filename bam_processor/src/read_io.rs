@@ -8,7 +8,9 @@ use rayon::prelude::*;
 use rust_htslib::bam::ext::BamRecordExtensions;
 use rust_htslib::bam::{FetchDefinition, Record};
 use rust_htslib::bam::{IndexedReader, Read};
+use rust_htslib::htslib;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 
 fn get_umi(record: &Record, separator: &String) -> String {
@@ -21,26 +23,23 @@ fn get_umi(record: &Record, separator: &String) -> String {
     }
 }
 
-pub fn get_read_pos(read: &Record) -> Option<i64> {
+pub fn get_read_pos(read: &Record) -> i64 {
     let mut pos;
 
-    if !read.cigar().is_empty() {
-        pos = read.reference_end();
+    // if !read.cigar().is_empty() {
+    pos = read.reference_end();
 
-        if read.is_reverse() {
-            // set end pos as start to group with forward-reads covering same region
-            pos += read.cigar().leading_softclips(); // pad with right-side soft clip
-            return Some(pos);
-        } else {
-            pos = read.pos();
+    if read.is_reverse() {
+        // set end pos as start to group with forward-reads covering same region
+        pos += read.cigar().leading_softclips(); // pad with right-side soft clip
+        return pos;
+    } else {
+        pos = read.pos();
 
-            pos -= read.cigar().trailing_softclips(); // pad with left-side soft clip
+        pos -= read.cigar().trailing_softclips(); // pad with left-side soft clip
 
-            return Some(pos);
-        };
-    }
-
-    return None;
+        return pos;
+    };
 }
 
 #[derive(Default, Debug)]
@@ -162,18 +161,18 @@ impl<'a> ChunkProcessor<'a> {
     // organize reads in bottomhash based on position
     pub fn pull_read(
         &mut self,
-        read: &Record,
+        read: Record,
         pos: i32,
         bottomhash: &mut BottomHashMap,
         separator: &String,
     ) {
-        bottomhash.update_dict(pos, 0, &get_umi(&read, separator), &read);
+        bottomhash.update_dict(pos, 0, &get_umi(&read, separator), read);
         self.read_counter += 1;
     }
 
     pub fn pull_read_w_length(
         &mut self,
-        read: &Record,
+        read: Record,
         pos: i32,
         bottomhash: &mut BottomHashMap,
         separator: &String,
@@ -194,22 +193,23 @@ impl<'a> ChunkProcessor<'a> {
 
         let mut pos;
 
-        let mut read: Record;
+        let mut read;
 
         // todo: make this neater
         input_file.fetch(FetchDefinition::All).unwrap();
-        for r in input_file.records() {
-            read = r.unwrap();
 
-            if read.is_unmapped() {
-                continue;
-            }
+        for r in input_file
+            .records()
+            .map(|x| x.unwrap())
+            .filter(|read| read.flags() & htslib::BAM_FUNMAP as u16 == 0)
+        {
+            read = r;
 
             // get adjusted pos for bottomhash
             // use start to keep track of position in BAM file.
-            pos = get_read_pos(&read).expect("ERROR: invalid CIGAR string!!!");
+            pos = get_read_pos(&read);
 
-            read_puller(self, &read, pos as i32, &mut bottomhash, self.separator);
+            read_puller(self, read, pos as i32, &mut bottomhash, self.separator);
 
             if self.read_counter % 100_000 == 0 {
                 print! {"\rRead in {} reads", self.read_counter}

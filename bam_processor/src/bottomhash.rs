@@ -21,7 +21,7 @@ pub struct BottomHashMap {
 }
 
 impl BottomHashMap {
-    pub fn update_dict(&mut self, position: i32, key: i32, umi: &String, read: &Record) {
+    pub fn update_dict(&mut self, position: i32, key: i32, umi: &String, read: Record) {
         self.bottom_dict
             .entry(position)
             .or_default()
@@ -49,8 +49,8 @@ pub struct ReadsAndCount {
 
 // when a read is added to ReadsAndCount, increase the read count at x umi
 impl ReadsAndCount {
-    fn up(&mut self, read: &Record) {
+    fn up(&mut self, read: Record) {
         self.count += 1;
-        self.reads.push(read.clone());
+        self.reads.push(read);
     }
 }

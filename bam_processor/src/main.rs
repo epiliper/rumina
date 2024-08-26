@@ -15,7 +15,6 @@ use std::io::Write;
 use std::path::Path;
 use std::time::Instant;
 
-// use bam::Record;
 use rust_htslib::bam::Record;
 use rust_htslib::bam::Writer;
 
@@ -89,7 +88,7 @@ fn main() {
     let reads_to_write: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
 
     let mut bam = IndexedReader::from_path(input_file).unwrap();
-    bam.set_threads(args.threads.try_into().unwrap()).unwrap();
+    bam.set_threads(args.threads as usize).unwrap();
 
     let header = bam.header();
     let header = rust_htslib::bam::header::Header::from_template(header);
