@@ -21,25 +21,22 @@ fn get_umi(record: &Record, separator: &String) -> String {
     }
 }
 
-pub fn get_read_pos(read: &Record) -> Option<(i64, i64)> {
-    let mut start;
+pub fn get_read_pos(read: &Record) -> Option<i64> {
     let mut pos;
 
     if !read.cigar().is_empty() {
         pos = read.reference_end();
-        start = read.pos();
 
         if read.is_reverse() {
             // set end pos as start to group with forward-reads covering same region
             pos += read.cigar().leading_softclips(); // pad with right-side soft clip
-            return Some((start, pos));
+            return Some(pos);
         } else {
             pos = read.pos();
 
             pos -= read.cigar().trailing_softclips(); // pad with left-side soft clip
-            start = pos;
 
-            return Some((start, pos));
+            return Some(pos);
         };
     }
 
@@ -195,43 +192,28 @@ impl<'a> ChunkProcessor<'a> {
             true => ChunkProcessor::pull_read_w_length,
         };
 
-        let mut last_region = -1;
-        let mut current_region;
-        let mut start;
         let mut pos;
-        let mut last_pos = 0;
+
+        let mut read: Record;
 
         // todo: make this neater
         input_file.fetch(FetchDefinition::All).unwrap();
         for r in input_file.records() {
-            let read = &r.unwrap();
+            read = r.unwrap();
 
             if read.is_unmapped() {
-                break;
+                continue;
             }
 
             // get adjusted pos for bottomhash
             // use start to keep track of position in BAM file.
-            (start, pos) = get_read_pos(read).expect("ERROR: invalid CIGAR string!!!");
+            pos = get_read_pos(&read).expect("ERROR: invalid CIGAR string!!!");
 
-            read_puller(self, read, pos as i32, &mut bottomhash, self.separator);
-
-            current_region = read.tid();
+            read_puller(self, &read, pos as i32, &mut bottomhash, self.separator);
 
             if self.read_counter % 100_000 == 0 {
                 print! {"\rRead in {} reads", self.read_counter}
             }
-
-            // if last_pos < (pos - 1000) || last_region != current_region {
-            //     self.group_reads(&mut bottomhash, last_pos as usize);
-
-            //     println!(
-            //         // "last_pos: {}\tpos: {}\tlast_region: {}\tcurrent_region: {}",
-            //         last_pos, pos, last_region, current_region
-            //     );
-            //     last_pos = pos;
-            //     last_region = current_region;
-            // }
         }
         print! {"\r Grouping {} reads...\n", self.read_counter}
 

@@ -5,6 +5,7 @@ use crate::IndexMap;
 use rust_htslib::bam::record::Aux;
 use rust_htslib::bam::Record;
 
+use core::str;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::collections::HashMap;
@@ -136,15 +137,12 @@ impl GroupHandler {
 
                 to_write.iter_mut().for_each(|read| {
                     // add group tag
-                    read.push_aux(b"UG", Aux::ArrayU8((&ug_tag).into()))
+                    read.push_aux(b"UG", Aux::String(str::from_utf8(&ug_tag).unwrap()))
                         .unwrap();
 
                     // add UMI of root node as tag
-                    read.push_aux(
-                        b"BX",
-                        Aux::ArrayU8(top_umi.iter().next().unwrap().as_bytes().into()),
-                    )
-                    .unwrap();
+                    read.push_aux(b"BX", Aux::String(top_umi.iter().next().unwrap()))
+                        .unwrap();
 
                     group_report.num_reads_output_file += 1;
                 });
