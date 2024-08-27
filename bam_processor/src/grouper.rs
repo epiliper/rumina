@@ -3,6 +3,7 @@ use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
+use std::iter::zip;
 use std::sync::Arc;
 
 use std::str;
@@ -44,55 +45,59 @@ impl<'b> Grouper<'b> {
         return hamming(ua, ub).unwrap();
     }
 
-    pub fn get_substring_map(&self) -> IndexMap<&str, Vec<&String>> {
+    pub fn get_substring_map(&self) -> IndexMap<(usize, usize), IndexMap<&str, Vec<&String>>> {
         let umi_length = self.umis.first().unwrap().len();
-        let mid = umi_length / 2;
+        let mut slices = Vec::with_capacity(umi_length * 2);
 
-        let mut substring_map: IndexMap<&str, Vec<&String>> = IndexMap::new();
+        let mut offset = 0;
+        let chunk_size = umi_length / 2;
+        let mut remainder = umi_length % 2;
 
-        self.umis.iter().for_each(|x| {
-            let split = x.split_at(mid);
-            substring_map.entry(split.0).or_insert(Vec::new()).push(x);
-            substring_map.entry(split.1).or_insert(Vec::new()).push(x);
-        });
+        for _ in 0..2 {
+            let end = offset + chunk_size + (remainder > 0) as usize;
+            slices.push((offset, end));
+            offset = end;
+            if remainder > 0 {
+                remainder -= 1;
+            }
+        }
+
+        let mut substring_map: IndexMap<(usize, usize), IndexMap<&str, Vec<&String>>> =
+            IndexMap::new();
+
+        let indices = slices.clone();
+
+        for (slice, idx) in zip(slices, indices) {
+            let slice_entry = substring_map.entry(idx).or_insert_with(|| IndexMap::new());
+
+            for umi in self.umis {
+                slice_entry
+                    .entry(&umi[slice.0..slice.1])
+                    .or_insert_with(|| vec![umi])
+                    .push(umi);
+            }
+        }
+
         return substring_map;
     }
 
     pub fn iter_substring_neighbors(
         &self,
-        substring_map: IndexMap<&'b str, Vec<&'b String>>,
+        substring_map: IndexMap<(usize, usize), IndexMap<&'b str, Vec<&'b String>>>,
     ) -> IndexMap<&'b String, IndexSet<&'b String>> {
         let mut neighbors: IndexMap<&'b String, IndexSet<&'b String>> = IndexMap::new();
+        for (i, u) in self.umis.iter().enumerate() {
+            let mut observed: HashSet<&String> = HashSet::new();
 
-        substring_map.iter().for_each(|x| {
-            for umi in x.1 {
-                neighbors.entry(umi).or_insert(IndexSet::new());
-                let mut observed: IndexSet<&'b String> = IndexSet::new();
+            neighbors.entry(u).or_insert(IndexSet::new());
 
-                let sub2 = (
-                    substring_map.get(umi.split(x.0).next().unwrap()),
-                    substring_map.get(umi.split(x.0).last().unwrap()),
-                );
-                match sub2 {
-                    (Some(x), Some(y)) => {
-                        observed.extend(x);
-                        observed.extend(y);
-                    }
-
-                    (None, Some(y)) => {
-                        observed.extend(y);
-                    }
-
-                    (Some(x), None) => {
-                        observed.extend(x);
-                    }
-
-                    (None, None) => {}
-                }
-
-                neighbors[umi].extend(observed);
+            for (slice, substrings) in &substring_map {
+                neighbors[u].extend(substrings.get(&u[slice.0..slice.1]).unwrap())
             }
-        });
+
+            neighbors[u].retain(|nbr| !observed.contains(nbr));
+            observed.insert(u);
+        }
 
         return neighbors;
     }
