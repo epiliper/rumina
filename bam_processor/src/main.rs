@@ -13,7 +13,6 @@ use std::hash::DefaultHasher;
 use std::hash::Hasher;
 use std::io::Write;
 use std::path::Path;
-use std::time::Instant;
 
 use rust_htslib::bam::Record;
 use rust_htslib::bam::Writer;
@@ -31,6 +30,7 @@ mod deduplicator;
 mod grouper;
 mod read_io;
 mod read_picker;
+mod readkey;
 
 #[derive(ValueEnum, Debug, Clone)]
 enum GroupingMethod {
@@ -67,8 +67,6 @@ fn main() {
         .num_threads(args.threads)
         .build()
         .expect("ERROR: Invalid number of threads specified!");
-
-    let now = Instant::now();
 
     // holds organized reads
     let bottomhash = bottomhash::BottomHashMap {
@@ -124,9 +122,6 @@ fn main() {
     // do grouping and processing
     read_handler.process_chunks(bam, bottomhash);
     let num_reads_in = read_handler.read_counter;
-
-    let elapsed = now.elapsed();
-    println! {"Time elapsed {:.2?}", elapsed};
 
     let mut bam_writer =
         Writer::from_path(out_bam, &header, rust_htslib::bam::Format::Bam).unwrap();

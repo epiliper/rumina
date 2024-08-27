@@ -1,6 +1,7 @@
 use crate::bottomhash::BottomHashMap;
 use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
+use crate::readkey::ReadKey;
 use crate::GroupingMethod;
 use indicatif::ProgressBar;
 use parking_lot::Mutex;
@@ -10,7 +11,6 @@ use rust_htslib::bam::{FetchDefinition, Record};
 use rust_htslib::bam::{IndexedReader, Read};
 use rust_htslib::htslib;
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::sync::Arc;
 
 fn get_umi(record: &Record, separator: &String) -> String {
@@ -23,22 +23,32 @@ fn get_umi(record: &Record, separator: &String) -> String {
     }
 }
 
-pub fn get_read_pos(read: &Record) -> i64 {
+pub fn get_read_pos_key(read: &Record) -> (i64, ReadKey) {
     let mut pos;
-
-    // if !read.cigar().is_empty() {
-    pos = read.reference_end();
+    let key: ReadKey;
 
     if read.is_reverse() {
         // set end pos as start to group with forward-reads covering same region
+        pos = read.reference_end();
         pos += read.cigar().leading_softclips(); // pad with right-side soft clip
-        return pos;
+                                                 //
+        key = ReadKey {
+            length: 0,
+            reverse: true,
+        };
+
+        return (pos, key);
     } else {
         pos = read.pos();
 
         pos -= read.cigar().trailing_softclips(); // pad with left-side soft clip
 
-        return pos;
+        key = ReadKey {
+            length: 0,
+            reverse: false,
+        };
+
+        return (pos, key);
     };
 }
 
@@ -91,7 +101,7 @@ impl<'a> ChunkProcessor<'a> {
 
                     // sort UMIs by read count
                     // note that this is an unstable sort, so we need to identify read-tied groups
-                    umis_reads.par_sort_unstable_by(|_umi1, count1, _umi2, count2| {
+                    umis_reads.par_sort_by(|_umi1, count1, _umi2, count2| {
                         count2.count.cmp(&count1.count)
                     });
 
@@ -106,6 +116,7 @@ impl<'a> ChunkProcessor<'a> {
 
                     // get number of reads for each raw UMI
                     let mut num_umis = 0;
+
                     for umi in &umis {
                         counts.entry(umi).or_insert(umis_reads[umi].count);
                         num_umis += 1;
@@ -162,22 +173,24 @@ impl<'a> ChunkProcessor<'a> {
     pub fn pull_read(
         &mut self,
         read: Record,
-        pos: i32,
+        pos: i64,
+        key: ReadKey,
         bottomhash: &mut BottomHashMap,
         separator: &String,
     ) {
-        bottomhash.update_dict(pos, 0, &get_umi(&read, separator), read);
+        bottomhash.update_dict(pos, key.get_key(), get_umi(&read, separator), read);
         self.read_counter += 1;
     }
 
     pub fn pull_read_w_length(
         &mut self,
         read: Record,
-        pos: i32,
+        pos: i64,
+        key: ReadKey,
         bottomhash: &mut BottomHashMap,
         separator: &String,
     ) {
-        bottomhash.update_dict(read.seq_len() as i32, pos, &get_umi(&read, separator), read);
+        bottomhash.update_dict(pos, key.get_key(), get_umi(&read, separator), read);
 
         self.read_counter += 1;
     }
@@ -192,7 +205,7 @@ impl<'a> ChunkProcessor<'a> {
         };
 
         let mut pos;
-
+        let mut key;
         let mut read;
 
         // todo: make this neater
@@ -207,9 +220,9 @@ impl<'a> ChunkProcessor<'a> {
 
             // get adjusted pos for bottomhash
             // use start to keep track of position in BAM file.
-            pos = get_read_pos(&read);
+            (pos, key) = get_read_pos_key(&read);
 
-            read_puller(self, read, pos as i32, &mut bottomhash, self.separator);
+            read_puller(self, read, pos, key, &mut bottomhash, self.separator);
 
             if self.read_counter % 100_000 == 0 {
                 print! {"\rRead in {} reads", self.read_counter}

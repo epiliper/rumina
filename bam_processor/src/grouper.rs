@@ -15,7 +15,7 @@ pub struct Grouper<'b> {
 
 impl<'b> Grouper<'b> {
     // gets the group neighbors of all group neighbors of a given UMI.
-    pub fn depth_first_search(
+    pub fn breadth_first_search(
         mut node: &'b String,
         adj_list: &IndexMap<&'b String, Vec<&'b String>>,
     ) -> HashSet<&'b String> {
@@ -25,7 +25,7 @@ impl<'b> Grouper<'b> {
         queue.push_back(node);
         searched.insert(node);
 
-        while queue.len() > 0 {
+        while !queue.is_empty() {
             node = queue.pop_front().unwrap();
             if adj_list.contains_key(node) {
                 adj_list[node].iter().for_each(|next_node| {
@@ -110,6 +110,7 @@ impl<'b> Grouper<'b> {
         substring_neighbors.iter().for_each(|x| {
             let umi = x.0;
             let neighbors = x.1;
+
             adj_list.entry(umi).or_insert(Vec::new());
 
             for neighbor in neighbors {
@@ -179,7 +180,7 @@ impl<'b> Grouper<'b> {
         if adj_list.len() > 0 {
             adj_list.keys().for_each(|node| {
                 if !found.contains(node) {
-                    let component = Grouper::depth_first_search(node, &adj_list);
+                    let component = Grouper::breadth_first_search(node, &adj_list);
                     found.extend(&component);
                     components.push(component);
                 }
@@ -196,20 +197,15 @@ impl<'b> Grouper<'b> {
         let mut groups: Vec<Vec<&String>> = Vec::new();
 
         for cluster in clusters {
-            if cluster.len() == 1 {
-                observed.extend(&cluster);
-                groups.push(cluster.into_iter().collect::<Vec<&String>>());
-            } else {
-                let mut temp_cluster: Vec<&String> = Vec::new();
+            let mut temp_cluster: Vec<&String> = Vec::new();
 
-                for node in cluster {
-                    if !observed.contains(&node) {
-                        temp_cluster.push(node);
-                        observed.insert(node);
-                    }
+            for node in cluster {
+                if !observed.contains(&node) {
+                    temp_cluster.push(node);
+                    observed.insert(node);
                 }
-                groups.push(temp_cluster);
             }
+            groups.push(temp_cluster);
         }
         return groups;
     }

@@ -21,14 +21,14 @@ pub struct BottomHashMap {
 }
 
 impl BottomHashMap {
-    pub fn update_dict(&mut self, position: i32, key: i32, umi: &String, read: Record) {
+    pub fn update_dict(&mut self, position: i64, key: u64, umi: String, read: Record) {
         self.bottom_dict
             .entry(position)
             .or_default()
-            .entry((key).into())
+            .entry(key)
             .or_default()
-            .entry(umi.into())
-            .or_insert(ReadsAndCount {
+            .entry(umi.to_string())
+            .or_insert_with(|| ReadsAndCount {
                 reads: Vec::new(),
                 count: 0,
             })
@@ -36,14 +36,13 @@ impl BottomHashMap {
     }
 }
 
-type PositionKey = IndexMap<i32, KeyUMI>; //every position has a key
-type KeyUMI = IndexMap<i32, UMIReads>; // every key has a UMI
+type PositionKey = IndexMap<i64, KeyUMI>; //every position has a key
+type KeyUMI = IndexMap<u64, UMIReads>; // every key has a UMI
 pub type UMIReads = IndexMap<String, ReadsAndCount>; // every UMI has a set of reads
 
 #[derive(Debug)]
 pub struct ReadsAndCount {
     pub reads: Vec<Record>,
-    // pub reads: Mutex<Vec<Record>>,
     pub count: i32,
 }
 
