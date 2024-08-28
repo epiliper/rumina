@@ -17,40 +17,12 @@ fn get_umi(record: &Record, separator: &String) -> String {
     unsafe {
         std::str::from_utf8_unchecked(record.qname())
             .rsplit_once(separator)
-            .unwrap()
+            .expect("ERROR: failed to get UMI from read QNAME. Check --separator. Exiting.")
             .1
             .to_string()
     }
 }
 
-pub fn get_read_pos_key(read: &Record) -> (i64, ReadKey) {
-    let mut pos;
-    let key: ReadKey;
-
-    if read.is_reverse() {
-        // set end pos as start to group with forward-reads covering same region
-        pos = read.reference_end();
-        pos += read.cigar().leading_softclips(); // pad with right-side soft clip
-                                                 //
-        key = ReadKey {
-            length: 0,
-            reverse: true,
-        };
-
-        (pos, key)
-
-    } else {
-        pos = read.pos();
-        pos -= read.cigar().trailing_softclips(); // pad with left-side soft clip
-
-        key = ReadKey {
-            length: 0,
-            reverse: false,
-        };
-
-        (pos, key)
-    }
-}
 
 #[derive(Default, Debug)]
 pub struct GroupReport {
@@ -81,6 +53,35 @@ impl<'a> ChunkProcessor<'a> {
     // run grouping on pulled reads
     // add tags to Records
     // output them to list for writing to bam
+    
+    pub fn get_read_pos_key(&self, read: &Record) -> (i64, ReadKey) {
+        let mut pos;
+        let key: ReadKey;
+
+        if read.is_reverse() {
+            // set end pos as start to group with forward-reads covering same region
+            pos = read.reference_end();
+            pos += read.cigar().leading_softclips(); // pad with right-side soft clip
+                                                     //
+            key = ReadKey {
+                length: read.seq_len() * self.group_by_length as usize,
+                reverse: true,
+            };
+
+            (pos, key)
+
+        } else {
+            pos = read.pos();
+            pos -= read.cigar().trailing_softclips(); // pad with left-side soft clip
+
+            key = ReadKey {
+                length: read.seq_len() * self.group_by_length as usize,
+                reverse: false,
+            };
+
+            (pos, key)
+        }
+    }
 
     pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap, drain_end: usize) {
         let grouping_method = Arc::new(&self.grouping_method);
@@ -182,27 +183,10 @@ impl<'a> ChunkProcessor<'a> {
         self.read_counter += 1;
     }
 
-    pub fn pull_read_w_length(
-        &mut self,
-        read: Record,
-        pos: i64,
-        key: ReadKey,
-        bottomhash: &mut BottomHashMap,
-        separator: &String,
-    ) {
-        bottomhash.update_dict(pos, key.get_key(), get_umi(&read, separator), read);
-
-        self.read_counter += 1;
-    }
 
     // for every position, group, and process UMIs. output remaining UMIs to write list
     pub fn process_chunks(&mut self, mut input_file: IndexedReader, mut bottomhash: BottomHashMap) {
         let progressbar = ProgressBar::new(bottomhash.bottom_dict.keys().len().try_into().unwrap());
-
-        let read_puller = match self.group_by_length {
-            false => ChunkProcessor::pull_read,
-            true => ChunkProcessor::pull_read_w_length,
-        };
 
         let mut pos;
         let mut key;
@@ -220,9 +204,8 @@ impl<'a> ChunkProcessor<'a> {
 
             // get adjusted pos for bottomhash
             // use start to keep track of position in BAM file.
-            (pos, key) = get_read_pos_key(&read);
-
-            read_puller(self, read, pos, key, &mut bottomhash, self.separator);
+            (pos, key) = self.get_read_pos_key(&read);
+            self.pull_read(read, pos, key, &mut bottomhash, self.separator);
 
             if self.read_counter % 100_000 == 0 {
                 print! {"\rRead in {} reads", self.read_counter}

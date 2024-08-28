@@ -1,13 +1,13 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 pub struct ReadKey {
-    pub length: i64,
+    pub length: usize,
     pub reverse: bool,
 }
 
 impl Hash for ReadKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        (self.length * self.reverse as i64).hash(state)
+        (self.length * self.reverse as usize).hash(state)
     }
 }
 
