@@ -39,6 +39,12 @@ enum GroupingMethod {
     Raw,
 }
 
+#[derive(ValueEnum, Debug, Clone)]
+enum InputType {
+    Stdin,
+    Bamfile,
+}
+
 #[derive(Parser, Debug)]
 #[command(term_width = 0)]
 struct Args {
@@ -86,7 +92,7 @@ fn main() {
     let reads_to_write: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
 
     let mut bam = IndexedReader::from_path(input_file).unwrap();
-    bam.set_threads(args.threads as usize).unwrap();
+    bam.set_threads(args.threads).unwrap();
 
     let header = bam.header();
     let header = rust_htslib::bam::header::Header::from_template(header);
@@ -113,7 +119,7 @@ fn main() {
         min_max: Arc::clone(&min_maxes),
         grouping_method,
         group_by_length: args.length,
-        seed: seed,
+        seed,
         only_group: args.only_group,
         singletons: args.singletons,
         read_counter: 0,
@@ -148,7 +154,6 @@ fn main() {
             let _ = File::create(&minmax_file);
         }
         let mut f = OpenOptions::new()
-            .write(true)
             .append(true)
             .open(&minmax_file)
             .expect("unable to open minmax file");

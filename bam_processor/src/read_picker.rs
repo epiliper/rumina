@@ -54,7 +54,7 @@ pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
     }
     // get the group with the best overall phred score
     // and return the best phred score read from it
-    return vec![get_best_phred(most_reads_groups)];
+    vec![get_best_phred(most_reads_groups)]
 }
 
 // used with the --group_only arg to return all reads within a group with a group tag
@@ -63,9 +63,9 @@ pub fn push_all_reads(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
 
     clusters
         .drain(0..)
-        .for_each(|read_group| reads_to_write.extend(read_group.reads.into_iter()));
+        .for_each(|read_group| reads_to_write.extend(read_group.reads));
 
-    return reads_to_write;
+    reads_to_write
 }
 
 // get the number of reads across all UMIs within a group
@@ -75,7 +75,7 @@ pub fn get_counts(top_umi: &Vec<&String>, counts: &HashMap<&String, i32>) -> i64
     for umi in top_umi {
         read_count += counts.get(umi).unwrap();
     }
-    return read_count as i64;
+    read_count as i64
 }
 
 pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
@@ -107,7 +107,7 @@ pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
             let mut best_phred = mean_phreds.swap_remove(&x).unwrap();
 
             // remove one read from this group (final read to represent UMI group)
-            return best_phred.swap_remove(0);
+            best_phred.swap_remove(0)
         }
     }
 }

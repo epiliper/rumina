@@ -41,7 +41,9 @@ pub fn generate_tag(
         .unwrap();
     if !used_tags.contains(&ug_tag) {
         used_tags.insert(ug_tag);
-        return ug_tag;
+
+        ug_tag
+
     } else {
         generate_tag(rng, used_tags)
     }
@@ -62,9 +64,9 @@ impl GroupHandler {
         match grouping_output.1 {
             Some(groups) => {
                 let reads = self.tag_groups(groups, &mut umis_records, grouping_output.0);
-                return Some(reads);
+                Some(reads)
             }
-            None => return None,
+            None => None
         }
     }
     pub fn tag_groups(
@@ -152,8 +154,9 @@ impl GroupHandler {
         }
 
         if first {
-            return (None, output_list);
+            (None, output_list)
+        } else {
+            (Some(group_report), output_list)
         }
-        return (Some(group_report), output_list);
     }
 }

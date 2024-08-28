@@ -7,8 +7,7 @@ pub struct ReadKey {
 
 impl Hash for ReadKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.length.hash(state);
-        self.reverse.hash(state);
+        (self.length * self.reverse as i64).hash(state)
     }
 }
 

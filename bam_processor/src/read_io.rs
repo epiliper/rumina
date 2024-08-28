@@ -37,10 +37,10 @@ pub fn get_read_pos_key(read: &Record) -> (i64, ReadKey) {
             reverse: true,
         };
 
-        return (pos, key);
+        (pos, key)
+
     } else {
         pos = read.pos();
-
         pos -= read.cigar().trailing_softclips(); // pad with left-side soft clip
 
         key = ReadKey {
@@ -48,8 +48,8 @@ pub fn get_read_pos_key(read: &Record) -> (i64, ReadKey) {
             reverse: false,
         };
 
-        return (pos, key);
-    };
+        (pos, key)
+    }
 }
 
 #[derive(Default, Debug)]

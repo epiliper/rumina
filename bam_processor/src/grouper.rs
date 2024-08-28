@@ -9,6 +9,11 @@ use std::sync::Arc;
 use std::str;
 use strsim::hamming;
 
+// gets edit distance (hamming distance) between two umis
+pub fn edit_distance(ua: &str, ub: &str) -> usize {
+    hamming(ua, ub).unwrap()
+}
+
 // this is the struct that contains functions used to group umis per the directional method
 pub struct Grouper<'b> {
     pub umis: &'b Vec<String>,
@@ -29,7 +34,7 @@ impl<'b> Grouper<'b> {
         while !queue.is_empty() {
             node = queue.pop_front().unwrap();
             if adj_list.contains_key(node) {
-                adj_list[node].iter().for_each(|next_node| {
+                adj_list.get(node).unwrap().iter().for_each(|next_node| {
                     if !searched.contains(next_node) {
                         queue.push_back(next_node);
                         searched.insert(next_node);
@@ -37,12 +42,7 @@ impl<'b> Grouper<'b> {
                 });
             }
         }
-        return searched;
-    }
-
-    // gets edit distance (hamming distance) between two umis
-    pub fn edit_distance(ua: &String, ub: &String) -> usize {
-        return hamming(ua, ub).unwrap();
+        searched
     }
 
     pub fn get_substring_map(&self) -> IndexMap<(usize, usize), IndexMap<&str, Vec<&String>>> {
@@ -68,7 +68,7 @@ impl<'b> Grouper<'b> {
         let indices = slices.clone();
 
         for (slice, idx) in zip(slices, indices) {
-            let slice_entry = substring_map.entry(idx).or_insert_with(|| IndexMap::new());
+            let slice_entry = substring_map.entry(idx).or_default();
 
             for umi in self.umis {
                 slice_entry
@@ -78,7 +78,7 @@ impl<'b> Grouper<'b> {
             }
         }
 
-        return substring_map;
+        substring_map
     }
 
     pub fn iter_substring_neighbors(
@@ -86,10 +86,11 @@ impl<'b> Grouper<'b> {
         substring_map: IndexMap<(usize, usize), IndexMap<&'b str, Vec<&'b String>>>,
     ) -> IndexMap<&'b String, IndexSet<&'b String>> {
         let mut neighbors: IndexMap<&'b String, IndexSet<&'b String>> = IndexMap::new();
-        for (i, u) in self.umis.iter().enumerate() {
+
+        for u in self.umis.iter() {
             let mut observed: HashSet<&String> = HashSet::new();
 
-            neighbors.entry(u).or_insert(IndexSet::new());
+            neighbors.entry(u).or_default();
 
             for (slice, substrings) in &substring_map {
                 neighbors[u].extend(substrings.get(&u[slice.0..slice.1]).unwrap())
@@ -99,8 +100,14 @@ impl<'b> Grouper<'b> {
             neighbors.get_mut(u).unwrap().retain(|nbr| !observed.contains(nbr));
         }
 
-        return neighbors;
+        neighbors
     }
+
+    pub fn add_edge_directional(&self, umi_a: &String, umi_b: &String, counts: &HashMap<&String, i32>, threshold: usize) -> bool {
+        edit_distance(umi_a, umi_b) <= threshold 
+            && umi_a != umi_b 
+                && *counts.get(umi_a).unwrap() >= counts.get(umi_b).unwrap() * 2 - 1 
+     }
 
     // groups umis via directional algorithm
     pub fn get_adj_list_directional(
@@ -117,25 +124,22 @@ impl<'b> Grouper<'b> {
             let neighbors = x.1;
 
 
-            adj_list.entry(umi).or_insert(Vec::new());
+            adj_list.entry(umi).or_default();
 
             for neighbor in neighbors {
-                // adj_list.entry(neighbor).or_insert(Vec::new());
-                if Grouper::edit_distance(umi, neighbor) <= threshold && umi != neighbor {
-                    if *counts.get(umi).unwrap() >= (counts.get(neighbor).unwrap() * 2 - 1) {
-                        adj_list[umi].push(neighbor);
-                    } else if *counts.get(neighbor).unwrap() >= (counts.get(umi).unwrap() * 2 - 1) {
+                    if self.add_edge_directional(umi, neighbor, counts, threshold) {
+                        adj_list.entry(umi).or_insert(vec![neighbor]).push(neighbor);
+
+                    } else if self.add_edge_directional(neighbor, umi, counts, threshold) {
                         adj_list.entry(neighbor).or_insert(vec![umi]).push(umi);
                     }
                 } 
-            } 
         });
-
-        return adj_list;
+        adj_list
     }
 
-    // groups umis via bidirectional algorithm
-    pub fn get_adj_list_bidirectional(
+    // groups umis via acyclic algorithm
+    pub fn get_adj_list_acyclic(
         &self,
         counts: &HashMap<&String, i32>,
         substring_neighbors: IndexMap<&'b String, IndexSet<&'b String>>,
@@ -152,23 +156,17 @@ impl<'b> Grouper<'b> {
             let neighbors = x.1;
 
             if !found.contains(umi) {
-                adj_list.entry(umi).or_insert(Vec::new());
+                adj_list.entry(umi).or_default();
 
                 for neighbor in neighbors {
-                    if !found.contains(neighbor) {
-                        if Grouper::edit_distance(umi, neighbor) <= threshold && umi != neighbor {
-                            if *counts.get(umi).unwrap() >= (counts.get(neighbor).unwrap() * 2 - 1)
-                            {
-                                adj_list[umi].push(neighbor);
-                                found.insert(neighbor);
-                            }
-                        }
+                    if !found.contains(neighbor) && self.add_edge_directional(umi, neighbor, counts, threshold) {
+                        adj_list[umi].push(neighbor);
+                        found.insert(neighbor);
                     }
                 }
             }
         });
-
-        return adj_list;
+        adj_list
     }
 
     // return a list of lists, comprising a UMI
@@ -182,7 +180,7 @@ impl<'b> Grouper<'b> {
         let mut components: Vec<HashSet<&String>> = Vec::new();
         let mut found: HashSet<&String> = HashSet::new();
 
-        if adj_list.len() > 0 {
+        if !adj_list.is_empty() {
             adj_list.keys().for_each(|node| {
                 if !found.contains(node) {
                     let component = Grouper::breadth_first_search(node, &adj_list);
@@ -190,9 +188,9 @@ impl<'b> Grouper<'b> {
                     components.push(component);
                 }
             });
-            return Some(components);
+            Some(components)
         } else {
-            return None;
+            None
         }
     }
 
@@ -212,7 +210,7 @@ impl<'b> Grouper<'b> {
             }
             groups.push(temp_cluster);
         }
-        return groups;
+        groups
     }
 
     pub fn no_clustering(
@@ -226,7 +224,7 @@ impl<'b> Grouper<'b> {
             .collect::<Vec<HashSet<&'b String>>>();
         let final_umis = Some(self.get_umi_groups(umis));
 
-        return (counts, final_umis);
+        (counts, final_umis)
     }
 
     pub fn cluster(
@@ -236,7 +234,7 @@ impl<'b> Grouper<'b> {
     ) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
         let clusterer = match *grouping_method {
             GroupingMethod::Directional => Grouper::get_adj_list_directional,
-            GroupingMethod::Acyclic => Grouper::get_adj_list_bidirectional,
+            GroupingMethod::Acyclic => Grouper::get_adj_list_acyclic,
             GroupingMethod::Raw => {
                 return self.no_clustering(counts);
             }
@@ -244,15 +242,14 @@ impl<'b> Grouper<'b> {
 
         let substring_map = self.get_substring_map();
         let umis_to_compare = self.iter_substring_neighbors(substring_map);
-        let adj_list = clusterer(&self, &counts, umis_to_compare, 1);
-        let final_umis;
+        let adj_list = clusterer(self, &counts, umis_to_compare, 1);
 
         if !adj_list.is_empty() {
             let clusters = self.get_connected_components(adj_list).unwrap();
-            final_umis = Some(self.get_umi_groups(clusters));
+            let final_umis = Some(self.get_umi_groups(clusters));
+            (counts, final_umis)
         } else {
-            final_umis = None;
+            (counts, None)
         }
-        return (counts, final_umis);
     }
 }
