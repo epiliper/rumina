@@ -28,7 +28,7 @@ This pipeline is tested for processing ~600 million reads in ~5 hours, at a rate
 ### Installation:
 
 ```bash
-git clone https://github.com/epiliper/rumina.git -b feature; \
+git clone https://github.com/epiliper/rumina.git -b main; \
 cd rumina; \
 sh install.sh; 
 ```
