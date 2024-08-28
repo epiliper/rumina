@@ -141,7 +141,7 @@ impl GroupHandler {
                         .unwrap();
 
                     // add UMI of root node as tag
-                    read.push_aux(b"BX", Aux::String(top_umi.iter().next().unwrap()))
+                    read.push_aux(b"BX", Aux::String(top_umi.first().unwrap()))
                         .unwrap();
 
                     group_report.num_reads_output_file += 1;

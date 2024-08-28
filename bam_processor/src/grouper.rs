@@ -95,8 +95,8 @@ impl<'b> Grouper<'b> {
                 neighbors[u].extend(substrings.get(&u[slice.0..slice.1]).unwrap())
             }
 
-            neighbors[u].retain(|nbr| !observed.contains(nbr));
             observed.insert(u);
+            neighbors.get_mut(u).unwrap().retain(|nbr| !observed.contains(nbr));
         }
 
         return neighbors;
@@ -116,19 +116,19 @@ impl<'b> Grouper<'b> {
             let umi = x.0;
             let neighbors = x.1;
 
+
             adj_list.entry(umi).or_insert(Vec::new());
 
             for neighbor in neighbors {
-                adj_list.entry(neighbor).or_insert(Vec::new());
+                // adj_list.entry(neighbor).or_insert(Vec::new());
                 if Grouper::edit_distance(umi, neighbor) <= threshold && umi != neighbor {
                     if *counts.get(umi).unwrap() >= (counts.get(neighbor).unwrap() * 2 - 1) {
                         adj_list[umi].push(neighbor);
                     } else if *counts.get(neighbor).unwrap() >= (counts.get(umi).unwrap() * 2 - 1) {
-                        adj_list[neighbor].push(umi);
+                        adj_list.entry(neighbor).or_insert(vec![umi]).push(umi);
                     }
-                } else {
-                }
-            }
+                } 
+            } 
         });
 
         return adj_list;
