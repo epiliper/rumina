@@ -3,12 +3,10 @@ use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::readkey::ReadKey;
 use crate::GroupingMethod;
-use indicatif::ProgressBar;
 use parking_lot::Mutex;
 use rayon::prelude::*;
 use rust_htslib::bam::ext::BamRecordExtensions;
-use rust_htslib::bam::{FetchDefinition, Record};
-use rust_htslib::bam::{IndexedReader, Read};
+use rust_htslib::bam::{Reader, Read, Record};
 use rust_htslib::htslib;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -185,16 +183,13 @@ impl<'a> ChunkProcessor<'a> {
 
 
     // for every position, group, and process UMIs. output remaining UMIs to write list
-    pub fn process_chunks(&mut self, mut input_file: IndexedReader, mut bottomhash: BottomHashMap) {
-        let progressbar = ProgressBar::new(bottomhash.bottom_dict.keys().len().try_into().unwrap());
+    pub fn process_chunks(&mut self, mut input_file: Reader, mut bottomhash: BottomHashMap) {
 
         let mut pos;
         let mut key;
         let mut read;
 
         // todo: make this neater
-        input_file.fetch(FetchDefinition::All).unwrap();
-
         for r in input_file
             .records()
             .map(|x| x.unwrap())
@@ -215,6 +210,5 @@ impl<'a> ChunkProcessor<'a> {
 
         println!("processing remaining reads...");
         Self::group_reads(self, &mut bottomhash, 0);
-        progressbar.finish();
     }
 }

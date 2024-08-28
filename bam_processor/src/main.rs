@@ -5,19 +5,12 @@ use crate::read_io::ChunkProcessor;
 use crate::read_io::GroupReport;
 use clap::ValueEnum;
 use indexmap::IndexMap;
-use rust_htslib::bam::IndexedReader;
-use rust_htslib::bam::Read;
-use std::fs::File;
-use std::fs::OpenOptions;
-use std::hash::DefaultHasher;
-use std::hash::Hasher;
+use rust_htslib::bam::{Reader, Read, Record, Writer};
+use std::fs::{File, OpenOptions};
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Write;
 use std::path::Path;
 
-use rust_htslib::bam::Record;
-use rust_htslib::bam::Writer;
-
-use std::hash::Hash;
 
 use clap::Parser;
 use rayon::ThreadPoolBuilder;
@@ -37,12 +30,6 @@ enum GroupingMethod {
     Acyclic,
     Directional,
     Raw,
-}
-
-#[derive(ValueEnum, Debug, Clone)]
-enum InputType {
-    Stdin,
-    Bamfile,
 }
 
 #[derive(Parser, Debug)]
@@ -91,7 +78,7 @@ fn main() {
 
     let reads_to_write: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
 
-    let mut bam = IndexedReader::from_path(input_file).unwrap();
+    let mut bam = Reader::from_path(input_file).unwrap();
     bam.set_threads(args.threads).unwrap();
 
     let header = bam.header();
@@ -131,6 +118,7 @@ fn main() {
 
     let mut bam_writer =
         Writer::from_path(out_bam, &header, rust_htslib::bam::Format::Bam).unwrap();
+    bam_writer.set_threads(args.threads).unwrap();
 
     for read in reads_to_write.lock().drain(0..) {
         bam_writer.write(&read).unwrap();
