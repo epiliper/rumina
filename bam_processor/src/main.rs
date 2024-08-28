@@ -1,25 +1,16 @@
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-use crate::fs::OpenOptions;
 use crate::read_io::ChunkProcessor;
 use crate::read_io::GroupReport;
-use bam::bam_writer::BamWriterBuilder;
-use bam::RecordWriter;
 use clap::ValueEnum;
 use indexmap::IndexMap;
-use std::fs;
-use std::fs::File;
-use std::hash::DefaultHasher;
-use std::hash::Hasher;
+use rust_htslib::bam::{Reader, Read, Record, Writer};
+use std::fs::{File, OpenOptions};
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Write;
-use std::mem::drop;
 use std::path::Path;
-use std::time::Instant;
 
-use bam::Record;
-
-use std::hash::Hash;
 
 use clap::Parser;
 use rayon::ThreadPoolBuilder;
@@ -32,6 +23,7 @@ mod deduplicator;
 mod grouper;
 mod read_io;
 mod read_picker;
+mod readkey;
 
 #[derive(ValueEnum, Debug, Clone)]
 enum GroupingMethod {
@@ -69,8 +61,6 @@ fn main() {
         .build()
         .expect("ERROR: Invalid number of threads specified!");
 
-    let now = Instant::now();
-
     // holds organized reads
     let bottomhash = bottomhash::BottomHashMap {
         bottom_dict: IndexMap::new(),
@@ -88,11 +78,11 @@ fn main() {
 
     let reads_to_write: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
 
-    let bam = bam::BamReader::from_path(&input_file, (args.threads) as u16).unwrap();
-    let header = bam::BamReader::from_path(&input_file, 0)
-        .unwrap()
-        .header()
-        .clone();
+    let mut bam = Reader::from_path(input_file).unwrap();
+    bam.set_threads(args.threads).unwrap();
+
+    let header = bam.header();
+    let header = rust_htslib::bam::header::Header::from_template(header);
 
     let out_bam = output_file.clone();
 
@@ -116,7 +106,7 @@ fn main() {
         min_max: Arc::clone(&min_maxes),
         grouping_method,
         group_by_length: args.length,
-        seed: seed,
+        seed,
         only_group: args.only_group,
         singletons: args.singletons,
         read_counter: 0,
@@ -126,16 +116,12 @@ fn main() {
     read_handler.process_chunks(bam, bottomhash);
     let num_reads_in = read_handler.read_counter;
 
-    let elapsed = now.elapsed();
-    println! {"Time elapsed {:.2?}", elapsed};
-
-    let mut bam_writer = BamWriterBuilder::new()
-        .additional_threads(args.threads.try_into().unwrap())
-        .from_path(&out_bam, header)
-        .unwrap();
+    let mut bam_writer =
+        Writer::from_path(out_bam, &header, rust_htslib::bam::Format::Bam).unwrap();
+    bam_writer.set_threads(args.threads).unwrap();
 
     for read in reads_to_write.lock().drain(0..) {
-        bam_writer.write(&read);
+        bam_writer.write(&read).unwrap();
     }
 
     drop(read_handler);
@@ -153,10 +139,9 @@ fn main() {
         let minmax_file = Path::new(&output_file).parent().unwrap().join("minmax.txt");
 
         if !minmax_file.exists() {
-            File::create(&minmax_file);
+            let _ = File::create(&minmax_file);
         }
         let mut f = OpenOptions::new()
-            .write(true)
             .append(true)
             .open(&minmax_file)
             .expect("unable to open minmax file");

@@ -1,9 +1,11 @@
-extern crate bam;
 use crate::bottomhash::ReadsAndCount;
 use crate::read_io::GroupReport;
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
 use crate::IndexMap;
-use bam::Record;
+use rust_htslib::bam::record::Aux;
+use rust_htslib::bam::Record;
+
+use core::str;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::collections::HashMap;
@@ -39,7 +41,9 @@ pub fn generate_tag(
         .unwrap();
     if !used_tags.contains(&ug_tag) {
         used_tags.insert(ug_tag);
-        return ug_tag;
+
+        ug_tag
+
     } else {
         generate_tag(rng, used_tags)
     }
@@ -60,9 +64,9 @@ impl GroupHandler {
         match grouping_output.1 {
             Some(groups) => {
                 let reads = self.tag_groups(groups, &mut umis_records, grouping_output.0);
-                return Some(reads);
+                Some(reads)
             }
-            None => return None,
+            None => None
         }
     }
     pub fn tag_groups(
@@ -134,9 +138,14 @@ impl GroupHandler {
                 let mut to_write = read_processor(&mut cluster_list);
 
                 to_write.iter_mut().for_each(|read| {
-                    read.tags_mut().push_string(b"UG", &ug_tag);
-                    read.tags_mut()
-                        .push_string(b"BX", &top_umi.iter().next().unwrap().as_bytes());
+                    // add group tag
+                    read.push_aux(b"UG", Aux::String(str::from_utf8(&ug_tag).unwrap()))
+                        .unwrap();
+
+                    // add UMI of root node as tag
+                    read.push_aux(b"BX", Aux::String(top_umi.first().unwrap()))
+                        .unwrap();
+
                     group_report.num_reads_output_file += 1;
                 });
 
@@ -145,8 +154,9 @@ impl GroupHandler {
         }
 
         if first {
-            return (None, output_list);
+            (None, output_list)
+        } else {
+            (Some(group_report), output_list)
         }
-        return (Some(group_report), output_list);
     }
 }
