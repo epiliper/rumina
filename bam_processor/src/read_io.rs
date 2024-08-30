@@ -64,19 +64,20 @@ impl<'a> ChunkProcessor<'a> {
             key = ReadKey {
                 length: read.seq_len() * self.group_by_length as usize,
                 reverse: true,
+                chr: read.tid() as usize,
             };
-
             (pos, key)
 
         } else {
-            pos = read.pos();
+
+            pos = read.reference_start();
             pos -= read.cigar().trailing_softclips(); // pad with left-side soft clip
 
             key = ReadKey {
                 length: read.seq_len() * self.group_by_length as usize,
                 reverse: false,
+                chr: read.tid() as usize,
             };
-
             (pos, key)
         }
     }

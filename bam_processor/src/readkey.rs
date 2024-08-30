@@ -3,11 +3,14 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 pub struct ReadKey {
     pub length: usize,
     pub reverse: bool,
+    pub chr: usize,
 }
 
 impl Hash for ReadKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        (self.length * self.reverse as usize).hash(state)
+        self.length.hash(state);
+        self.reverse.hash(state);
+        self.chr.hash(state);
     }
 }
 

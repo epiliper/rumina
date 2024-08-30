@@ -73,7 +73,7 @@ impl<'b> Grouper<'b> {
             for umi in self.umis {
                 slice_entry
                     .entry(&umi[slice.0..slice.1])
-                    .or_insert_with(|| vec![umi])
+                    .or_insert(vec![umi])
                     .push(umi);
             }
         }
@@ -87,13 +87,14 @@ impl<'b> Grouper<'b> {
     ) -> IndexMap<&'b String, IndexSet<&'b String>> {
         let mut neighbors: IndexMap<&'b String, IndexSet<&'b String>> = IndexMap::new();
 
+        let mut observed: HashSet<&String> = HashSet::new();
         for u in self.umis.iter() {
-            let mut observed: HashSet<&String> = HashSet::new();
 
-            neighbors.entry(u).or_default();
 
             for (slice, substrings) in &substring_map {
-                neighbors[u].extend(substrings.get(&u[slice.0..slice.1]).unwrap())
+                neighbors.entry(u)
+                    .or_insert_with(|| IndexSet::new())
+                    .extend(substrings.get(&u[slice.0..slice.1]).unwrap())
             }
 
             observed.insert(u);
@@ -123,17 +124,17 @@ impl<'b> Grouper<'b> {
             let umi = x.0;
             let neighbors = x.1;
 
-
             adj_list.entry(umi).or_default();
 
             for neighbor in neighbors {
-                    if self.add_edge_directional(umi, neighbor, counts, threshold) {
-                        adj_list.entry(umi).or_insert(vec![neighbor]).push(neighbor);
-
-                    } else if self.add_edge_directional(neighbor, umi, counts, threshold) {
-                        adj_list.entry(neighbor).or_insert(vec![umi]).push(umi);
-                    }
+                if self.add_edge_directional(umi, neighbor, counts, threshold) {
+                    adj_list.entry(umi).or_insert(vec![neighbor]).push(neighbor);
                 } 
+
+                if self.add_edge_directional(neighbor, umi, counts, threshold) {
+                    adj_list.entry(neighbor).or_insert(vec![umi]).push(umi);
+                }
+            } 
         });
         adj_list
     }
@@ -200,15 +201,22 @@ impl<'b> Grouper<'b> {
         let mut groups: Vec<Vec<&String>> = Vec::new();
 
         for cluster in clusters {
-            let mut temp_cluster: Vec<&String> = Vec::new();
 
-            for node in cluster {
-                if !observed.contains(&node) {
-                    temp_cluster.push(node);
-                    observed.insert(node);
+            if cluster.len() == 1 {
+                let node = cluster.iter().next().unwrap();
+                groups.push(vec![node]);
+                observed.insert(node);
+            } else {
+                let mut temp_cluster: Vec<&String> = Vec::new();
+
+                for node in cluster {
+                    if !observed.contains(&node) {
+                        temp_cluster.push(node);
+                        observed.insert(node);
+                    }
                 }
+                groups.push(temp_cluster);
             }
-            groups.push(temp_cluster);
         }
         groups
     }
