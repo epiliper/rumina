@@ -169,6 +169,9 @@ def group_bam(input_file, split):
         args.threads,
     ]
 
+    if os.path.exists(f"{input_file}.bai"):
+        tag_cmd.append("--indexed")
+
     if args.length:
         tag_cmd.append("--length")
 

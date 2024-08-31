@@ -6,10 +6,16 @@ use crate::GroupingMethod;
 use parking_lot::Mutex;
 use rayon::prelude::*;
 use rust_htslib::bam::ext::BamRecordExtensions;
-use rust_htslib::bam::{Reader, Read, Record};
+use rust_htslib::bam::{Header, IndexedReader, Read, Reader, Record, Writer};
 use rust_htslib::htslib;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+pub enum BamReader {
+    Indexed(IndexedReader),
+    Standard(Reader),
+}
+
 
 fn get_umi(record: &Record, separator: &String) -> String {
     unsafe {
@@ -18,6 +24,31 @@ fn get_umi(record: &Record, separator: &String) -> String {
             .expect("ERROR: failed to get UMI from read QNAME. Check --separator. Exiting.")
             .1
             .to_string()
+    }
+}
+
+pub fn make_bam_writer(output_file: &String, header: Header, num_threads: usize) -> Writer {
+    let mut bam_writer = Writer::from_path(output_file, &header, rust_htslib::bam::Format::Bam).unwrap();
+    bam_writer.set_threads(num_threads).unwrap();
+    bam_writer
+
+}
+
+pub fn make_bam_reader(input_file: &String, indexed: bool, num_threads: usize) -> (Header, BamReader) {
+
+    if indexed {
+        let mut bam_reader = IndexedReader::from_path(input_file).unwrap();
+        bam_reader.set_threads(num_threads).unwrap();
+        let header = Header::from_template(bam_reader.header());
+
+        (header, BamReader::Indexed(bam_reader))
+    }
+    else {
+        let mut bam_reader = Reader::from_path(input_file).unwrap();
+        bam_reader.set_threads(num_threads).unwrap();
+        let header = Header::from_template(bam_reader.header());
+
+        (header, BamReader::Standard(bam_reader))
     }
 }
 
@@ -181,35 +212,70 @@ impl<'a> ChunkProcessor<'a> {
         bottomhash.update_dict(pos, key.get_key(), get_umi(&read, separator), read);
         self.read_counter += 1;
     }
+    
+    pub fn write_reads(
+        &mut self, 
+        bam_writer: &mut Writer,
+    ) {
+        self.reads_to_output.lock().drain(0..)
+            .for_each(|read| bam_writer.write(&read).unwrap())
+    }
+
 
 
     // for every position, group, and process UMIs. output remaining UMIs to write list
-    pub fn process_chunks(&mut self, mut input_file: Reader, mut bottomhash: BottomHashMap) {
+    pub fn process_chunks(&mut self, input_file: BamReader, mut bam_writer: Writer, mut bottomhash: BottomHashMap) {
 
         let mut pos;
         let mut key;
-        let mut read;
 
-        // todo: make this neater
-        for r in input_file
-            .records()
-            .map(|x| x.unwrap())
-            .filter(|read| read.flags() & htslib::BAM_FUNMAP as u16 == 0)
-        {
-            read = r;
+        match input_file {
+            BamReader::Standard(mut reader) => {
 
-            // get adjusted pos for bottomhash
-            // use start to keep track of position in BAM file.
-            (pos, key) = self.get_read_pos_key(&read);
-            self.pull_read(read, pos, key, &mut bottomhash, self.separator);
+                for read in reader
+                    .records()
+                        .map(|x| x.unwrap())
+                        .filter(|read| read.flags() & htslib::BAM_FUNMAP as u16 == 0) {
 
-            if self.read_counter % 100_000 == 0 {
-                print! {"\rRead in {} reads", self.read_counter}
+                            (pos, key) = self.get_read_pos_key(&read);
+                            self.pull_read(read, pos, key, &mut bottomhash, self.separator);
+
+                            if self.read_counter % 100_000 == 0 {
+                                print! {"\rRead in {} reads", self.read_counter}
+                            }
+                        }
+                print! {"\r Grouping {} reads...\n", self.read_counter}
+
+                println!("processing remaining reads...");
+                self.group_reads(&mut bottomhash, 0);
+                self.write_reads(&mut bam_writer)
             }
-        }
-        print! {"\r Grouping {} reads...\n", self.read_counter}
 
-        println!("processing remaining reads...");
-        Self::group_reads(self, &mut bottomhash, 0);
+            BamReader::Indexed(mut reader) => {
+
+                let ref_count = reader.header().clone().target_count();
+
+                // let refs = reader.header().target_names();
+
+                for tid in 0..ref_count {
+                    reader.fetch((tid, 0, u32::MAX));
+
+                    for read in reader.records().map(|read| read.unwrap()) {
+                        (pos, key) = self.get_read_pos_key(&read);
+                        self.pull_read(read, pos, key, &mut bottomhash, self.separator);
+
+                        if self.read_counter % 100_000 == 0 {
+                            print! {"\rRead in {} reads", self.read_counter}
+                        }
+                    }
+                }
+                println!("processing remaining reads...");
+                Self::group_reads(self, &mut bottomhash, 0);
+                self.write_reads(&mut bam_writer)
+
+            }
+
+        }
     }
+
 }

@@ -1,11 +1,10 @@
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-use crate::read_io::ChunkProcessor;
-use crate::read_io::GroupReport;
+use crate::read_io::{ChunkProcessor, GroupReport, make_bam_reader, make_bam_writer};
 use clap::ValueEnum;
 use indexmap::IndexMap;
-use rust_htslib::bam::{Reader, Read, Record, Writer};
+use rust_htslib::bam::Record;
 use std::fs::{File, OpenOptions};
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Write;
@@ -51,10 +50,16 @@ struct Args {
     only_group: bool,
     #[arg(long = "singletons")]
     singletons: bool,
+    #[arg(long = "indexed")]
+    indexed: bool,
 }
 
 fn main() {
     let args = Args::parse();
+    let input_file = args.input;
+    let output_file = args.output;
+    let separator = args.separator;
+    let grouping_method = args.grouping_method;
 
     ThreadPoolBuilder::new()
         .num_threads(args.threads)
@@ -66,11 +71,6 @@ fn main() {
         bottom_dict: IndexMap::new(),
     };
 
-    let input_file = args.input;
-    let output_file = args.output;
-    let separator = args.separator;
-    let grouping_method = args.grouping_method;
-
     // create tag seed based on input file name
     let mut hasher = DefaultHasher::new();
     input_file.hash(&mut hasher);
@@ -78,13 +78,8 @@ fn main() {
 
     let reads_to_write: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
 
-    let mut bam = Reader::from_path(input_file).unwrap();
-    bam.set_threads(args.threads).unwrap();
-
-    let header = bam.header();
-    let header = rust_htslib::bam::header::Header::from_template(header);
-
-    let out_bam = output_file.clone();
+    let (header, bam_reader) = make_bam_reader(&input_file, args.indexed, args.threads);
+    let bam_writer = make_bam_writer(&output_file, header, args.threads);
 
     // records min and max reads per group
     let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(GroupReport {
@@ -113,16 +108,8 @@ fn main() {
     };
 
     // do grouping and processing
-    read_handler.process_chunks(bam, bottomhash);
+    read_handler.process_chunks(bam_reader, bam_writer, bottomhash);
     let num_reads_in = read_handler.read_counter;
-
-    let mut bam_writer =
-        Writer::from_path(out_bam, &header, rust_htslib::bam::Format::Bam).unwrap();
-    bam_writer.set_threads(args.threads).unwrap();
-
-    for read in reads_to_write.lock().drain(0..) {
-        bam_writer.write(&read).unwrap();
-    }
 
     drop(read_handler);
 
