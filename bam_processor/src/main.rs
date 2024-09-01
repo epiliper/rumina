@@ -1,15 +1,14 @@
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-use crate::read_io::{ChunkProcessor, GroupReport, make_bam_reader, make_bam_writer};
+use crate::read_io::{ChunkProcessor, make_bam_reader, make_bam_writer};
+use crate::report::GroupReport;
 use clap::ValueEnum;
 use indexmap::IndexMap;
 use rust_htslib::bam::Record;
-use std::fs::{File, OpenOptions};
 use std::hash::{DefaultHasher, Hash, Hasher};
-use std::io::Write;
 use std::path::Path;
-
+use colored::Colorize;
 
 use clap::Parser;
 use rayon::ThreadPoolBuilder;
@@ -23,6 +22,7 @@ mod grouper;
 mod read_io;
 mod read_picker;
 mod readkey;
+mod report;
 
 #[derive(ValueEnum, Debug, Clone)]
 enum GroupingMethod {
@@ -119,34 +119,10 @@ fn main() {
     // report on min and max number of reads per group
     // this creates minmax.txt
     if group_report.min_reads != i64::MAX {
-        println! {"minimum number of reads per group:     {},    group: {:?}", group_report.min_reads, String::from_utf8(group_report.min_reads_group.to_vec()).unwrap()};
-        println! {"maximum number of reads per group:     {},    group: {:?}", group_report.max_reads, String::from_utf8(group_report.max_reads_group.to_vec()).unwrap()};
-        println! {"writing remaining reads..."};
-
+        println!("{}", "DONE".green());
         let minmax_file = Path::new(&output_file).parent().unwrap().join("minmax.txt");
+        group_report.write_to_report_file(&minmax_file);
+        println!("{}", group_report);
 
-        if !minmax_file.exists() {
-            let _ = File::create(&minmax_file);
-        }
-        let mut f = OpenOptions::new()
-            .append(true)
-            .open(&minmax_file)
-            .expect("unable to open minmax file");
-
-        let _ = f.write(
-            format!(
-                "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
-                group_report.num_reads_input_file,
-                group_report.num_reads_output_file,
-                group_report.num_umis,
-                group_report.num_groups,
-                group_report.num_passing_groups,
-                String::from_utf8(group_report.min_reads_group.to_vec()).unwrap(),
-                group_report.min_reads,
-                String::from_utf8(group_report.max_reads_group.to_vec()).unwrap(),
-                group_report.max_reads,
-            )
-            .as_bytes(),
-        );
     }
 }

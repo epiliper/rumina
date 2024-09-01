@@ -1,5 +1,5 @@
 use crate::bottomhash::ReadsAndCount;
-use crate::read_io::GroupReport;
+use crate::report::GroupReport;
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
 use crate::IndexMap;
 use rust_htslib::bam::record::Aux;
@@ -91,7 +91,6 @@ impl GroupHandler {
 
         // to report min and max observed reads per group
         let mut group_report: GroupReport = Default::default();
-        group_report.num_groups = 0;
         group_report.num_groups += final_umis.len() as i64;
 
         let read_count_thres = match self.singletons {

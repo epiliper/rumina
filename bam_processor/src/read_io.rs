@@ -3,6 +3,7 @@ use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::readkey::ReadKey;
 use crate::GroupingMethod;
+use crate::GroupReport;
 use parking_lot::Mutex;
 use rayon::prelude::*;
 use rust_htslib::bam::ext::BamRecordExtensions;
@@ -50,20 +51,6 @@ pub fn make_bam_reader(input_file: &String, indexed: bool, num_threads: usize) -
 
         (header, BamReader::Standard(bam_reader))
     }
-}
-
-
-#[derive(Default, Debug)]
-pub struct GroupReport {
-    pub min_reads: i64,
-    pub max_reads: i64,
-    pub min_reads_group: [u8; 8],
-    pub max_reads_group: [u8; 8],
-    pub num_passing_groups: i64,
-    pub num_groups: i64,
-    pub num_umis: i64,
-    pub num_reads_input_file: i64,
-    pub num_reads_output_file: i64,
 }
 
 pub struct ChunkProcessor<'a> {
@@ -165,37 +152,16 @@ impl<'a> ChunkProcessor<'a> {
                     let tagged_reads = group_handler.tag_records(groupies, umis_reads);
                     let mut min_max = self.min_max.lock();
 
-                    // update the groups with mininum and maximum observed reads
-                    match tagged_reads {
-                        Some(tagged_reads) => {
-                            self.reads_to_output.lock().extend(tagged_reads.1);
-                            // .expect("Read channel not recieving!");
+                    // update grouping report
+                    if let Some(tagged_reads) = tagged_reads {
+                        self.reads_to_output.lock().extend(tagged_reads.1);
 
-                            match tagged_reads.0 {
-                                Some(x) => {
-                                    if x.max_reads > min_max.max_reads {
-                                        min_max.max_reads = x.max_reads;
-                                        min_max.max_reads_group = x.max_reads_group;
-                                    }
+                        if let Some(group_report) = tagged_reads.0 {
+                            min_max.update(group_report, num_umis);
 
-                                    if x.min_reads < min_max.min_reads {
-                                        min_max.min_reads = x.min_reads;
-                                        min_max.min_reads_group = x.min_reads_group;
-                                    }
-
-                                    // count the number of UMI groups used in consensus
-                                    min_max.num_passing_groups += x.num_passing_groups;
-                                    min_max.num_groups += x.num_groups;
-                                    min_max.num_umis += num_umis;
-
-                                    // record the number of reads to be written
-                                    min_max.num_reads_output_file += x.num_reads_output_file;
-                                }
-                                _ => (),
-                            }
                         }
-                        None => (),
                     }
+
                 }
             });
     }
@@ -221,8 +187,6 @@ impl<'a> ChunkProcessor<'a> {
             .for_each(|read| bam_writer.write(&read).unwrap())
     }
 
-
-
     // for every position, group, and process UMIs. output remaining UMIs to write list
     pub fn process_chunks(&mut self, input_file: BamReader, mut bam_writer: Writer, mut bottomhash: BottomHashMap) {
 
@@ -241,12 +205,11 @@ impl<'a> ChunkProcessor<'a> {
                             self.pull_read(read, pos, key, &mut bottomhash, self.separator);
 
                             if self.read_counter % 100_000 == 0 {
-                                print! {"\rRead in {} reads", self.read_counter}
+                                print! {"Read in {} reads\r", self.read_counter}
                             }
                         }
-                print! {"\r Grouping {} reads...\n", self.read_counter}
 
-                println!("processing remaining reads...");
+                println!("Grouping {} reads...", self.read_counter);
                 self.group_reads(&mut bottomhash, 0);
                 self.write_reads(&mut bam_writer)
             }
@@ -255,21 +218,19 @@ impl<'a> ChunkProcessor<'a> {
 
                 let ref_count = reader.header().clone().target_count();
 
-                // let refs = reader.header().target_names();
-
                 for tid in 0..ref_count {
-                    reader.fetch((tid, 0, u32::MAX));
+                    reader.fetch((tid, 0, u32::MAX)).unwrap();
 
                     for read in reader.records().map(|read| read.unwrap()) {
                         (pos, key) = self.get_read_pos_key(&read);
                         self.pull_read(read, pos, key, &mut bottomhash, self.separator);
 
                         if self.read_counter % 100_000 == 0 {
-                            print! {"\rRead in {} reads", self.read_counter}
+                            print! {"Read in {} reads\r", self.read_counter}
                         }
                     }
                 }
-                println!("processing remaining reads...");
+                println!("Grouping {} reads...", self.read_counter);
                 Self::group_reads(self, &mut bottomhash, 0);
                 self.write_reads(&mut bam_writer)
 
