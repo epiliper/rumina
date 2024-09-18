@@ -53,6 +53,8 @@ pub fn make_bam_reader(input_file: &String, indexed: bool, num_threads: usize) -
     }
 }
 
+// this struct serves to retrieve reads from either indexed or unindexed BAM files, batch them, and
+// organize them in the bottomhash data structure for downtream UMI-based operations.
 pub struct ChunkProcessor<'a> {
     pub separator: &'a String,
     pub read_counter: i64,
@@ -66,9 +68,6 @@ pub struct ChunkProcessor<'a> {
 }
 
 impl<'a> ChunkProcessor<'a> {
-    // run grouping on pulled reads
-    // add tags to Records
-    // output them to list for writing to bam
     
     pub fn get_read_pos_key(&self, read: &Record) -> (i64, ReadKey) {
         let mut pos;
@@ -100,6 +99,9 @@ impl<'a> ChunkProcessor<'a> {
         }
     }
 
+    // run grouping on pulled reads
+    // add tags to Records
+    // output them to list for writing to bam
     pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap, drain_end: usize) {
         let grouping_method = Arc::new(&self.grouping_method);
 

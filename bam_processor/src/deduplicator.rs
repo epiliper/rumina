@@ -17,9 +17,12 @@ const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
 
 const UMI_TAG_LEN: usize = 8;
 
-// this struct holds methods to
-// 1. modify the records within the bottomhash by lookup
-// 2. for every bundle, write the UG-tagged reads to output bam
+// this struct serves to
+// 1. for a given UMI group, pull all associated reads and 
+// 2. deduplicate by sequence majority or 
+// 3. output all reads in group
+//
+// remaining reads will be assigned a group-specific "UG" tag.
 pub struct GroupHandler {
     pub seed: u64,
     pub group_only: bool,
@@ -27,7 +30,6 @@ pub struct GroupHandler {
 }
 
 pub fn generate_tag(
-    // rng: &mut ThreadRng,
     rng: &mut StdRng,
     used_tags: &mut HashSet<[u8; UMI_TAG_LEN]>,
 ) -> [u8; UMI_TAG_LEN] {
@@ -51,8 +53,7 @@ pub fn generate_tag(
 
 impl GroupHandler {
     // remove the reads associated with each UMI from the bundle
-    // deduplicate and error correct them
-    // tag filtered reads
+    // deduplicate and tag, or just tag them
     // push them to a list of tagged records awaiting writing to an output bamfile
 
     // driver function of grouping

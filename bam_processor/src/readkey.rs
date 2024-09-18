@@ -1,5 +1,9 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 
+// this module is responsible for creating a key for batching reads
+// basically, readkey stores batching-relevant features of the read,
+// which are then combined and hashed to make a key.
+
 pub struct ReadKey {
     pub length: usize,
     pub reverse: bool,

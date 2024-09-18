@@ -14,7 +14,8 @@ pub fn edit_distance(ua: &str, ub: &str) -> usize {
     hamming(ua, ub).unwrap()
 }
 
-// this is the struct that contains functions used to group umis per the directional method
+// this struct contains logic for error correction of UMIs downstream of read batching.
+// this phase of the pipeline is driven by the cluster() and no_cluster() functions.
 pub struct Grouper<'b> {
     pub umis: &'b Vec<String>,
 }
@@ -45,6 +46,7 @@ impl<'b> Grouper<'b> {
         searched
     }
 
+    // groups UMIs with substring neighbors to reduce number of comparisons. 
     pub fn get_substring_map(&self) -> IndexMap<(usize, usize), IndexMap<&str, Vec<&String>>> {
         let umi_length = self.umis.first().unwrap().len();
         let mut slices = Vec::with_capacity(umi_length * 2);
@@ -81,6 +83,7 @@ impl<'b> Grouper<'b> {
         substring_map
     }
 
+    // create an IndexMap (k, [v]) where UMI k has edit distance calculated for each UMI within [v].
     pub fn iter_substring_neighbors(
         &self,
         substring_map: IndexMap<(usize, usize), IndexMap<&'b str, Vec<&'b String>>>,
@@ -104,6 +107,8 @@ impl<'b> Grouper<'b> {
         neighbors
     }
 
+    // if UMI group A within edit distance threshold and has ≥2n-1 read count compared to group B,
+    // then (group A) ---> (group B)
     pub fn add_edge_directional(&self, umi_a: &String, umi_b: &String, counts: &HashMap<&String, i32>, threshold: usize) -> bool {
         edit_distance(umi_a, umi_b) <= threshold 
             && umi_a != umi_b 
@@ -221,6 +226,7 @@ impl<'b> Grouper<'b> {
         groups
     }
 
+    // used with the raw method. No UMI error correction.
     pub fn no_clustering(
         &self,
         counts: HashMap<&'b String, i32>,
@@ -235,6 +241,7 @@ impl<'b> Grouper<'b> {
         (counts, final_umis)
     }
 
+    // used with directional and acyclic methods. Driver function of UMI-error correction
     pub fn cluster(
         &self,
         counts: HashMap<&'b String, i32>,

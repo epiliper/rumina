@@ -4,6 +4,10 @@ use std::path::Path;
 use std::fmt;
 use colored::Colorize;
 
+// This module defines the report generated during deduplication.
+// This report contains details like UMIs in/out, reads in/out, and other details, and is updated
+// after the deduplication of each batch.
+
 #[derive(Default, Debug)]
 pub struct GroupReport {
     pub min_reads: i64,
@@ -19,6 +23,7 @@ pub struct GroupReport {
 
 impl GroupReport {
 
+    // after a batch has been processed, check to see if fields need to be udpated
     pub fn update(&mut self, other_report: GroupReport, num_umis: i32) {
 
         if other_report.max_reads > self.max_reads {
@@ -68,6 +73,7 @@ impl GroupReport {
     }
 }
 
+// printed after file completion
 impl fmt::Display for GroupReport {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, 

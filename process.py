@@ -3,7 +3,6 @@ import subprocess
 import os
 from cov_reporter import generate_report
 
-# import args
 from args import init_args
 
 args = init_args()
@@ -20,17 +19,15 @@ exec_path = os.path.dirname(os.path.abspath(__file__))
 
 
 def process_dir(dir, split):
-    temp_bams = []
-
     for file in os.listdir(dir):
         if file.endswith(".bam") and "tagged" not in file and "rumina" not in file:
             file_to_clean = os.path.abspath(os.path.join(dir, file))
             print(f"WORKING ON FILE: {file_to_clean}")
-            tagged_bam = group_bam(file_to_clean, split)
+            group_bam(file_to_clean, split)
 
 
 def process_file(file, split):
-    tagged_bam = group_bam(file, split)
+    group_bam(file, split)
 
 
 def get_all_files(input):
@@ -63,8 +60,6 @@ def prepare_files(files):
             temp_files.append(bam_name)
 
         elif file.endswith(".bam"):
-            # bam_name = file.split(".bam")[0] + "_temp.bam"
-            # pysam.sort(f"-@ {args.threads}", "-o", bam_name, file)
             temp_files.append(file)
 
     return temp_files
@@ -118,7 +113,6 @@ def merge_processed_splits(file):
         if filename.endswith(".bam") and (
             bam_name in filename and "rumina" not in filename
         ):
-            # prefixes_for_merging.add(filename.split(".")[0])
             prefixes_for_merging.add(bam_name)
 
     for prefix in prefixes_for_merging:
@@ -155,9 +149,6 @@ def group_bam(input_file, split):
         os.path.abspath(output_dir),
         os.path.basename(input_file).split(".bam")[0] + suffix,
     )
-
-    # if not split:
-    #     tagged_file_name = tagged_file_name.split(".")[0] + suffix
 
     tag_cmd = os.path.join(exec_path, "bam_processor/target/release/bam_processor")
     tag_cmd = [

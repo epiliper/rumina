@@ -78,6 +78,7 @@ fn main() {
 
     let reads_to_write: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
 
+    // create bam input/output
     let (header, bam_reader) = make_bam_reader(&input_file, args.indexed, args.threads);
     let bam_writer = make_bam_writer(&output_file, header, args.threads);
 
@@ -113,6 +114,7 @@ fn main() {
 
     drop(read_handler);
 
+    // do final report
     let mut group_report = Arc::try_unwrap(min_maxes).unwrap().into_inner();
     group_report.num_reads_input_file = num_reads_in;
 

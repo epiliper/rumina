@@ -35,7 +35,6 @@ for i, file in enumerate(temp_bams, 1):
     match args.split_window:
         # calculate recommended split window size for each file
         case "auto":
-            # for file in os.listdir(args.input):
             window_size = calculate_split(file)
 
             if window_size == 0:
