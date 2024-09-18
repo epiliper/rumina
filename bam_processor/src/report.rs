@@ -1,8 +1,8 @@
-use std::fs::{OpenOptions, File};
+use colored::Colorize;
+use std::fmt;
+use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
-use std::fmt;
-use colored::Colorize;
 
 // This module defines the report generated during deduplication.
 // This report contains details like UMIs in/out, reads in/out, and other details, and is updated
@@ -22,10 +22,27 @@ pub struct GroupReport {
 }
 
 impl GroupReport {
+    pub fn new() -> Self {
+        GroupReport {
+            min_reads: i64::MAX,
+            min_reads_group: *b"NONENONE",
+            max_reads: 0,
+            max_reads_group: *b"NONENONE",
+            num_passing_groups: 0,
+            num_groups: 0,
+            num_umis: 0,
+            num_reads_input_file: 0,
+            num_reads_output_file: 0,
+        }
+    }
+
+    // detect if report is empty (occurs if no groups pass singleton filter)
+    pub fn is_blank(&self) -> bool {
+        self.max_reads == 0
+    }
 
     // after a batch has been processed, check to see if fields need to be udpated
     pub fn update(&mut self, other_report: GroupReport, num_umis: i32) {
-
         if other_report.max_reads > self.max_reads {
             self.max_reads = other_report.max_reads;
             self.max_reads_group = other_report.max_reads_group;
@@ -46,7 +63,6 @@ impl GroupReport {
     }
 
     pub fn write_to_report_file(&mut self, report_file: &Path) {
-
         if !report_file.exists() {
             let _ = File::create(report_file);
         }
@@ -76,7 +92,8 @@ impl GroupReport {
 // printed after file completion
 impl fmt::Display for GroupReport {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, 
+        write!(
+            f,
             "{}: {}\n\
             {}: {}\n\
             {}: {}\n\
@@ -84,13 +101,20 @@ impl fmt::Display for GroupReport {
             {}: {}\n\
             {}: {}\n\
             {}: {}",
-            "Minimum reads per group".cyan(), self.min_reads,
-            "Maximum reads per group".cyan(), self.max_reads,
-            "Total UMI groups".cyan(), self.num_groups,
-            "Groups passing singleton filtering".cyan(), self.num_passing_groups,
-            "Total UMIs considered".cyan(), self.num_umis,
-            "Input reads (mapped)".cyan(), self.num_reads_input_file,
-            "Output reads".cyan(), self.num_reads_output_file
+            "Minimum reads per group".cyan(),
+            self.min_reads,
+            "Maximum reads per group".cyan(),
+            self.max_reads,
+            "Total UMI groups".cyan(),
+            self.num_groups,
+            "Groups passing singleton filtering".cyan(),
+            self.num_passing_groups,
+            "Total UMIs considered".cyan(),
+            self.num_umis,
+            "Input reads (mapped)".cyan(),
+            self.num_reads_input_file,
+            "Output reads".cyan(),
+            self.num_reads_output_file
         )
     }
 }

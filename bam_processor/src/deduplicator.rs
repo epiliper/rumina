@@ -1,6 +1,6 @@
 use crate::bottomhash::ReadsAndCount;
-use crate::report::GroupReport;
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
+use crate::report::GroupReport;
 use crate::IndexMap;
 use rust_htslib::bam::record::Aux;
 use rust_htslib::bam::Record;
@@ -18,8 +18,8 @@ const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
 const UMI_TAG_LEN: usize = 8;
 
 // this struct serves to
-// 1. for a given UMI group, pull all associated reads and 
-// 2. deduplicate by sequence majority or 
+// 1. for a given UMI group, pull all associated reads and
+// 2. deduplicate by sequence majority or
 // 3. output all reads in group
 //
 // remaining reads will be assigned a group-specific "UG" tag.
@@ -45,7 +45,6 @@ pub fn generate_tag(
         used_tags.insert(ug_tag);
 
         ug_tag
-
     } else {
         generate_tag(rng, used_tags)
     }
@@ -67,7 +66,7 @@ impl GroupHandler {
                 let reads = self.tag_groups(groups, &mut umis_records, grouping_output.0);
                 Some(reads)
             }
-            None => None
+            None => None,
         }
     }
     pub fn tag_groups(
@@ -82,7 +81,7 @@ impl GroupHandler {
         let mut output_list: Vec<Record> = Vec::with_capacity(1_000_000);
         let mut used_tags: HashSet<[u8; UMI_TAG_LEN]> = HashSet::with_capacity(output_list.len());
 
-        let mut first = true;
+        // let mut first = true;
 
         // either group reads, or group and deduplicate
         let read_processor = match self.group_only {
@@ -91,7 +90,7 @@ impl GroupHandler {
         };
 
         // to report min and max observed reads per group
-        let mut group_report: GroupReport = Default::default();
+        let mut group_report = GroupReport::new();
         group_report.num_groups += final_umis.len() as i64;
 
         let read_count_thres = match self.singletons {
@@ -104,15 +103,6 @@ impl GroupHandler {
             if num_reads_in_group >= read_count_thres {
                 let ug_tag = generate_tag(&mut rng, &mut used_tags);
 
-                if first {
-                    // initialize min and max for comparison
-                    first = false;
-                    group_report.min_reads = i64::MAX;
-                    group_report.min_reads_group = *b"NONENONE";
-
-                    group_report.max_reads = 0;
-                    group_report.max_reads_group = *b"NONENONE";
-                }
                 // check if number of reads per group is new minimum or maximum
                 if num_reads_in_group < group_report.min_reads {
                     group_report.min_reads = num_reads_in_group;
@@ -153,7 +143,7 @@ impl GroupHandler {
             }
         }
 
-        if first {
+        if group_report.is_blank() {
             (None, output_list)
         } else {
             (Some(group_report), output_list)

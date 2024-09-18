@@ -1,14 +1,14 @@
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-use crate::read_io::{ChunkProcessor, make_bam_reader, make_bam_writer};
+use crate::read_io::{make_bam_reader, make_bam_writer, ChunkProcessor};
 use crate::report::GroupReport;
 use clap::ValueEnum;
+use colored::Colorize;
 use indexmap::IndexMap;
 use rust_htslib::bam::Record;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::Path;
-use colored::Colorize;
 
 use clap::Parser;
 use rayon::ThreadPoolBuilder;
@@ -68,7 +68,7 @@ fn main() {
 
     // holds organized reads
     let bottomhash = bottomhash::BottomHashMap {
-        bottom_dict: IndexMap::new(),
+        read_dict: IndexMap::new(),
     };
 
     // create tag seed based on input file name
@@ -82,18 +82,8 @@ fn main() {
     let (header, bam_reader) = make_bam_reader(&input_file, args.indexed, args.threads);
     let bam_writer = make_bam_writer(&output_file, header, args.threads);
 
-    // records min and max reads per group
-    let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(GroupReport {
-        min_reads: i64::MAX,
-        min_reads_group: *b"NONENONE",
-        max_reads: 0,
-        max_reads_group: *b"NONENONE",
-        num_passing_groups: 0,
-        num_groups: 0,
-        num_umis: 0,
-        num_reads_input_file: 0,
-        num_reads_output_file: 0,
-    }));
+    // create deduplication report
+    let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(GroupReport::new()));
 
     // holds filtered reads awaiting writing to output bam file
     let mut read_handler = ChunkProcessor {
@@ -125,6 +115,5 @@ fn main() {
         let minmax_file = Path::new(&output_file).parent().unwrap().join("minmax.txt");
         group_report.write_to_report_file(&minmax_file);
         println!("{}", group_report);
-
     }
 }

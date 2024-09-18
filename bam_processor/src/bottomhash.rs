@@ -17,12 +17,12 @@ use rust_htslib::bam::Record;
 * }
 */
 pub struct BottomHashMap {
-    pub bottom_dict: PositionKey,
+    pub read_dict: PositionKey,
 }
 
 impl BottomHashMap {
     pub fn update_dict(&mut self, position: i64, key: u64, umi: String, read: Record) {
-        self.bottom_dict
+        self.read_dict
             .entry(position)
             .or_default()
             .entry(key)
@@ -36,7 +36,7 @@ impl BottomHashMap {
     }
 }
 
-type PositionKey = IndexMap<i64, KeyUMI>; //every position has a key
+pub type PositionKey = IndexMap<i64, KeyUMI>; //every position has a key
 type KeyUMI = IndexMap<u64, UMIReads>; // every key has a UMI
 pub type UMIReads = IndexMap<String, ReadsAndCount>; // every UMI has a set of reads
 
