@@ -2,6 +2,7 @@ use crate::bottomhash::BottomHashMap;
 use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::readkey::ReadKey;
+use crate::report::StaticUMI;
 use crate::GroupReport;
 use crate::GroupingMethod;
 use parking_lot::Mutex;
@@ -17,14 +18,24 @@ pub enum BamReader {
     Standard(Reader),
 }
 
-fn get_umi(record: &Record, separator: &String) -> String {
+pub fn get_umi<'a>(record: &'a Record, separator: &String) -> &'a str {
     unsafe {
         std::str::from_utf8_unchecked(record.qname())
             .rsplit_once(separator)
             .expect("ERROR: failed to get UMI from read QNAME. Check --separator. Exiting.")
             .1
-            .to_string()
+        // .to_string()
     }
+}
+
+pub fn get_umi_static<'a>(raw_umi: &'a str) -> StaticUMI {
+    let mut umi = StaticUMI::new();
+    umi.extend(
+        raw_umi.as_bytes().into_iter().map(|b| *b), // .into_iter()
+                                                    // .map(|b| *b),
+    );
+
+    umi
 }
 
 pub fn make_bam_writer(output_file: &String, header: Header, num_threads: usize) -> Writer {
@@ -66,6 +77,7 @@ pub struct ChunkProcessor<'a> {
     pub seed: u64,
     pub only_group: bool,
     pub singletons: bool,
+    pub track_barcodes: bool,
 }
 
 impl<'a> ChunkProcessor<'a> {
@@ -139,6 +151,8 @@ impl<'a> ChunkProcessor<'a> {
                     seed: self.seed + position.0 as u64, // make seed unique per position
                     group_only: self.only_group,
                     singletons: self.singletons,
+                    separator: self.separator,
+                    track_barcodes: self.track_barcodes,
                 };
 
                 // perform UMI clustering per the method specified
@@ -168,7 +182,12 @@ impl<'a> ChunkProcessor<'a> {
         bottomhash: &mut BottomHashMap,
         separator: &String,
     ) {
-        bottomhash.update_dict(pos, key.get_key(), get_umi(&read, separator), read);
+        bottomhash.update_dict(
+            pos,
+            key.get_key(),
+            get_umi(&read, separator).to_string(),
+            read,
+        );
         self.read_counter += 1;
     }
 

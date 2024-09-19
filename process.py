@@ -172,6 +172,9 @@ def group_bam(input_file, split):
     if args.singletons:
         tag_cmd.append("--singletons")
 
+    if args.merge_fr:
+        tag_cmd.append("--track-umis")
+
     subprocess.run(tag_cmd)
 
     if not args.no_report:

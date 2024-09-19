@@ -52,6 +52,8 @@ struct Args {
     singletons: bool,
     #[arg(long = "indexed")]
     indexed: bool,
+    #[arg(long = "track-umis")]
+    track_barcodes: bool,
 }
 
 fn main() {
@@ -96,6 +98,7 @@ fn main() {
         only_group: args.only_group,
         singletons: args.singletons,
         read_counter: 0,
+        track_barcodes: args.track_barcodes,
     };
 
     // do grouping and processing
@@ -113,7 +116,18 @@ fn main() {
     if group_report.min_reads != i64::MAX {
         println!("{}", "DONE".green());
         let minmax_file = Path::new(&output_file).parent().unwrap().join("minmax.txt");
-        group_report.write_to_report_file(&minmax_file);
+
+        let barcode_f_name = format!(
+            "{}{}",
+            output_file.split(".bam").next().unwrap(),
+            "_barcodes.tsv"
+        );
+        let barcode_file = Path::new(&output_file)
+            .parent()
+            .unwrap()
+            .join(barcode_f_name);
+
+        group_report.write_to_report_file(&minmax_file, &barcode_file);
         println!("{}", group_report);
     }
 }

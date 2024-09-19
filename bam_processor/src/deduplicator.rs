@@ -1,4 +1,5 @@
 use crate::bottomhash::ReadsAndCount;
+use crate::read_io::{get_umi, get_umi_static};
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
 use crate::report::GroupReport;
 use crate::IndexMap;
@@ -23,10 +24,12 @@ const UMI_TAG_LEN: usize = 8;
 // 3. output all reads in group
 //
 // remaining reads will be assigned a group-specific "UG" tag.
-pub struct GroupHandler {
+pub struct GroupHandler<'a> {
     pub seed: u64,
     pub group_only: bool,
     pub singletons: bool,
+    pub separator: &'a String,
+    pub track_barcodes: bool,
 }
 
 pub fn generate_tag(
@@ -50,7 +53,7 @@ pub fn generate_tag(
     }
 }
 
-impl GroupHandler {
+impl<'a> GroupHandler<'a> {
     // remove the reads associated with each UMI from the bundle
     // deduplicate and tag, or just tag them
     // push them to a list of tagged records awaiting writing to an output bamfile
@@ -80,8 +83,6 @@ impl GroupHandler {
         let mut rng = StdRng::seed_from_u64(self.seed);
         let mut output_list: Vec<Record> = Vec::with_capacity(1_000_000);
         let mut used_tags: HashSet<[u8; UMI_TAG_LEN]> = HashSet::with_capacity(output_list.len());
-
-        // let mut first = true;
 
         // either group reads, or group and deduplicate
         let read_processor = match self.group_only {
@@ -128,13 +129,20 @@ impl GroupHandler {
                 let mut to_write = read_processor(&mut cluster_list);
 
                 to_write.iter_mut().for_each(|read| {
+                    let read_umi = get_umi_static(get_umi(read, self.separator));
+
                     // add group tag
                     read.push_aux(b"UG", Aux::String(str::from_utf8(&ug_tag).unwrap()))
                         .unwrap();
 
-                    // add UMI of root node as tag
-                    read.push_aux(b"BX", Aux::String(top_umi.first().unwrap()))
+                    read.push_aux(b"BX", Aux::ArrayU8(read_umi.as_slice().into()))
                         .unwrap();
+
+                    {
+                        if self.track_barcodes {
+                            group_report.barcode_tracker.count(read_umi);
+                        }
+                    }
 
                     group_report.num_reads_output_file += 1;
                 });

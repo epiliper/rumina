@@ -62,6 +62,12 @@ Options are:
         help="if used, reads are grouped and tagged but not deduplicated or error corrected. This is useful if you want to manually review what grouping looks like.",
     )
 
+    flags.add_argument(
+            "--merge-fr",
+            action="store_true",
+            help="merge forward and reverse reads that overlap, with the same UMI"
+            )
+
     flags.add_argument("--singletons", action="store_true")
 
     optional.add_argument(
