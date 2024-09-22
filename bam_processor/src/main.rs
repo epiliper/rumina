@@ -8,7 +8,6 @@ use colored::Colorize;
 use indexmap::IndexMap;
 use rust_htslib::bam::Record;
 use std::hash::{DefaultHasher, Hash, Hasher};
-use std::path::Path;
 
 use clap::Parser;
 use rayon::ThreadPoolBuilder;
@@ -115,19 +114,8 @@ fn main() {
     // this creates minmax.txt
     if group_report.min_reads != i64::MAX {
         println!("{}", "DONE".green());
-        let minmax_file = Path::new(&output_file).parent().unwrap().join("minmax.txt");
 
-        let barcode_f_name = format!(
-            "{}{}",
-            output_file.split(".bam").next().unwrap(),
-            "_barcodes.tsv"
-        );
-        let barcode_file = Path::new(&output_file)
-            .parent()
-            .unwrap()
-            .join(barcode_f_name);
-
-        group_report.write_to_report_file(&minmax_file, &barcode_file);
+        group_report.write_to_report_file(&output_file, args.track_barcodes);
         println!("{}", group_report);
     }
 }

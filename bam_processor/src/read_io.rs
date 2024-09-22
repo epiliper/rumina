@@ -24,7 +24,6 @@ pub fn get_umi<'a>(record: &'a Record, separator: &String) -> &'a str {
             .rsplit_once(separator)
             .expect("ERROR: failed to get UMI from read QNAME. Check --separator. Exiting.")
             .1
-        // .to_string()
     }
 }
 
@@ -34,7 +33,6 @@ pub fn get_umi_static<'a>(raw_umi: &'a str) -> StaticUMI {
         raw_umi.as_bytes().into_iter().map(|b| *b), // .into_iter()
                                                     // .map(|b| *b),
     );
-
     umi
 }
 

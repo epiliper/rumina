@@ -1,16 +1,19 @@
 use clap::Parser;
+use merge::handle_dupes;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use rayon::ThreadPoolBuilder;
 use rust_htslib::bam::{record::Aux, Format, Header, Read, Reader, Record, Writer};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::string::String;
-use std::sync::mpsc;
 use std::sync::{
-    mpsc::{Receiver, Sender},
+    mpsc::{channel, Receiver, Sender},
     Arc, Mutex,
 };
+use std::thread;
+
+mod merge;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -30,9 +33,15 @@ fn main() {
     let args = Args::parse();
     let inbam = args.inbam;
     let outbam = args.outbam;
+    let outbam1 = outbam.clone();
     let dupe_list = args.dupe_list;
 
-    let (tx, rx): (Sender<Record>, Receiver<Record>) = mpsc::channel();
+    let mut bam_reader = Reader::from_path(inbam).unwrap();
+    let header = Header::from_template(bam_reader.header());
+
+    bam_reader.set_threads(args.threads).unwrap();
+
+    let (tx, rx): (Sender<Record>, Receiver<Record>) = channel();
 
     ThreadPoolBuilder::new()
         .num_threads(args.threads)
@@ -49,27 +58,43 @@ fn main() {
         duplicate_umis.insert(umi.trim().to_string());
     }
 
-    thread::spawn(move || )
+    // write every 1000 reads to the output bam
+    thread::spawn(move || {
+        let mut bam_writer = Writer::from_path(outbam, &header, Format::Bam).unwrap();
+        bam_writer.set_threads(args.threads).unwrap();
 
-    let mut bam_reader = Reader::from_path(inbam).unwrap();
-    bam_reader.set_threads(args.threads).unwrap();
+        let mut buffer = Vec::with_capacity(1100);
+        let mut counter: u32 = 0;
+        loop {
+            match rx.recv() {
+                Ok(read) => {
+                    buffer.push(read);
+                    counter += 1;
 
-    let mut bam_writer = Writer::from_path(
-        outbam,
-        &Header::from_template(bam_reader.header()),
-        Format::Bam,
-    )
-    .unwrap();
-    bam_writer.set_threads(args.threads).unwrap();
+                    if counter == 1000 {
+                        buffer
+                            .iter()
+                            .for_each(|read| bam_writer.write(&read).expect("Error writing read"));
+                        buffer.clear();
+                        counter = 0;
+                    }
+                }
+                Err(_) => {
+                    if !buffer.is_empty() {
+                        buffer
+                            .iter()
+                            .for_each(|read| bam_writer.write(&read).expect("Error writing read"));
+                    }
+                    break;
+                }
+            }
+        }
+    });
 
-    // iterate over all reads in input
-    // if they contain dupe tag, then hold them for merging.
-    // otherwise, write them to the new file.
-    //
-    // and yes, use ALL THE THREADS
-    //
-    let holding: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
+    let holding: Arc<Mutex<HashMap<String, Vec<Record>>>> = Arc::new(Mutex::new(HashMap::new()));
 
+    // check all reads to see if have flagged duplicate UMI
+    // if not, write to output
     bam_reader.records().par_bridge().for_each(|r| {
         let read = r.unwrap();
 
@@ -80,11 +105,28 @@ fn main() {
         };
 
         if duplicate_umis.contains(umi) {
-            holding.lock().unwrap().push(read);
+            holding
+                .lock()
+                .unwrap()
+                .entry(umi.to_string())
+                .or_insert(Vec::new())
+                .push(read);
+            print!("Found duplicate UMI!");
         } else {
             tx.send(read).unwrap();
         }
     });
 
-    todo!()
+    let header = Header::from_template(bam_reader.header());
+    let mut bam_writer = Writer::from_path(outbam1.clone(), &header, Format::Bam).unwrap();
+
+    let holding = Arc::into_inner(holding)
+        .expect("Cannot dereference dupe reads")
+        .into_inner()
+        .expect("Mutex poisoned!");
+
+    let merged_reads = handle_dupes(holding);
+    merged_reads
+        .iter()
+        .for_each(|read| bam_writer.write(read).expect("Merged read corrupted!"))
 }

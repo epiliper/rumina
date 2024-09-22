@@ -9,6 +9,9 @@ cargo build --release
 cd ../multibam 
 cargo build --release
 
+cd ../pair-merger
+cargo build --release
+
 cd ..
 python3 -m venv python_env
 

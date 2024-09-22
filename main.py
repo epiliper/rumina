@@ -39,24 +39,24 @@ for i, file in enumerate(temp_bams, 1):
 
             if window_size == 0:
                 print("Processing file without splitting...")
-                process_file(file, split=False)
+                outbam = process_file(file, split=False)
             else:
                 file_split, split_dir = split_bam(file, window_size)
                 split_dirs.append(split_dir)
 
                 process_dir(split_dir, split=True)
-                merge_processed_splits(file)
+                outbam = merge_processed_splits(file)
 
         # no splitting; process files normally
         case None:
             print("Processing file without splitting...")
-            process_file(file, split=False)
+            outbam = process_file(file, split=False)
 
         # process all bams with a supplied split window size
         case x if x.isdigit():
             if int(x) == 0:
                 print("Processing file without splitting...")
-                process_file(file, split=False)
+                outbam = process_file(file, split=False)
 
             else:
                 file_split, split_dir = split_bam(file, args.split_window)
@@ -64,7 +64,7 @@ for i, file in enumerate(temp_bams, 1):
 
                 process_dir(split_dir, split=True)
 
-                merge_processed_splits(file)
+                outbam = merge_processed_splits(file)
 
         case _:
             print(

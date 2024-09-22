@@ -44,7 +44,6 @@ impl BarcodeTracker {
     }
     pub fn get_repeats(&mut self) {
         self.barcode_counter.retain(|_umi, count| *count > 1);
-        println!("{:?}", self.barcode_counter);
     }
 }
 
@@ -112,13 +111,11 @@ impl GroupReport {
 
     // once deduplication of the file is complete, only list UMIs that were observed more than
     // once.
-    pub fn write_to_report_file(&mut self, report_file: &Path, barcode_file: &Path) {
+    pub fn write_to_report_file(&mut self, output_file: &String, barcode_file: bool) {
+        let report_file = Path::new(&output_file).parent().unwrap().join("minmax.txt");
+        //
         if !report_file.exists() {
-            let _ = File::create(report_file);
-        }
-
-        if !barcode_file.exists() {
-            let _ = File::create(barcode_file);
+            let _ = File::create(&report_file);
         }
 
         self.barcode_tracker.get_repeats();
@@ -126,11 +123,6 @@ impl GroupReport {
         let mut report_f = OpenOptions::new()
             .append(true)
             .open(report_file)
-            .expect("unable to open minmax file");
-
-        let mut barcode_f = OpenOptions::new()
-            .append(true)
-            .open(barcode_file)
             .expect("unable to open minmax file");
 
         let _ = report_f.write(
@@ -149,8 +141,24 @@ impl GroupReport {
             .as_bytes(),
         );
 
-        for umi in self.barcode_tracker.barcode_counter.keys() {
-            writeln!(barcode_f, "{}", String::from_utf8_lossy(&umi)).unwrap();
+        if barcode_file {
+            let barcode_file = Path::new(&output_file)
+                .parent()
+                .unwrap()
+                .join("barcodes.tsv");
+
+            if !barcode_file.exists() {
+                let _ = File::create(&barcode_file);
+            }
+
+            let mut barcode_f = OpenOptions::new()
+                .append(true)
+                .open(barcode_file)
+                .expect("unable to open minmax file");
+
+            for umi in self.barcode_tracker.barcode_counter.keys() {
+                writeln!(barcode_f, "{}", String::from_utf8_lossy(&umi)).unwrap();
+            }
         }
     }
 }

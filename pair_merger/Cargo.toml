@@ -6,12 +6,12 @@ edition = "2021"
 [dependencies]
 rust-htslib = "0.47.0"
 rayon = "1.10.0"
+indexmap = {version = "2.5.0", features = ["rayon"]}
 clap = {version = "4.5.4", features = ["derive"]}
 
 [profile.release]
 codegen-units = 1
 lto = "fat"
-# target-cpu = "native"
 opt-level = 3
 panic = 'abort'
 

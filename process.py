@@ -23,11 +23,11 @@ def process_dir(dir, split):
         if file.endswith(".bam") and "tagged" not in file and "rumina" not in file:
             file_to_clean = os.path.abspath(os.path.join(dir, file))
             print(f"WORKING ON FILE: {file_to_clean}")
-            group_bam(file_to_clean, split)
+            outfile = group_bam(file_to_clean, split)
 
 
 def process_file(file, split):
-    group_bam(file, split)
+    outfile = group_bam(file, split)
 
 
 def get_all_files(input):
@@ -133,9 +133,28 @@ def merge_processed_splits(file):
         if not args.no_report:
             sort_and_index(file, final_file)
 
+        return final_file
+
+
+def merge_fr(tagged_file_name, suffix):
+    dupes = os.path.join(args.outdir, "barcodes.tsv")
+    outfile = tagged_file_name.split("_")[0] + "_merged.bam"
+
+    subprocess.run(
+        os.path.join(exec_path, "pair_merger/target/release/pair_merger"),
+        "-l",
+        dupes,
+        "-i",
+        tagged_file_name,
+        "-o",
+        outfile,
+    )
+
+    os.remove(dupes)
+
 
 # assign UG tag for each group of clustered UMIs
-def group_bam(input_file, split):
+def group_bam(input_file, split, merge_fr):
     if split:
         suffix = "_split.bam"
     else:
