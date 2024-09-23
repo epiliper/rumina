@@ -135,8 +135,11 @@ impl<'a> GroupHandler<'a> {
                     read.push_aux(b"UG", Aux::String(str::from_utf8(&ug_tag).unwrap()))
                         .unwrap();
 
-                    read.push_aux(b"BX", Aux::ArrayU8(read_umi.as_slice().into()))
-                        .unwrap();
+                    read.push_aux(
+                        b"BX",
+                        Aux::String(str::from_utf8(read_umi.as_slice()).unwrap()),
+                    )
+                    .unwrap();
 
                     {
                         if self.track_barcodes {

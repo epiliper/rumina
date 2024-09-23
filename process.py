@@ -136,25 +136,29 @@ def merge_processed_splits(file):
         return final_file
 
 
-def merge_fr(tagged_file_name, suffix):
+def merge_fr(tagged_file_name):
     dupes = os.path.join(args.outdir, "barcodes.tsv")
     outfile = tagged_file_name.split("_")[0] + "_merged.bam"
 
     subprocess.run(
-        os.path.join(exec_path, "pair_merger/target/release/pair_merger"),
-        "-l",
-        dupes,
-        "-i",
-        tagged_file_name,
-        "-o",
-        outfile,
+        [
+            os.path.join(exec_path, "pair_merger/target/release/pair_merger"),
+            "-l",
+            dupes,
+            "-i",
+            tagged_file_name,
+            "-o",
+            outfile,
+            "--threads",
+            args.threads,
+        ]
     )
 
     os.remove(dupes)
 
 
 # assign UG tag for each group of clustered UMIs
-def group_bam(input_file, split, merge_fr):
+def group_bam(input_file, split):
     if split:
         suffix = "_split.bam"
     else:
@@ -216,4 +220,8 @@ def sort_and_index(input_file, output_file):
 
     pysam.index(f"-@ {args.threads}", output_file)
     print("getting coverage/depth report...\r")
+
+    if args.merge_fr:
+        merge_fr(output_file)
+
     generate_report(input_file, output_file)

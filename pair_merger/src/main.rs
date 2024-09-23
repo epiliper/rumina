@@ -33,7 +33,6 @@ fn main() {
     let args = Args::parse();
     let inbam = args.inbam;
     let outbam = args.outbam;
-    let outbam1 = outbam.clone();
     let dupe_list = args.dupe_list;
 
     let mut bam_reader = Reader::from_path(inbam).unwrap();
@@ -52,19 +51,21 @@ fn main() {
     let mut duplicate_umis = HashSet::new();
 
     let dupes = File::open(dupe_list).expect("Duplicate barcode file not found!");
+    let dupes = BufReader::new(dupes);
 
-    for line in BufReader::new(dupes).lines() {
+    for line in dupes.lines() {
         let umi = line.unwrap();
         duplicate_umis.insert(umi.trim().to_string());
     }
 
     // write every 1000 reads to the output bam
-    thread::spawn(move || {
+    let writer_handle = thread::spawn(move || {
         let mut bam_writer = Writer::from_path(outbam, &header, Format::Bam).unwrap();
         bam_writer.set_threads(args.threads).unwrap();
 
-        let mut buffer = Vec::with_capacity(1100);
+        let mut buffer = Vec::with_capacity(1000000);
         let mut counter: u32 = 0;
+
         loop {
             match rx.recv() {
                 Ok(read) => {
@@ -79,8 +80,10 @@ fn main() {
                         counter = 0;
                     }
                 }
-                Err(_) => {
+                Err(e) => {
+                    eprintln!("ERR: {e}");
                     if !buffer.is_empty() {
+                        println!("Not empty");
                         buffer
                             .iter()
                             .for_each(|read| bam_writer.write(&read).expect("Error writing read"));
@@ -96,7 +99,7 @@ fn main() {
     // check all reads to see if have flagged duplicate UMI
     // if not, write to output
     bam_reader.records().par_bridge().for_each(|r| {
-        let read = r.unwrap();
+        let read = r.expect("Error reading read in!");
 
         let umi = if let Ok(Aux::String(bx_i)) = read.aux(UMI_TAG) {
             bx_i
@@ -111,22 +114,22 @@ fn main() {
                 .entry(umi.to_string())
                 .or_insert(Vec::new())
                 .push(read);
-            print!("Found duplicate UMI!");
         } else {
-            tx.send(read).unwrap();
+            tx.send(read).expect("Error sending read!");
         }
     });
-
-    let header = Header::from_template(bam_reader.header());
-    let mut bam_writer = Writer::from_path(outbam1.clone(), &header, Format::Bam).unwrap();
 
     let holding = Arc::into_inner(holding)
         .expect("Cannot dereference dupe reads")
         .into_inner()
         .expect("Mutex poisoned!");
 
-    let merged_reads = handle_dupes(holding);
+    let mut merged_reads = handle_dupes(holding);
+
     merged_reads
-        .iter()
-        .for_each(|read| bam_writer.write(read).expect("Merged read corrupted!"))
+        .drain(0..)
+        .for_each(|read| tx.send(read).unwrap());
+
+    drop(tx);
+    writer_handle.join().expect("Writer thread panicked!");
 }

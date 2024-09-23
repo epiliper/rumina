@@ -17,12 +17,12 @@ pub fn handle_dupes(umis_reads: HashMap<String, Vec<Record>>) -> Vec<Record> {
                     let new_record = construct_read(read_a, new_seq);
                     corrected_reads.push(new_record);
                 }
-                todo!();
             }
             _ => println!("Warning: 3 or more duplicate UMIs detected. Deduplicating the first two"),
         }
     }
-    todo!();
+
+    corrected_reads
 }
 
 pub fn construct_sequence<'a>(mut read_blueprint: IndexMap<i64, u8>) -> Vec<u8> {
@@ -36,12 +36,15 @@ pub fn construct_sequence<'a>(mut read_blueprint: IndexMap<i64, u8>) -> Vec<u8> 
 
 pub fn construct_read(original_read: &Record, new_seq: Vec<u8>) -> Record {
     let mut new_rec = original_read.clone();
+    // let mut new_rec = Record::new();
+    println!("{:?}", new_seq.as_slice());
     new_rec.set(
         original_read.qname(),
         None,
         new_seq.as_slice(),
-        vec![255, new_seq.len() as u8].as_slice(),
+        vec![255; new_seq.len() as usize].as_slice(),
     );
+    println!("{:?}", new_rec);
     return new_rec;
 }
 
@@ -65,11 +68,11 @@ pub fn get_overlap(read_a: &Record, read_b: &Record) -> Option<IndexMap<i64, u8>
         let rab = read_b.seq().as_bytes();
 
         for (a_seqi, b_seqi) in ra.zip(rb) {
-            let base_a = ras[a_seqi[1] as usize];
-            let base_b = rab[b_seqi[1] as usize];
+            let base_a = ras[a_seqi[0] as usize];
+            let base_b = rab[b_seqi[0] as usize];
 
-            let genome_a = a_seqi[0];
-            let genome_b = b_seqi[0];
+            let genome_a = a_seqi[1];
+            let genome_b = b_seqi[1];
 
             match genome_a == genome_b {
                 true => {
@@ -81,6 +84,7 @@ pub fn get_overlap(read_a: &Record, read_b: &Record) -> Option<IndexMap<i64, u8>
                         // if bases don't match at the same genome position, read pair is
                         // discordant.
                         println!("Discordant read pair found. Discarding...");
+                        println! {"read_a {} {} read_b {} {}", genome_a, base_a, genome_b, base_b}
                         discordant = true;
                         break;
                     }

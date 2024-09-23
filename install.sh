@@ -9,7 +9,7 @@ cargo build --release
 cd ../multibam 
 cargo build --release
 
-cd ../pair-merger
+cd ../pair_merger
 cargo build --release
 
 cd ..
