@@ -1,10 +1,10 @@
 use indexmap::IndexMap;
 use rust_htslib::bam::{ext::BamRecordExtensions, Record};
 use std::collections::HashMap;
+use std::str;
 
-pub fn handle_dupes(umis_reads: HashMap<String, Vec<Record>>) -> Vec<Record> {
+pub fn handle_dupes(umis_reads: &HashMap<String, Vec<Record>>) -> Vec<Record> {
     let mut corrected_reads: Vec<Record> = Vec::new();
-
     for (_umi, reads) in umis_reads {
         match reads.len() {
             1 => panic!("Error: 1 read found for UMI marked as duplicate. Has the file been modified? Exiting..."),
@@ -15,7 +15,14 @@ pub fn handle_dupes(umis_reads: HashMap<String, Vec<Record>>) -> Vec<Record> {
                 if let Some(merged_seq) = get_overlap(read_a, read_b) {
                     let new_seq = construct_sequence(merged_seq);
                     let new_record = construct_read(read_a, new_seq);
+                    println!("{}\n{}\n{}\n----------------------", 
+                        str::from_utf8(&read_a.seq().as_bytes()).unwrap(),
+                        str::from_utf8(&read_b.seq().as_bytes()).unwrap(),
+                        str::from_utf8(&new_record.seq().as_bytes()).unwrap(),
+                        );
                     corrected_reads.push(new_record);
+                    // corrected_reads.push(read_a);
+                    // corrected_reads.push(read_b);
                 }
             }
             _ => println!("Warning: 3 or more duplicate UMIs detected. Deduplicating the first two"),
@@ -36,15 +43,13 @@ pub fn construct_sequence<'a>(mut read_blueprint: IndexMap<i64, u8>) -> Vec<u8> 
 
 pub fn construct_read(original_read: &Record, new_seq: Vec<u8>) -> Record {
     let mut new_rec = original_read.clone();
-    // let mut new_rec = Record::new();
-    println!("{:?}", new_seq.as_slice());
+    let qname = [new_rec.qname(), b":MERGED"].concat();
     new_rec.set(
-        original_read.qname(),
-        None,
+        &qname,
+        Some(&original_read.cigar()),
         new_seq.as_slice(),
         vec![255; new_seq.len() as usize].as_slice(),
     );
-    println!("{:?}", new_rec);
     return new_rec;
 }
 
@@ -52,8 +57,6 @@ pub fn get_overlap(read_a: &Record, read_b: &Record) -> Option<IndexMap<i64, u8>
     // check that these reads have opposing orientation
     if (read_a.is_reverse() && !read_b.is_reverse()) | (!read_a.is_reverse() && read_b.is_reverse())
     {
-        print!("Forward and reverse read pair identified.");
-
         let ra = read_a.aligned_pairs();
         let rb = read_a.aligned_pairs();
 
@@ -83,8 +86,6 @@ pub fn get_overlap(read_a: &Record, read_b: &Record) -> Option<IndexMap<i64, u8>
                     } else {
                         // if bases don't match at the same genome position, read pair is
                         // discordant.
-                        println!("Discordant read pair found. Discarding...");
-                        println! {"read_a {} {} read_b {} {}", genome_a, base_a, genome_b, base_b}
                         discordant = true;
                         break;
                     }

@@ -15,9 +15,8 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
-
     if clusters.len() == 1 && clusters[0].reads.len() == 1 {
-        return vec![clusters.remove(0).reads.remove(0)]
+        return vec![clusters.remove(0).reads.remove(0)];
     }
 
     let mut sequences: IndexMap<Cow<'static, [u8]>, (Vec<Record>, i32)> =

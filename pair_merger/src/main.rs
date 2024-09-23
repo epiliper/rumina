@@ -8,9 +8,13 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::string::String;
 use std::sync::{
-    mpsc::{channel, Receiver, Sender},
-    Arc, Mutex,
+    // mpsc::{channel, Receiver, Sender},
+    Arc,
+    Mutex,
 };
+
+use crossbeam::channel::{bounded, Receiver, Sender};
+
 use std::thread;
 
 mod merge;
@@ -40,7 +44,7 @@ fn main() {
 
     bam_reader.set_threads(args.threads).unwrap();
 
-    let (tx, rx): (Sender<Record>, Receiver<Record>) = channel();
+    let (s, r): (Sender<Record>, Receiver<Record>) = bounded(10000);
 
     ThreadPoolBuilder::new()
         .num_threads(args.threads)
@@ -67,27 +71,27 @@ fn main() {
         let mut counter: u32 = 0;
 
         loop {
-            match rx.recv() {
+            match r.recv() {
                 Ok(read) => {
                     buffer.push(read);
                     counter += 1;
 
                     if counter == 1000 {
                         buffer
-                            .iter()
+                            .drain(..)
                             .for_each(|read| bam_writer.write(&read).expect("Error writing read"));
-                        buffer.clear();
+                        // buffer.clear();
                         counter = 0;
                     }
                 }
                 Err(e) => {
                     eprintln!("ERR: {e}");
                     if !buffer.is_empty() {
-                        println!("Not empty");
                         buffer
-                            .iter()
+                            .drain(..)
                             .for_each(|read| bam_writer.write(&read).expect("Error writing read"));
                     }
+                    println!("breaking");
                     break;
                 }
             }
@@ -98,38 +102,42 @@ fn main() {
 
     // check all reads to see if have flagged duplicate UMI
     // if not, write to output
-    bam_reader.records().par_bridge().for_each(|r| {
-        let read = r.expect("Error reading read in!");
+    bam_reader
+        .records()
+        .par_bridge()
+        .for_each_with(s.clone(), |sender, r| {
+            let read = r.expect("Error reading read in!");
 
-        let umi = if let Ok(Aux::String(bx_i)) = read.aux(UMI_TAG) {
-            bx_i
-        } else {
-            "NULL"
-        };
+            let umi = if let Ok(Aux::String(bx_i)) = read.aux(UMI_TAG) {
+                bx_i
+            } else {
+                "NULL"
+            };
 
-        if duplicate_umis.contains(umi) {
-            holding
-                .lock()
-                .unwrap()
-                .entry(umi.to_string())
-                .or_insert(Vec::new())
-                .push(read);
-        } else {
-            tx.send(read).expect("Error sending read!");
-        }
-    });
+            if duplicate_umis.contains(umi) {
+                holding
+                    .lock()
+                    .expect("Unable to lock!")
+                    .entry(umi.to_string())
+                    .or_insert(Vec::new())
+                    .push(read);
+            } else {
+                sender.send(read).expect("Error sending read!");
+            }
+        });
 
-    let holding = Arc::into_inner(holding)
+    let remainder = Arc::into_inner(holding)
         .expect("Cannot dereference dupe reads")
         .into_inner()
         .expect("Mutex poisoned!");
 
-    let mut merged_reads = handle_dupes(holding);
+    let mut merged_reads = handle_dupes(&remainder);
+    println!("Merged {} forward-reverse pairs.", merged_reads.len());
 
     merged_reads
         .drain(0..)
-        .for_each(|read| tx.send(read).unwrap());
+        .for_each(|read| s.send(read).expect("Error sending read!"));
 
-    drop(tx);
+    drop(s);
     writer_handle.join().expect("Writer thread panicked!");
 }

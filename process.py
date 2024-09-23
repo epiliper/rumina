@@ -155,6 +155,7 @@ def merge_fr(tagged_file_name):
     )
 
     os.remove(dupes)
+    return outfile
 
 
 # assign UG tag for each group of clustered UMIs
@@ -209,6 +210,10 @@ def group_bam(input_file, split):
 
 def sort_and_index(input_file, output_file):
     print("sorting and indexing output BAM...\r")
+
+    if args.merge_fr:
+        output_file = merge_fr(output_file)
+
     temp_file = output_file.split(".bam")[0] + "_s.bam"
     os.rename(output_file, temp_file)
 
@@ -220,8 +225,5 @@ def sort_and_index(input_file, output_file):
 
     pysam.index(f"-@ {args.threads}", output_file)
     print("getting coverage/depth report...\r")
-
-    if args.merge_fr:
-        merge_fr(output_file)
 
     generate_report(input_file, output_file)
