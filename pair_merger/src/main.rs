@@ -1,17 +1,15 @@
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 use clap::Parser;
 use merge::handle_dupes;
-use rayon::iter::{ParallelBridge, ParallelIterator};
 use rayon::ThreadPoolBuilder;
 use rust_htslib::bam::{record::Aux, Format, Header, Read, Reader, Record, Writer};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::string::String;
-use std::sync::{
-    // mpsc::{channel, Receiver, Sender},
-    Arc,
-    Mutex,
-};
+use std::sync::{Arc, Mutex};
 
 use crossbeam::channel::{bounded, Receiver, Sender};
 
@@ -75,23 +73,20 @@ fn main() {
                 Ok(read) => {
                     buffer.push(read);
                     counter += 1;
-
                     if counter == 1000 {
-                        buffer
-                            .drain(..)
-                            .for_each(|read| bam_writer.write(&read).expect("Error writing read"));
-                        // buffer.clear();
+                        for read in &buffer {
+                            bam_writer.write(read).expect("Error writing read");
+                        }
+                        buffer.clear();
                         counter = 0;
                     }
                 }
-                Err(e) => {
-                    eprintln!("ERR: {e}");
+                Err(_) => {
                     if !buffer.is_empty() {
-                        buffer
-                            .drain(..)
-                            .for_each(|read| bam_writer.write(&read).expect("Error writing read"));
+                        for read in &buffer {
+                            bam_writer.write(read).expect("Error writing read");
+                        }
                     }
-                    println!("breaking");
                     break;
                 }
             }
@@ -102,36 +97,33 @@ fn main() {
 
     // check all reads to see if have flagged duplicate UMI
     // if not, write to output
-    bam_reader
-        .records()
-        .par_bridge()
-        .for_each_with(s.clone(), |sender, r| {
-            let read = r.expect("Error reading read in!");
+    bam_reader.records().for_each(|r| {
+        let read = r.expect("Error reading read in!");
 
-            let umi = if let Ok(Aux::String(bx_i)) = read.aux(UMI_TAG) {
-                bx_i
-            } else {
-                "NULL"
-            };
+        let umi = if let Ok(Aux::String(bx_i)) = read.aux(UMI_TAG) {
+            bx_i
+        } else {
+            "NULL"
+        };
 
-            if duplicate_umis.contains(umi) {
-                holding
-                    .lock()
-                    .expect("Unable to lock!")
-                    .entry(umi.to_string())
-                    .or_insert(Vec::new())
-                    .push(read);
-            } else {
-                sender.send(read).expect("Error sending read!");
-            }
-        });
+        if duplicate_umis.contains(umi) {
+            holding
+                .lock()
+                .expect("Unable to lock!")
+                .entry(umi.to_string())
+                .or_insert(Vec::new())
+                .push(read);
+        } else {
+            s.send(read).expect("Error sending read");
+        }
+    });
 
-    let remainder = Arc::into_inner(holding)
+    let mut remainder = Arc::into_inner(holding)
         .expect("Cannot dereference dupe reads")
         .into_inner()
         .expect("Mutex poisoned!");
 
-    let mut merged_reads = handle_dupes(&remainder);
+    let mut merged_reads = handle_dupes(&mut remainder);
     println!("Merged {} forward-reverse pairs.", merged_reads.len());
 
     merged_reads
@@ -139,5 +131,6 @@ fn main() {
         .for_each(|read| s.send(read).expect("Error sending read!"));
 
     drop(s);
+
     writer_handle.join().expect("Writer thread panicked!");
 }
