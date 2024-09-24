@@ -12,17 +12,24 @@ pub fn handle_dupes(umis_reads: &HashMap<String, Vec<Record>>) -> Vec<Record> {
                 let read_a = reads.first().unwrap();
                 let read_b = reads.last().unwrap();
 
+                // println!("{}\n{}",
+                //     str::from_utf8(&read_a.seq().as_bytes()).unwrap(),
+                //     str::from_utf8(&read_b.seq().as_bytes()).unwrap(),
+                //     );
+
                 if let Some(merged_seq) = get_overlap(read_a, read_b) {
                     let new_seq = construct_sequence(merged_seq);
                     let new_record = construct_read(read_a, new_seq);
-                    println!("{}\n{}\n{}\n----------------------", 
-                        str::from_utf8(&read_a.seq().as_bytes()).unwrap(),
-                        str::from_utf8(&read_b.seq().as_bytes()).unwrap(),
-                        str::from_utf8(&new_record.seq().as_bytes()).unwrap(),
-                        );
+                    // println!("{}\n----------------------", 
+                    //     str::from_utf8(&new_record.seq().as_bytes()).unwrap(),
+                    //     );
                     corrected_reads.push(new_record);
                     // corrected_reads.push(read_a);
                     // corrected_reads.push(read_b);
+                }
+
+                else {
+                    println!("-----------------------")
                 }
             }
             _ => println!("Warning: 3 or more duplicate UMIs detected. Deduplicating the first two"),
@@ -46,7 +53,8 @@ pub fn construct_read(original_read: &Record, new_seq: Vec<u8>) -> Record {
     let qname = [new_rec.qname(), b":MERGED"].concat();
     new_rec.set(
         &qname,
-        Some(&original_read.cigar()),
+        // Some(&original_read.cigar()),
+        None,
         new_seq.as_slice(),
         vec![255; new_seq.len() as usize].as_slice(),
     );
@@ -57,52 +65,43 @@ pub fn get_overlap(read_a: &Record, read_b: &Record) -> Option<IndexMap<i64, u8>
     // check that these reads have opposing orientation
     if (read_a.is_reverse() && !read_b.is_reverse()) | (!read_a.is_reverse() && read_b.is_reverse())
     {
-        let ra = read_a.aligned_pairs();
-        let rb = read_a.aligned_pairs();
-
-        // this will hold the reconstructed read
-        // key: index of base along read
-        // value: base
-        let mut new_seq: IndexMap<i64, u8> = IndexMap::new();
-
-        let mut discordant = false;
+        let mut ra: IndexMap<i64, u8> = IndexMap::new();
+        let mut rb: IndexMap<i64, u8> = IndexMap::new();
 
         let ras = read_a.seq().as_bytes();
-        let rab = read_b.seq().as_bytes();
+        let rbs = read_b.seq().as_bytes();
 
-        for (a_seqi, b_seqi) in ra.zip(rb) {
-            let base_a = ras[a_seqi[0] as usize];
-            let base_b = rab[b_seqi[0] as usize];
+        read_a.aligned_pairs().for_each(|pair| {
+            ra.entry(pair[1]).or_insert(ras[pair[0] as usize]);
+        });
 
-            let genome_a = a_seqi[1];
-            let genome_b = b_seqi[1];
+        read_b.aligned_pairs().for_each(|pair| {
+            rb.entry(pair[1]).or_insert(rbs[pair[0] as usize]);
+        });
 
-            match genome_a == genome_b {
-                true => {
-                    // overlapping pos on genome
+        let mut discordant = false;
+        let mut overlap = false;
 
-                    if base_a == base_b {
-                        new_seq.insert(a_seqi[1], base_b); // overlap bases match
-                    } else {
-                        // if bases don't match at the same genome position, read pair is
-                        // discordant.
-                        discordant = true;
-                        break;
-                    }
+        for (gpos, nuc) in ra {
+            if let Some(other_nuc) = rb.get(&gpos) {
+                if *other_nuc != nuc {
+                    println!("Discordant read detected! base a: {nuc}, base b: {other_nuc}");
+                    discordant = true;
+                    break;
+                } else {
+                    overlap = true;
                 }
-
-                false => {
-                    new_seq.insert(a_seqi[1], base_a);
-                    new_seq.insert(b_seqi[1], base_b);
-                }
+            } else {
+                rb.entry(gpos).or_insert(nuc);
             }
         }
 
-        if discordant {
-            return None;
+        if !discordant && overlap {
+            return Some(rb);
         } else {
-            return Some(new_seq);
+            return None;
         }
+    } else {
+        None
     }
-    return None;
 }
