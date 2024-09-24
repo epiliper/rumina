@@ -1,5 +1,9 @@
 use indexmap::IndexMap;
-use rust_htslib::bam::{ext::BamRecordExtensions, Record};
+use rust_htslib::bam::{
+    ext::BamRecordExtensions,
+    record::{Cigar, CigarString},
+    Record,
+};
 use std::collections::HashMap;
 
 pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> Vec<Record> {
@@ -15,8 +19,8 @@ pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> Vec<Record
                 let read_b = reads.last().unwrap();
 
                 if let Some(merged_seq) = get_overlap(read_a, read_b) {
-                    let new_seq = construct_sequence(merged_seq);
-                    let new_record = construct_read(read_a, new_seq);
+                    let (start_pos, new_seq) = construct_sequence(merged_seq);
+                    let new_record = construct_read(read_a, start_pos, new_seq);
                     corrected_reads.push(new_record);
                 }
             }
@@ -29,24 +33,35 @@ pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> Vec<Record
     corrected_reads
 }
 
-pub fn construct_sequence<'a>(mut read_blueprint: IndexMap<i64, u8>) -> Vec<u8> {
+pub fn construct_sequence<'a>(mut read_blueprint: IndexMap<i64, u8>) -> (i64, Vec<u8>) {
     let mut new_seq = Vec::new();
+
     read_blueprint.sort_unstable_keys();
+
+    let start = read_blueprint
+        .keys()
+        .min()
+        .expect("unable to find minimum genome pos");
+
     for base in read_blueprint.values() {
         new_seq.push(*base);
     }
-    new_seq
+
+    (*start, new_seq)
 }
 
-pub fn construct_read(original_read: &Record, new_seq: Vec<u8>) -> Record {
+pub fn construct_read(original_read: &Record, start_pos: i64, new_seq: Vec<u8>) -> Record {
     let mut new_rec = original_read.clone();
     let qname = [new_rec.qname(), b":MERGED"].concat();
     new_rec.set(
         &qname,
-        None,
+        // None,
+        Some(&CigarString(vec![Cigar::Match(new_seq.len() as u32)])),
         new_seq.as_slice(),
         vec![255; new_seq.len() as usize].as_slice(),
     );
+
+    new_rec.set_pos(start_pos);
     return new_rec;
 }
 
