@@ -67,6 +67,7 @@ fn main() {
 
         let mut buffer = Vec::with_capacity(1000000);
         let mut counter: u32 = 0;
+        let mut num_writes = 0;
 
         loop {
             match r.recv() {
@@ -76,6 +77,7 @@ fn main() {
                     if counter == 1000 {
                         for read in &buffer {
                             bam_writer.write(read).expect("Error writing read");
+                            num_writes += 1;
                         }
                         buffer.clear();
                         counter = 0;
@@ -85,8 +87,10 @@ fn main() {
                     if !buffer.is_empty() {
                         for read in &buffer {
                             bam_writer.write(read).expect("Error writing read");
+                            num_writes += 1;
                         }
                     }
+                    println!("Pair merger: Written {} reads", num_writes);
                     break;
                 }
             }

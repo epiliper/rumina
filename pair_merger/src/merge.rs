@@ -11,7 +11,8 @@ pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> Vec<Record
     for (_umi, reads) in umis_reads {
         match reads.len() {
             1 => {
-                println!("Error: 1 read found for UMI marked as duplicate. Has the file been modified? Exiting...");
+                println!("Warning: 1 read found for UMI marked as duplicate. Has the file been modified?");
+                // todo, remove this read, don't add.
                 corrected_reads.extend(reads.drain(..));
             }
             2 => {

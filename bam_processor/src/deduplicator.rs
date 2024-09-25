@@ -99,6 +99,8 @@ impl<'a> GroupHandler<'a> {
             false => 3, // groups should have 3+ reads for reliable majority rule
         };
 
+        final_umis.sort_unstable();
+
         for top_umi in final_umis.drain(0..) {
             let num_reads_in_group = get_counts(&top_umi, &counts);
             if num_reads_in_group >= read_count_thres {

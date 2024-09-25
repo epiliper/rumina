@@ -86,7 +86,12 @@ pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
     // return a single read, since this is per-position and we expect one read per UMI group
     match clusters.len() {
         // if just one group, return one read
-        1 => return clusters.drain(0..).next().unwrap().remove(0),
+        1 => {
+            let mut cluster = clusters.drain(..).next().unwrap();
+            cluster.sort_by(|ra, rb| ra.qname().cmp(rb.qname()));
+            // return clusters.drain(0..).next().unwrap().remove(0);
+            return cluster.remove(0);
+        }
 
         // if two groups are tied for read majority, pick the one with the best overall phred score
         _ => {
@@ -113,7 +118,7 @@ pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
             let mut best_phred = mean_phreds.swap_remove(&x).unwrap();
 
             // remove one read from this group (final read to represent UMI group)
-            // best_phred.sort_by(|ra, rb| rb.mapq().cmp(&ra.mapq()));
+            best_phred.sort_by(|ra, rb| rb.qname().cmp(&ra.qname()));
             best_phred.swap_remove(0)
         }
     }
