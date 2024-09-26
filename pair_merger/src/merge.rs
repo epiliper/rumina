@@ -11,9 +11,7 @@ pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> Vec<Record
     for (_umi, reads) in umis_reads {
         match reads.len() {
             1 => {
-                println!("Warning: 1 read found for UMI marked as duplicate. Has the file been modified?");
-                // todo, remove this read, don't add.
-                corrected_reads.extend(reads.drain(..));
+                println!("Warning: 1 read found for UMI marked as duplicate. Rerunning RUMINA on this file is recommended. If this issue persists, see GitHub issues page.");
             }
             2 => {
                 let read_a = reads.first().unwrap();
@@ -26,7 +24,18 @@ pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> Vec<Record
                 }
             }
             _ => {
-                println!("Warning: 3 or more duplicate UMIs detected. Deduplicating the first two")
+                println!(
+                    "Warning: 3 or more duplicate UMIs detected. Deduplicating the first two."
+                );
+
+                let read_a = reads.iter().next().unwrap();
+                let read_b = reads.iter().next().unwrap();
+
+                if let Some(merged_seq) = get_overlap(read_a, read_b) {
+                    let (start_pos, new_seq) = construct_sequence(merged_seq);
+                    let new_record = construct_read(read_a, start_pos, new_seq);
+                    corrected_reads.push(new_record);
+                }
             }
         }
     }
