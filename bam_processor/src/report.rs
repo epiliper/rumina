@@ -42,9 +42,6 @@ impl BarcodeTracker {
                 .or_insert(count);
         }
     }
-    pub fn get_repeats(&mut self) {
-        self.barcode_counter.retain(|_umi, count| *count > 1);
-    }
 }
 
 // This report contains details like UMIs in/out, reads in/out, and other details, and is updated
@@ -118,8 +115,6 @@ impl GroupReport {
             let _ = File::create(&report_file);
         }
 
-        self.barcode_tracker.get_repeats();
-
         let mut report_f = OpenOptions::new()
             .append(true)
             .open(report_file)
@@ -156,8 +151,8 @@ impl GroupReport {
                 .open(barcode_file)
                 .expect("unable to open minmax file");
 
-            for umi in self.barcode_tracker.barcode_counter.keys() {
-                writeln!(barcode_f, "{}", String::from_utf8_lossy(&umi)).unwrap();
+            for (umi, count) in self.barcode_tracker.barcode_counter.iter() {
+                writeln!(barcode_f, "{}\t{}", String::from_utf8_lossy(&umi), count).unwrap();
             }
         }
     }

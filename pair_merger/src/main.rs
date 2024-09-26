@@ -5,9 +5,10 @@ use clap::Parser;
 use merge::handle_dupes;
 use rayon::ThreadPoolBuilder;
 use rust_htslib::bam::{record::Aux, Format, Header, Read, Reader, Record, Writer};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::ops::AddAssign;
 use std::string::String;
 use std::sync::{Arc, Mutex};
 
@@ -50,15 +51,26 @@ fn main() {
         .expect("ERROR: Invalid number of threads specified");
 
     // get list of duplicate UMIs
-    let mut duplicate_umis = HashSet::new();
+    let mut duplicate_umis: HashMap<String, i32> = HashMap::new();
 
     let dupes = File::open(dupe_list).expect("Duplicate barcode file not found!");
     let dupes = BufReader::new(dupes);
 
     for line in dupes.lines() {
         let umi = line.unwrap();
-        duplicate_umis.insert(umi.trim().to_string());
+        let (umi, count) = umi
+            .split_once("\t")
+            .expect("Error: barcode list improperly formatted!");
+
+        let count = count.parse::<i32>().expect("invalid count");
+
+        duplicate_umis
+            .entry(umi.trim().to_string())
+            .and_modify(|curr_count| *curr_count += count)
+            .or_insert(count);
     }
+
+    duplicate_umis.retain(|_umi, count| *count > 1);
 
     // write every 1000 reads to the output bam
     let writer_handle = thread::spawn(move || {
@@ -110,7 +122,7 @@ fn main() {
             "NULL"
         };
 
-        if duplicate_umis.contains(umi) {
+        if duplicate_umis.contains_key(umi) {
             holding
                 .lock()
                 .expect("Unable to lock!")
