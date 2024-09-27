@@ -8,7 +8,6 @@ use rust_htslib::bam::{record::Aux, Format, Header, Read, Reader, Record, Writer
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::ops::AddAssign;
 use std::string::String;
 use std::sync::{Arc, Mutex};
 
