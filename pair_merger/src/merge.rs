@@ -6,50 +6,42 @@ use rust_htslib::bam::{
 };
 use std::collections::HashMap;
 
-pub enum MergeResult {
-    Discordant,
-    NoMerge,
-    Merge,
-}
+use crate::merge_report::*;
 
-pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> Vec<Record> {
+pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> (MergeReport, Vec<Record>) {
     let mut corrected_reads: Vec<Record> = Vec::new();
+    let mut merge_report = MergeReport::new();
+
     for (_umi, mut reads) in umis_reads.drain() {
         match reads.len() {
             1 => {
                 println!("Warning: 1 read found for UMI marked as duplicate. Rerunning RUMINA on this file is recommended. If this issue persists, see GitHub issues page.");
                 corrected_reads.extend(reads.drain(..));
             }
-            2 => {
-                let read_a = reads.first().unwrap();
-                let read_b = reads.last().unwrap();
-
-                if let Some(merged_seq) = attempt_merge(read_a, read_b) {
-                    let (start_pos, new_seq) = construct_sequence(merged_seq);
-                    let new_record = construct_read(read_a, start_pos, new_seq);
-                    corrected_reads.push(new_record);
-                }
-            }
             _ => {
                 // sort the read list by reads likely to overlap
-                reads.sort_by(|ra, rb| rb.pos().cmp(&ra.pos()));
-                let num_reads = reads.len();
+                reads.sort_by(|ra, rb| ra.pos().cmp(&rb.pos()));
+                let mut num_reads = reads.len();
 
-                for _ in 0..num_reads {
+                while num_reads > 1 {
                     let read = reads.swap_remove(0);
 
-                    let (merged, result) = find_merges(&read, &reads);
+                    let (merged, result) = find_merges(&read, &mut reads);
 
                     match result {
                         MergeResult::Discordant => {}
                         MergeResult::NoMerge => corrected_reads.push(read),
                         MergeResult::Merge => corrected_reads.push(merged.unwrap()),
                     }
+
+                    merge_report.count(result);
+                    num_reads -= 1;
                 }
+                corrected_reads.extend(reads.drain(..));
             }
         }
     }
-    corrected_reads
+    (merge_report, corrected_reads)
 }
 
 pub fn is_opp_orientation(read_a: &Record, read_b: &Record) -> bool {
@@ -64,12 +56,13 @@ pub fn is_overlap(read_a: &Record, read_b: &Record) -> bool {
 }
 
 // for groups of >2 reads, find every overlapping f/r read pair, attempt merge
-pub fn find_merges(read: &Record, reads: &Vec<Record>) -> (Option<Record>, MergeResult) {
-    for other_read in reads {
+pub fn find_merges(read: &Record, reads: &mut Vec<Record>) -> (Option<Record>, MergeResult) {
+    for (i, other_read) in reads.iter().enumerate() {
         if is_opp_orientation(read, other_read) && is_overlap(read, other_read) {
             if let Some(merge) = attempt_merge(read, other_read) {
                 let (start_pos, merged_seq) = construct_sequence(merge);
                 let merged_rec = construct_read(read, start_pos, merged_seq);
+                reads.remove(i);
 
                 return (Some(merged_rec), MergeResult::Merge);
             } else {
@@ -102,7 +95,6 @@ pub fn construct_read(original_read: &Record, start_pos: i64, new_seq: Vec<u8>) 
     let qname = [new_rec.qname(), b":MERGED"].concat();
     new_rec.set(
         &qname,
-        // None,
         Some(&CigarString(vec![Cigar::Match(new_seq.len() as u32)])),
         new_seq.as_slice(),
         vec![255; new_seq.len() as usize].as_slice(),

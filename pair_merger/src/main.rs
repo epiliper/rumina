@@ -2,6 +2,7 @@
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 use clap::Parser;
+use crossbeam::channel::{bounded, Receiver, Sender};
 use merge::handle_dupes;
 use rayon::ThreadPoolBuilder;
 use rust_htslib::bam::{record::Aux, Format, Header, Read, Reader, Record, Writer};
@@ -11,11 +12,10 @@ use std::io::{BufRead, BufReader};
 use std::string::String;
 use std::sync::{Arc, Mutex};
 
-use crossbeam::channel::{bounded, Receiver, Sender};
-
 use std::thread;
 
 mod merge;
+mod merge_report;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -101,12 +101,13 @@ fn main() {
                             num_writes += 1;
                         }
                     }
-                    println!("Pair merger: Written {} reads", num_writes);
-                    break;
+                    return num_writes;
                 }
             }
         }
     });
+
+    let mut inreads = 0;
 
     let holding: Arc<Mutex<HashMap<String, Vec<Record>>>> = Arc::new(Mutex::new(HashMap::new()));
 
@@ -114,6 +115,7 @@ fn main() {
     // if not, write to output
     bam_reader.records().for_each(|r| {
         let read = r.expect("Error reading read in!");
+        inreads += 1;
 
         let umi = if let Ok(Aux::String(bx_i)) = read.aux(UMI_TAG) {
             bx_i
@@ -138,8 +140,7 @@ fn main() {
         .into_inner()
         .expect("Mutex poisoned!");
 
-    let mut merged_reads = handle_dupes(&mut remainder);
-    println!("Merged {} forward-reverse pairs.", merged_reads.len());
+    let (mut merge_report, mut merged_reads) = handle_dupes(&mut remainder);
 
     merged_reads
         .drain(..)
@@ -147,5 +148,10 @@ fn main() {
 
     drop(s);
 
-    writer_handle.join().expect("Writer thread panicked!");
+    let num_writes = writer_handle.join().expect("Writer thread panicked!");
+
+    merge_report.num_inreads = inreads;
+    merge_report.num_outreads = num_writes;
+
+    print!("{merge_report}");
 }
