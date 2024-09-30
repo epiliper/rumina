@@ -1,3 +1,5 @@
+use rayon::iter::ParallelDrainRange;
+use rayon::prelude::*;
 use rust_htslib::bam::ext::BamRecordExtensions;
 use rust_htslib::bam::{Format, Header, IndexedReader, Read, Writer};
 use std::fs;
@@ -25,7 +27,6 @@ fn main() {
     let args = Args::parse();
 
     let input = Path::new(&args.input);
-    let out = Path::new(&args.out);
 
     let output_dir = Path::parent(&input).unwrap().join(&args.out);
     if !output_dir.exists() {
@@ -36,21 +37,17 @@ fn main() {
 
     let mut bam_reader = IndexedReader::from_path(&input).unwrap();
     bam_reader.set_threads(args.threads).unwrap();
-    let header = Header::from_template(bam_reader.header());
 
     let ref_count = bam_reader.header().target_count();
     let window_size = args.split_window as i64;
 
-    let mut write_counter = 0;
-
     // for every reference, split it into windows by split_window
     for tid in 0..ref_count {
-        println!("{tid}");
         let max_pos = bam_reader.header().target_len(tid).unwrap() as i64;
 
         let mut ranges: Vec<[i64; 2]> = Vec::new();
 
-        let mut j = 0;
+        let mut j;
         let mut i = 0;
 
         while i <= max_pos - window_size {
@@ -65,9 +62,13 @@ fn main() {
         ranges.push([i, max_pos + 1]);
 
         // write to a subfile for each window
-        for (idx, range) in ranges.drain(0..).enumerate() {
-            println!("{:?}", range);
+        ranges.par_drain(..).enumerate().for_each(|(idx, range)| {
+            let mut bam_reader = IndexedReader::from_path(&input).unwrap();
+            bam_reader.set_threads(args.threads).unwrap();
+            let header = Header::from_template(bam_reader.header());
+
             let mut reads_to_write_f = Vec::with_capacity(1_000_000);
+            println!("{:?}", range);
 
             let start = range[0];
             let end = range[1];
@@ -98,10 +99,7 @@ fn main() {
 
             reads_to_write_f.iter().for_each(|read| {
                 bam_writer_f.write(read).unwrap();
-                write_counter += 1;
             });
-        }
+        });
     }
-
-    println!("Written {} reads...", write_counter);
 }
