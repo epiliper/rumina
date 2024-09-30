@@ -192,7 +192,7 @@ impl<'a> ChunkProcessor<'a> {
     pub fn write_reads(&mut self, bam_writer: &mut Writer) {
         self.reads_to_output
             .lock()
-            .drain(0..)
+            .drain(..)
             .for_each(|read| bam_writer.write(&read).unwrap())
     }
 

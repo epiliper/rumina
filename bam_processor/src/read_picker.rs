@@ -26,7 +26,7 @@ pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
 
     // group the reads by sequence
     for cluster in clusters {
-        cluster.reads.drain(0..).for_each(|x| {
+        cluster.reads.drain(..).for_each(|x| {
             sequences
                 .entry(Cow::Owned(x.seq().encoded.to_vec()))
                 .or_insert((Vec::new(), 0));
@@ -44,7 +44,7 @@ pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
 
     // get all sequence groups with the max observed read count (necessary if more than one group
     // has highest num of reads)
-    for cluster in sequences.drain(0..) {
+    for cluster in sequences.drain(..) {
         if first {
             max = cluster.1 .1;
             most_reads_groups.push(cluster.1 .0);
@@ -66,7 +66,7 @@ pub fn push_all_reads(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
     let mut reads_to_write: Vec<Record> = Vec::with_capacity(clusters.len());
 
     clusters
-        .drain(0..)
+        .drain(..)
         .for_each(|read_group| reads_to_write.extend(read_group.reads));
 
     reads_to_write
@@ -89,7 +89,6 @@ pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
         1 => {
             let mut cluster = clusters.drain(..).next().unwrap();
             cluster.sort_by(|ra, rb| ra.qname().cmp(rb.qname()));
-            // return clusters.drain(0..).next().unwrap().remove(0);
             return cluster.remove(0);
         }
 
@@ -98,7 +97,7 @@ pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
             let mut mean_phreds: IndexMap<i32, Vec<Record>> =
                 IndexMap::with_capacity(clusters.len());
 
-            for cluster in clusters.drain(0..) {
+            for cluster in clusters.drain(..) {
                 let mut avgs: Vec<f32> = Vec::new();
 
                 for read in &cluster {

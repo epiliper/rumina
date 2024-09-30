@@ -101,7 +101,7 @@ impl<'a> GroupHandler<'a> {
 
         final_umis.sort_unstable();
 
-        for top_umi in final_umis.drain(0..) {
+        for top_umi in final_umis.drain(..) {
             let num_reads_in_group = get_counts(&top_umi, &counts);
             if num_reads_in_group >= read_count_thres {
                 let ug_tag = generate_tag(&mut rng, &mut used_tags);

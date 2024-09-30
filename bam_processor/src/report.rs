@@ -34,7 +34,7 @@ impl BarcodeTracker {
 
     // update UMI counts after last round of deduplication
     pub fn update(&mut self, other_barcode_tracker: &mut BarcodeTracker) {
-        for (umi, count) in self.barcode_counter.drain(0..) {
+        for (umi, count) in self.barcode_counter.drain(..) {
             other_barcode_tracker
                 .barcode_counter
                 .entry(umi)

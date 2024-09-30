@@ -31,10 +31,6 @@ pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> Vec<Record
                 }
             }
             _ => {
-                println!(
-                    "Warning: 3 or more duplicate UMIs detected. Deduplicating the first two."
-                );
-
                 // sort the read list by reads likely to overlap
                 reads.sort_by(|ra, rb| rb.pos().cmp(&ra.pos()));
                 let num_reads = reads.len();
@@ -67,6 +63,7 @@ pub fn is_overlap(read_a: &Record, read_b: &Record) -> bool {
     ras < rbs && rae < rbe
 }
 
+// for groups of >2 reads, find every overlapping f/r read pair, attempt merge
 pub fn find_merges(read: &Record, reads: &Vec<Record>) -> (Option<Record>, MergeResult) {
     for other_read in reads {
         if is_opp_orientation(read, other_read) && is_overlap(read, other_read) {
@@ -115,6 +112,8 @@ pub fn construct_read(original_read: &Record, start_pos: i64, new_seq: Vec<u8>) 
     return new_rec;
 }
 
+// with two overlapping reads, attempt to merge the reads
+// halt if the reads have discordant sequence
 pub fn attempt_merge(read_a: &Record, read_b: &Record) -> Option<IndexMap<i64, u8>> {
     // check that these reads have opposing orientation
     let mut ra: IndexMap<i64, u8> = IndexMap::new();
@@ -136,7 +135,11 @@ pub fn attempt_merge(read_a: &Record, read_b: &Record) -> Option<IndexMap<i64, u
     for (gpos, nuc) in ra {
         if let Some(other_nuc) = rb.get(&gpos) {
             if *other_nuc != nuc {
-                println!("Discordant read detected! base a: {nuc}, base b: {other_nuc}");
+                println!(
+                    "Discordant read detected! base a: {}, base b: {}",
+                    nuc.to_string(),
+                    other_nuc.to_string()
+                );
                 discordant = true;
                 break;
             } else {

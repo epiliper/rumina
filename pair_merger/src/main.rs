@@ -142,7 +142,7 @@ fn main() {
     println!("Merged {} forward-reverse pairs.", merged_reads.len());
 
     merged_reads
-        .drain(0..)
+        .drain(..)
         .for_each(|read| s.send(read).expect("Error sending read!"));
 
     drop(s);
