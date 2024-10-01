@@ -52,7 +52,11 @@ pub fn is_overlap(read_a: &Record, read_b: &Record) -> bool {
     let (ras, rae) = (read_a.reference_start(), read_a.reference_end());
     let (rbs, rbe) = (read_b.reference_start(), read_b.reference_end());
 
-    ras < rbs && rae < rbe
+    if rae == rbe && ras == rbs {
+        return true;
+    }
+
+    ras < rbs && rae >= rbs
 }
 
 // for groups of >2 reads, find every overlapping f/r read pair, attempt merge
