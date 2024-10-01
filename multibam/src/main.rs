@@ -80,7 +80,7 @@ fn main() {
                 let read = r.unwrap();
 
                 if read.is_reverse() {
-                    if read.reference_end() < end && read.reference_end() >= start {
+                    if read.reference_end() <= end && read.reference_end() >= start {
                         reads_to_write_f.push(read);
                     }
                 } else if read.reference_start() < end && read.reference_start() >= start {
