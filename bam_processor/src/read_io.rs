@@ -2,7 +2,7 @@ use crate::bottomhash::BottomHashMap;
 use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::readkey::ReadKey;
-use crate::report::StaticUMI;
+use crate::report::{BarcodeTracker, StaticUMI};
 use crate::GroupReport;
 use crate::GroupingMethod;
 use parking_lot::Mutex;
@@ -76,6 +76,7 @@ pub struct ChunkProcessor<'a> {
     pub only_group: bool,
     pub singletons: bool,
     pub track_barcodes: bool,
+    pub barcode_tracker: Arc<Mutex<BarcodeTracker>>,
 }
 
 impl<'a> ChunkProcessor<'a> {
@@ -156,7 +157,11 @@ impl<'a> ChunkProcessor<'a> {
                 // perform UMI clustering per the method specified
                 let groupies = grouper.cluster(counts, Arc::clone(&grouping_method));
 
-                let tagged_reads = group_handler.tag_records(groupies, umis_reads);
+                let tagged_reads = group_handler.tag_records(
+                    groupies,
+                    umis_reads,
+                    Arc::clone(&self.barcode_tracker),
+                );
                 let mut min_max = self.min_max.lock();
 
                 // update grouping report

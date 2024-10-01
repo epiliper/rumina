@@ -32,14 +32,23 @@ impl BarcodeTracker {
         self.barcode_counter.entry(umi).or_insert(0).add_assign(1);
     }
 
-    // update UMI counts after last round of deduplication
-    pub fn update(&mut self, other_barcode_tracker: &mut BarcodeTracker) {
-        for (umi, count) in self.barcode_counter.drain(..) {
-            other_barcode_tracker
-                .barcode_counter
-                .entry(umi)
-                .and_modify(|existing_count| *existing_count += count)
-                .or_insert(count);
+    pub fn write_to_report_file(&mut self, output_file: &String) {
+        let barcode_file = Path::new(&output_file)
+            .parent()
+            .unwrap()
+            .join("barcodes.tsv");
+
+        if !barcode_file.exists() {
+            let _ = File::create(&barcode_file);
+        }
+
+        let mut barcode_f = OpenOptions::new()
+            .append(true)
+            .open(barcode_file)
+            .expect("unable to open minmax file");
+
+        for (umi, count) in self.barcode_counter.iter() {
+            writeln!(barcode_f, "{}\t{}", String::from_utf8_lossy(&umi), count).unwrap();
         }
     }
 }
@@ -57,7 +66,6 @@ pub struct GroupReport {
     pub num_umis: i64,
     pub num_reads_input_file: i64,
     pub num_reads_output_file: i64,
-    pub barcode_tracker: BarcodeTracker,
 }
 
 impl GroupReport {
@@ -72,7 +80,6 @@ impl GroupReport {
             num_umis: 0,
             num_reads_input_file: 0,
             num_reads_output_file: 0,
-            barcode_tracker: BarcodeTracker::new(),
         }
     }
 
@@ -82,7 +89,7 @@ impl GroupReport {
     }
 
     // after a batch has been processed, check to see if fields need to be udpated
-    pub fn update(&mut self, mut other_report: GroupReport, num_umis: i32) {
+    pub fn update(&mut self, other_report: GroupReport, num_umis: i32) {
         if other_report.max_reads > self.max_reads {
             self.max_reads = other_report.max_reads;
             self.max_reads_group = other_report.max_reads_group;
@@ -100,15 +107,11 @@ impl GroupReport {
 
         // record the number of reads to be written
         self.num_reads_output_file += other_report.num_reads_output_file;
-        // self.barcode_tracker.update(other_report.barcode_tracker);
-        other_report
-            .barcode_tracker
-            .update(&mut self.barcode_tracker);
     }
 
     // once deduplication of the file is complete, only list UMIs that were observed more than
     // once.
-    pub fn write_to_report_file(&mut self, output_file: &String, barcode_file: bool) {
+    pub fn write_to_report_file(&mut self, output_file: &String) {
         let report_file = Path::new(&output_file).parent().unwrap().join("minmax.txt");
         //
         if !report_file.exists() {
@@ -135,26 +138,6 @@ impl GroupReport {
             )
             .as_bytes(),
         );
-
-        if barcode_file {
-            let barcode_file = Path::new(&output_file)
-                .parent()
-                .unwrap()
-                .join("barcodes.tsv");
-
-            if !barcode_file.exists() {
-                let _ = File::create(&barcode_file);
-            }
-
-            let mut barcode_f = OpenOptions::new()
-                .append(true)
-                .open(barcode_file)
-                .expect("unable to open minmax file");
-
-            for (umi, count) in self.barcode_tracker.barcode_counter.iter() {
-                writeln!(barcode_f, "{}\t{}", String::from_utf8_lossy(&umi), count).unwrap();
-            }
-        }
     }
 }
 

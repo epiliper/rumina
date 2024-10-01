@@ -1,10 +1,12 @@
 use crate::bottomhash::ReadsAndCount;
 use crate::read_io::{get_umi, get_umi_static};
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
-use crate::report::GroupReport;
+use crate::report::{BarcodeTracker, GroupReport};
 use crate::IndexMap;
+use parking_lot::Mutex;
 use rust_htslib::bam::record::Aux;
 use rust_htslib::bam::Record;
+use std::sync::Arc;
 
 use core::str;
 use rand::rngs::StdRng;
@@ -63,10 +65,16 @@ impl<'a> GroupHandler<'a> {
         &mut self,
         grouping_output: (HashMap<&String, i32>, Option<Vec<Vec<&String>>>),
         mut umis_records: IndexMap<String, ReadsAndCount>,
+        barcode_tracker: Arc<Mutex<BarcodeTracker>>,
     ) -> Option<(Option<GroupReport>, Vec<Record>)> {
         match grouping_output.1 {
             Some(groups) => {
-                let reads = self.tag_groups(groups, &mut umis_records, grouping_output.0);
+                let reads = self.tag_groups(
+                    groups,
+                    &mut umis_records,
+                    grouping_output.0,
+                    barcode_tracker,
+                );
                 Some(reads)
             }
             None => None,
@@ -77,6 +85,7 @@ impl<'a> GroupHandler<'a> {
         mut final_umis: Vec<Vec<&String>>,
         umis_records: &mut IndexMap<String, ReadsAndCount>,
         counts: HashMap<&String, i32>,
+        barcode_tracker: Arc<Mutex<BarcodeTracker>>,
     ) -> (Option<GroupReport>, Vec<Record>) {
         // for each UMI within a group, assign the same tag
 
@@ -145,7 +154,8 @@ impl<'a> GroupHandler<'a> {
 
                     {
                         if self.track_barcodes {
-                            group_report.barcode_tracker.count(read_umi);
+                            // group_report.barcode_tracker.count(read_umi);
+                            barcode_tracker.lock().count(read_umi);
                         }
                     }
 

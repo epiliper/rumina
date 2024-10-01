@@ -2,7 +2,7 @@
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 use crate::read_io::{make_bam_reader, make_bam_writer, ChunkProcessor};
-use crate::report::GroupReport;
+use crate::report::{BarcodeTracker, GroupReport};
 use clap::ValueEnum;
 use colored::Colorize;
 use indexmap::IndexMap;
@@ -85,6 +85,7 @@ fn main() {
 
     // create deduplication report
     let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(GroupReport::new()));
+    let barcode_tracker: Arc<Mutex<BarcodeTracker>> = Arc::new(Mutex::new(BarcodeTracker::new()));
 
     // holds filtered reads awaiting writing to output bam file
     let mut read_handler = ChunkProcessor {
@@ -98,6 +99,7 @@ fn main() {
         singletons: args.singletons,
         read_counter: 0,
         track_barcodes: args.track_barcodes,
+        barcode_tracker: Arc::clone(&barcode_tracker),
     };
 
     // do grouping and processing
@@ -115,7 +117,9 @@ fn main() {
     if group_report.min_reads != i64::MAX {
         println!("{}", "DONE".green());
 
-        group_report.write_to_report_file(&output_file, args.track_barcodes);
+        group_report.write_to_report_file(&output_file);
+        let mut barcode_tracker = Arc::try_unwrap(barcode_tracker).unwrap().into_inner();
+        barcode_tracker.write_to_report_file(&output_file);
         println!("{}", group_report);
     }
 }
