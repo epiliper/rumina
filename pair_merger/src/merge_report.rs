@@ -37,14 +37,19 @@ impl MergeReport {
 
 impl fmt::Display for MergeReport {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
+        writeln!(
             f,
-            "{}: {}\n\
+            "\n{}\n\
+            {}\n\
             {}: {}\n\
             {}: {}\n\
             {}: {}\n\
             {}: {}\n\
+            {}: {}\n\
+            {}\n\
             ",
+            "PAIR MERGER".yellow(),
+            "=============================".yellow(),
             "Discordant read pairs".yellow(),
             self.num_discordant,
             "Unmerged reads".yellow(),
@@ -54,7 +59,8 @@ impl fmt::Display for MergeReport {
             "Reads in".yellow(),
             self.num_inreads,
             "Reads out".yellow(),
-            self.num_outreads
+            self.num_outreads,
+            "=============================".yellow(),
         )
     }
 }

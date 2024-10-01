@@ -59,8 +59,6 @@ def generate_report(original_file, final_file):
     group_report["num_total_groups"] = [df["num_total_groups"].sum()]
     group_report["num_raw_umis"] = [df["num_raw_umis"].sum()]
 
-    print(f"written {group_report["num_reads_output_file"].values[0]} reads...")
-
     with pysam.AlignmentFile(final_file, "rb") as outbam:
         references = outbam.references
 

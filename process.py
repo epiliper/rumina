@@ -2,6 +2,7 @@ import pysam
 import subprocess
 import os
 from cov_reporter import generate_report
+from logo import r, Y, C
 
 from args import init_args
 
@@ -24,10 +25,26 @@ def process_dir(dir, split):
             file_to_clean = os.path.abspath(os.path.join(dir, file))
             print(f"WORKING ON FILE: {file_to_clean}")
             outfile = group_bam(file_to_clean, split)
+            print_file_end()
 
 
 def process_file(file, split):
     outfile = group_bam(file, split)
+    print_file_end()
+
+
+def print_file_info(num_files, file_num, file_name):
+    print(f"\n{C}FILE {file_num}/{num_files}:{r} {file_name.split("/")[-1]}")
+    print(f"{C}============================={r}")
+
+
+def print_file_end():
+    print(f"{C}============================={r}")
+
+
+def print_merger_info():
+    print(f"\n{Y}PAIR-MERGER")
+    print(f"============================={r}")
 
 
 def get_all_files(input):
@@ -137,8 +154,11 @@ def merge_processed_splits(file):
 
 
 def merge_fr(tagged_file_name):
+    print("Merging overlapping forward/reverse amplicons...")
     dupes = os.path.join(args.outdir, "barcodes.tsv")
     outfile = tagged_file_name.split("_")[0] + "_merged.bam"
+
+    # print_merger_info()
 
     subprocess.run(
         [
@@ -151,7 +171,7 @@ def merge_fr(tagged_file_name):
             outfile,
             "--threads",
             args.threads,
-        ]
+        ],
     )
 
     os.remove(dupes)

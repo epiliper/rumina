@@ -6,6 +6,7 @@ from process import (
     get_all_files,
     process_dir,
     process_file,
+    print_file_info
 )
 
 from logo import r, M, C, print_logo
@@ -30,8 +31,7 @@ for arg in vars(args):
 temp_bams = prepare_files(get_all_files(args.input))
 
 for i, file in enumerate(temp_bams, 1):
-    print(f"\n{C}FILE {i}/{len(temp_bams)}:{r} {file.split("/")[-1]}")
-    print(f"{C}============================={r}")
+    print_file_info(len(temp_bams), i, file)
     match args.split_window:
         # calculate recommended split window size for each file
         case "auto":
