@@ -66,6 +66,7 @@ pub fn find_merges(read: &Record, reads: &mut Vec<Record>) -> (Option<Record>, M
 
                 return (Some(merged_rec), MergeResult::Merge);
             } else {
+                reads.remove(i);
                 return (None, MergeResult::Discordant);
             }
         }

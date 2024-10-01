@@ -25,3 +25,12 @@ def print_logo():
     for line in logo_lines:
         padding = (term_width - len(line)) // 2
         print(" " * padding + line)
+
+
+def print_file_info(num_files, file_num, file_name):
+    print(f"\n{C}FILE {file_num}/{num_files}:{r} {file_name.split("/")[-1]}")
+    print(f"{C}============================={r}")
+
+
+def print_file_end():
+    print(f"{C}============================={r}")

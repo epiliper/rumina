@@ -6,10 +6,9 @@ from process import (
     get_all_files,
     process_dir,
     process_file,
-    print_file_info
 )
 
-from logo import r, M, C, print_logo
+from logo import r, M, C, print_logo, print_file_info
 from args import init_args
 import time
 from shutil import rmtree
