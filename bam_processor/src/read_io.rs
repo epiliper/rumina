@@ -5,6 +5,7 @@ use crate::readkey::ReadKey;
 use crate::report::{BarcodeTracker, StaticUMI};
 use crate::GroupReport;
 use crate::GroupingMethod;
+use indicatif::ProgressBar;
 use parking_lot::Mutex;
 use rayon::prelude::*;
 use rust_htslib::bam::ext::BamRecordExtensions;
@@ -111,17 +112,11 @@ impl<'a> ChunkProcessor<'a> {
     // run grouping on pulled reads
     // add tags to Records
     // output them to list for writing to bam
-    pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap, drain_end: usize) {
+    pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap) {
         let grouping_method = Arc::new(&self.grouping_method);
+        let progress_bar = ProgressBar::new(bottomhash.read_dict.len() as u64);
 
-        let current_len = bottomhash.read_dict.len();
-
-        let range = match drain_end {
-            0 => 0..current_len,
-            _ => 0..std::cmp::min(drain_end, current_len),
-        };
-
-        bottomhash.read_dict.par_drain(range).for_each(|position| {
+        bottomhash.read_dict.par_drain(..).for_each(|position| {
             for umi in position.1 {
                 let mut umis_reads = umi.1;
 
@@ -173,7 +168,11 @@ impl<'a> ChunkProcessor<'a> {
                     }
                 }
             }
+
+            progress_bar.inc(1);
         });
+
+        progress_bar.finish();
     }
 
     // organize reads in bottomhash based on position
@@ -225,10 +224,6 @@ impl<'a> ChunkProcessor<'a> {
                         print! {"Read in {} reads\r", self.read_counter}
                     }
                 }
-
-                println!("Grouping {} reads...", self.read_counter);
-                self.group_reads(&mut bottomhash, 0);
-                self.write_reads(&mut bam_writer)
             }
 
             BamReader::Indexed(mut reader) => {
@@ -246,10 +241,10 @@ impl<'a> ChunkProcessor<'a> {
                         }
                     }
                 }
-                println!("Grouping {} reads...", self.read_counter);
-                Self::group_reads(self, &mut bottomhash, 0);
-                self.write_reads(&mut bam_writer)
             }
         }
+        println!("Grouping {} reads...", self.read_counter);
+        Self::group_reads(self, &mut bottomhash);
+        self.write_reads(&mut bam_writer)
     }
 }

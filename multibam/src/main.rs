@@ -1,7 +1,8 @@
+use crossbeam::channel::{bounded, Receiver, Sender};
 use rayon::iter::ParallelDrainRange;
 use rayon::prelude::*;
 use rust_htslib::bam::ext::BamRecordExtensions;
-use rust_htslib::bam::{Format, Header, IndexedReader, Read, Writer};
+use rust_htslib::bam::{Format, Header, IndexedReader, Read, Record, Writer};
 use std::fs;
 use std::path::Path;
 
