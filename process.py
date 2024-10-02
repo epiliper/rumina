@@ -142,7 +142,7 @@ def merge_processed_splits(file):
 def merge_fr(tagged_file_name):
     print("Merging overlapping forward/reverse amplicons...")
     dupes = os.path.join(args.outdir, "barcodes.tsv")
-    outfile = tagged_file_name.split("_")[0] + "_merged.bam"
+    outfile = tagged_file_name.split(".bam")[0] + "_merged.bam"
 
     subprocess.run(
         [

@@ -157,14 +157,15 @@ impl<'a> ChunkProcessor<'a> {
                     umis_reads,
                     Arc::clone(&self.barcode_tracker),
                 );
-                let mut min_max = self.min_max.lock();
 
                 // update grouping report
                 if let Some(tagged_reads) = tagged_reads {
                     self.reads_to_output.lock().extend(tagged_reads.1);
 
                     if let Some(group_report) = tagged_reads.0 {
+                        let mut min_max = self.min_max.lock();
                         min_max.update(group_report, num_umis);
+                        drop(min_max)
                     }
                 }
             }

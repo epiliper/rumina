@@ -1,5 +1,7 @@
 use crate::GroupingMethod;
 use indexmap::{IndexMap, IndexSet};
+use parking_lot::Mutex;
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -46,7 +48,7 @@ impl<'b> Grouper<'b> {
         searched
     }
 
-    // groups UMIs with substring neighbors to reduce number of comparisons. 
+    // groups UMIs with substring neighbors to reduce number of comparisons.
     pub fn get_substring_map(&self) -> IndexMap<(usize, usize), IndexMap<&str, Vec<&String>>> {
         let umi_length = self.umis.first().unwrap().len();
         let mut slices = Vec::with_capacity(umi_length * 2);
@@ -92,16 +94,18 @@ impl<'b> Grouper<'b> {
 
         let mut observed: HashSet<&String> = HashSet::new();
         for u in self.umis.iter() {
-
-
             for (slice, substrings) in &substring_map {
-                neighbors.entry(u)
+                neighbors
+                    .entry(u)
                     .or_insert_with(|| IndexSet::new())
                     .extend(substrings.get(&u[slice.0..slice.1]).unwrap())
             }
 
             observed.insert(u);
-            neighbors.get_mut(u).unwrap().retain(|nbr| !observed.contains(nbr));
+            neighbors
+                .get_mut(u)
+                .unwrap()
+                .retain(|nbr| !observed.contains(nbr));
         }
 
         neighbors
@@ -109,11 +113,17 @@ impl<'b> Grouper<'b> {
 
     // if UMI group A within edit distance threshold and has ≥2n-1 read count compared to group B,
     // then (group A) ---> (group B)
-    pub fn add_edge_directional(&self, umi_a: &String, umi_b: &String, counts: &HashMap<&String, i32>, threshold: usize) -> bool {
-        edit_distance(umi_a, umi_b) <= threshold 
-            && umi_a != umi_b 
-                && *counts.get(umi_a).unwrap() >= counts.get(umi_b).unwrap() * 2 - 1 
-     }
+    pub fn add_edge_directional(
+        &self,
+        umi_a: &String,
+        umi_b: &String,
+        counts: &HashMap<&String, i32>,
+        threshold: usize,
+    ) -> bool {
+        edit_distance(umi_a, umi_b) <= threshold
+            && umi_a != umi_b
+            && *counts.get(umi_a).unwrap() >= counts.get(umi_b).unwrap() * 2 - 1
+    }
 
     // groups umis via directional algorithm
     pub fn get_adj_list_directional(
@@ -134,12 +144,12 @@ impl<'b> Grouper<'b> {
             for neighbor in neighbors {
                 if self.add_edge_directional(umi, neighbor, counts, threshold) {
                     adj_list.entry(umi).or_insert(vec![neighbor]).push(neighbor);
-                } 
+                }
 
                 if self.add_edge_directional(neighbor, umi, counts, threshold) {
                     adj_list.entry(neighbor).or_insert(vec![umi]).push(umi);
                 }
-            } 
+            }
         });
         adj_list
     }
@@ -165,7 +175,9 @@ impl<'b> Grouper<'b> {
                 adj_list.entry(umi).or_default();
 
                 for neighbor in neighbors {
-                    if !found.contains(neighbor) && self.add_edge_directional(umi, neighbor, counts, threshold) {
+                    if !found.contains(neighbor)
+                        && self.add_edge_directional(umi, neighbor, counts, threshold)
+                    {
                         adj_list[umi].push(neighbor);
                         found.insert(neighbor);
                     }
@@ -194,6 +206,7 @@ impl<'b> Grouper<'b> {
                     components.push(component);
                 }
             });
+
             Some(components)
         } else {
             None
@@ -206,7 +219,6 @@ impl<'b> Grouper<'b> {
         let mut groups: Vec<Vec<&String>> = Vec::new();
 
         for cluster in clusters {
-
             if cluster.len() == 1 {
                 let node = cluster.iter().next().unwrap();
                 groups.push(vec![node]);

@@ -155,7 +155,9 @@ impl<'a> GroupHandler<'a> {
                     {
                         if self.track_barcodes {
                             // group_report.barcode_tracker.count(read_umi);
-                            barcode_tracker.lock().count(read_umi);
+                            let mut bc_tracker = barcode_tracker.lock();
+                            bc_tracker.count(read_umi);
+                            drop(bc_tracker);
                         }
                     }
 

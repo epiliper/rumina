@@ -74,7 +74,7 @@ fn main() {
             let start = range[0];
             let end = range[1];
 
-            let _ = bam_reader.fetch((tid, start, end + 300));
+            let _ = bam_reader.fetch((tid, start, end));
 
             for r in bam_reader.records() {
                 let read = r.unwrap();
