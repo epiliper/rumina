@@ -5,19 +5,13 @@ use crate::readkey::ReadKey;
 use crate::report::{BarcodeTracker, StaticUMI};
 use crate::GroupReport;
 use crate::GroupingMethod;
-use indicatif::ProgressBar;
+use indicatif::{MultiProgress, ProgressBar};
 use parking_lot::Mutex;
 use rayon::prelude::*;
 use rust_htslib::bam::ext::BamRecordExtensions;
-use rust_htslib::bam::{Header, IndexedReader, Read, Reader, Record, Writer};
-use rust_htslib::htslib;
+use rust_htslib::bam::{Header, IndexedReader, Read, Record, Writer};
 use std::collections::HashMap;
 use std::sync::Arc;
-
-pub enum BamReader {
-    Indexed(IndexedReader),
-    Standard(Reader),
-}
 
 pub fn get_umi<'a>(record: &'a Record, separator: &String) -> &'a str {
     unsafe {
@@ -30,11 +24,39 @@ pub fn get_umi<'a>(record: &'a Record, separator: &String) -> &'a str {
 
 pub fn get_umi_static<'a>(raw_umi: &'a str) -> StaticUMI {
     let mut umi = StaticUMI::new();
-    umi.extend(
-        raw_umi.as_bytes().into_iter().map(|b| *b), // .into_iter()
-                                                    // .map(|b| *b),
-    );
+    umi.extend(raw_umi.as_bytes().into_iter().map(|b| *b));
     umi
+}
+
+pub fn get_windows(
+    window_size: Option<i64>,
+    bam: &IndexedReader,
+    reference_id: u32,
+) -> Vec<[i64; 2]> {
+    if let Some(window_size) = window_size {
+        let max_pos = bam
+            .header()
+            .target_len(reference_id)
+            .expect("Invalid reference") as i64;
+
+        let mut ranges: Vec<[i64; 2]> = Vec::new();
+
+        let mut j;
+        let mut i = 0;
+
+        while i <= max_pos - window_size {
+            j = i;
+            i = j + window_size;
+
+            ranges.push([j, i]);
+        }
+
+        ranges.push([i, max_pos + 1]);
+
+        return ranges;
+    } else {
+        return vec![[0, i64::MAX]];
+    }
 }
 
 pub fn make_bam_writer(output_file: &String, header: Header, num_threads: usize) -> Writer {
@@ -44,24 +66,12 @@ pub fn make_bam_writer(output_file: &String, header: Header, num_threads: usize)
     bam_writer
 }
 
-pub fn make_bam_reader(
-    input_file: &String,
-    indexed: bool,
-    num_threads: usize,
-) -> (Header, BamReader) {
-    if indexed {
-        let mut bam_reader = IndexedReader::from_path(input_file).unwrap();
-        bam_reader.set_threads(num_threads).unwrap();
-        let header = Header::from_template(bam_reader.header());
+pub fn make_bam_reader(input_file: &String, num_threads: usize) -> (Header, IndexedReader) {
+    let mut bam_reader = IndexedReader::from_path(input_file).unwrap();
+    bam_reader.set_threads(num_threads).unwrap();
+    let header = Header::from_template(bam_reader.header());
 
-        (header, BamReader::Indexed(bam_reader))
-    } else {
-        let mut bam_reader = Reader::from_path(input_file).unwrap();
-        bam_reader.set_threads(num_threads).unwrap();
-        let header = Header::from_template(bam_reader.header());
-
-        (header, BamReader::Standard(bam_reader))
-    }
+    (header, bam_reader)
 }
 
 // this struct serves to retrieve reads from either indexed or unindexed BAM files, batch them, and
@@ -112,9 +122,10 @@ impl<'a> ChunkProcessor<'a> {
     // run grouping on pulled reads
     // add tags to Records
     // output them to list for writing to bam
-    pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap) {
+    pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap, multiprog: &MultiProgress) {
         let grouping_method = Arc::new(&self.grouping_method);
-        let progress_bar = ProgressBar::new(bottomhash.read_dict.len() as u64);
+
+        let coord_bar = multiprog.add(ProgressBar::new(bottomhash.read_dict.len() as u64));
 
         bottomhash.read_dict.par_drain(..).for_each(|position| {
             for umi in position.1 {
@@ -169,11 +180,13 @@ impl<'a> ChunkProcessor<'a> {
                     }
                 }
             }
+            self.barcode_tracker.lock().write_to_report_file();
 
-            progress_bar.inc(1);
+            coord_bar.inc(1);
         });
 
-        progress_bar.finish();
+        coord_bar.finish();
+        coord_bar.finish_and_clear();
     }
 
     // organize reads in bottomhash based on position
@@ -204,48 +217,48 @@ impl<'a> ChunkProcessor<'a> {
     // for every position, group, and process UMIs. output remaining UMIs to write list
     pub fn process_chunks(
         &mut self,
-        input_file: BamReader,
+        mut reader: IndexedReader,
+        window_size: Option<i64>,
         mut bam_writer: Writer,
         mut bottomhash: BottomHashMap,
     ) {
         let mut pos;
         let mut key;
 
-        match input_file {
-            BamReader::Standard(mut reader) => {
-                for read in reader
-                    .records()
-                    .map(|x| x.unwrap())
-                    .filter(|read| read.flags() & htslib::BAM_FUNMAP as u16 == 0)
-                {
-                    (pos, key) = self.get_read_pos_key(&read);
-                    self.pull_read(read, pos, key, &mut bottomhash, self.separator);
+        let ref_count = reader.header().clone().target_count();
 
-                    if self.read_counter % 100_000 == 0 {
-                        print! {"Read in {} reads\r", self.read_counter}
-                    }
-                }
-            }
+        for tid in 0..ref_count {
+            let windows = get_windows(window_size, &reader, tid);
 
-            BamReader::Indexed(mut reader) => {
-                let ref_count = reader.header().clone().target_count();
+            let multiprog = MultiProgress::new();
+            let window_bar = multiprog.add(ProgressBar::new(windows.len() as u64));
 
-                for tid in 0..ref_count {
-                    reader.fetch((tid, 0, u32::MAX)).unwrap();
+            for window in windows {
+                let start = window[0];
+                let end = window[1];
 
-                    for read in reader.records().map(|read| read.unwrap()) {
+                reader
+                    .fetch((tid, window[0], window[1]))
+                    .expect("Error: invalid window value supplied!");
+
+                for read in reader.records().map(|read| read.unwrap()) {
+                    if read.is_reverse() {
+                        // reverse-mapping reads
+                        if read.reference_end() <= end && read.reference_end() >= start {
+                            (pos, key) = self.get_read_pos_key(&read);
+                            self.pull_read(read, pos, key, &mut bottomhash, self.separator);
+                        }
+                        // forward-mapping reads
+                    } else if read.reference_start() < end && read.reference_start() >= start {
                         (pos, key) = self.get_read_pos_key(&read);
                         self.pull_read(read, pos, key, &mut bottomhash, self.separator);
-
-                        if self.read_counter % 100_000 == 0 {
-                            print! {"Read in {} reads\r", self.read_counter}
-                        }
                     }
                 }
+                Self::group_reads(self, &mut bottomhash, &multiprog);
+                self.write_reads(&mut bam_writer);
+                window_bar.inc(1);
             }
         }
         println!("Grouping {} reads...", self.read_counter);
-        Self::group_reads(self, &mut bottomhash);
-        self.write_reads(&mut bam_writer)
     }
 }

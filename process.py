@@ -19,17 +19,8 @@ else:
 exec_path = os.path.dirname(os.path.abspath(__file__))
 
 
-def process_dir(dir, split):
-    for file in os.listdir(dir):
-        if file.endswith(".bam") and "tagged" not in file and "rumina" not in file:
-            file_to_clean = os.path.abspath(os.path.join(dir, file))
-            print(f"WORKING ON FILE: {file_to_clean}")
-            outfile = group_bam(file_to_clean, split)
-            print_file_end()
-
-
-def process_file(file, split):
-    outfile = group_bam(file, split)
+def process_file(file, split_window):
+    group_bam(file, split_window)
     print_file_end()
 
 
@@ -86,59 +77,6 @@ def calculate_split(input):
         return 100
 
 
-def split_bam(input, window_size):
-    file = os.path.basename(input)
-    split_dir = file.split(".bam")[0] + f"_{window_size}"
-
-    print(f"Splitting {input} into {window_size}bp windows...")
-
-    subprocess.run(
-        [
-            os.path.join(exec_path, "multibam/target/release/multibam"),
-            input,
-            split_dir,
-            str(window_size),
-            args.threads,
-        ]
-    )
-
-    return input, os.path.join(os.path.dirname(input), split_dir)
-
-
-def merge_processed_splits(file):
-    clean_dir = os.path.join(work_path, args.outdir)
-
-    bam_name = os.path.basename(file).split(".bam")[0]
-
-    prefixes_for_merging = set()
-
-    for filename in os.listdir(clean_dir):
-        if filename.endswith(".bam") and (
-            bam_name in filename and "rumina" not in filename
-        ):
-            prefixes_for_merging.add(bam_name)
-
-    for prefix in prefixes_for_merging:
-        splits = [
-            os.path.join(clean_dir, file)
-            for file in os.listdir(clean_dir)
-            if file.startswith(prefix)
-            and file.endswith(".bam")
-            and "rumina" not in file
-        ]
-
-        final_file = os.path.join(clean_dir, prefix + "_rumina.bam")
-
-        pysam.merge(f"-@ {args.threads}", "-f", final_file, *splits)
-        for split in splits:
-            os.remove(split)
-
-        if not args.no_report:
-            sort_and_index(file, final_file)
-
-        return final_file
-
-
 def merge_fr(tagged_file_name):
     print("Merging overlapping forward/reverse amplicons...")
     dupes = os.path.join(args.outdir, "barcodes.tsv")
@@ -163,11 +101,8 @@ def merge_fr(tagged_file_name):
 
 
 # assign UG tag for each group of clustered UMIs
-def group_bam(input_file, split):
-    if split:
-        suffix = "_split.bam"
-    else:
-        suffix = "_rumina.bam"
+def group_bam(input_file, split_window):
+    suffix = "_rumina.bam"
 
     output_dir = os.path.join(work_path, args.outdir)
     if not os.path.exists(output_dir):
@@ -188,8 +123,8 @@ def group_bam(input_file, split):
         args.threads,
     ]
 
-    if os.path.exists(f"{input_file}.bai"):
-        tag_cmd.append("--indexed")
+    if split_window:
+        tag_cmd.append(split_window)
 
     if args.length:
         tag_cmd.append("--length")
@@ -206,8 +141,7 @@ def group_bam(input_file, split):
     subprocess.run(tag_cmd)
 
     if not args.no_report:
-        if not split:
-            sort_and_index(input_file, tagged_file_name)
+        sort_and_index(input_file, tagged_file_name)
 
     return tagged_file_name
 

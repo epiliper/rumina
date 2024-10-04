@@ -1,7 +1,5 @@
 use crate::GroupingMethod;
 use indexmap::{IndexMap, IndexSet};
-use parking_lot::Mutex;
-use rayon::prelude::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;

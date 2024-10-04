@@ -35,22 +35,31 @@ enum GroupingMethod {
 struct Args {
     #[arg(long = "in", index = 1)]
     input: String,
+
     #[arg(long = "out", index = 2)]
     output: String,
+
     #[arg(long = "sep", index = 3)]
     separator: String,
+
     #[arg(long = "group", index = 4)]
     grouping_method: GroupingMethod,
+
     #[arg(long = "threads", index = 5)]
     threads: usize,
+
+    #[arg(long = "split_window", index = 6)]
+    split_window: Option<i64>,
+
     #[arg(long = "length")]
     length: bool,
+
     #[arg(long = "only-group")]
     only_group: bool,
+
     #[arg(long = "singletons")]
     singletons: bool,
-    #[arg(long = "indexed")]
-    indexed: bool,
+
     #[arg(long = "track-umis")]
     track_barcodes: bool,
 }
@@ -61,6 +70,7 @@ fn main() {
     let output_file = args.output;
     let separator = args.separator;
     let grouping_method = args.grouping_method;
+    let split_window = args.split_window;
 
     ThreadPoolBuilder::new()
         .num_threads(args.threads)
@@ -80,12 +90,13 @@ fn main() {
     let reads_to_write: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
 
     // create bam input/output
-    let (header, bam_reader) = make_bam_reader(&input_file, args.indexed, args.threads);
+    let (header, bam_reader) = make_bam_reader(&input_file, args.threads);
     let bam_writer = make_bam_writer(&output_file, header, args.threads);
 
     // create deduplication report
     let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(GroupReport::new()));
-    let barcode_tracker: Arc<Mutex<BarcodeTracker>> = Arc::new(Mutex::new(BarcodeTracker::new()));
+    let barcode_tracker: Arc<Mutex<BarcodeTracker>> =
+        Arc::new(Mutex::new(BarcodeTracker::new(&output_file)));
 
     // holds filtered reads awaiting writing to output bam file
     let mut read_handler = ChunkProcessor {
@@ -103,7 +114,7 @@ fn main() {
     };
 
     // do grouping and processing
-    read_handler.process_chunks(bam_reader, bam_writer, bottomhash);
+    read_handler.process_chunks(bam_reader, split_window, bam_writer, bottomhash);
     let num_reads_in = read_handler.read_counter;
 
     drop(read_handler);
@@ -118,8 +129,8 @@ fn main() {
         println!("{}", "DONE".green());
 
         group_report.write_to_report_file(&output_file);
-        let mut barcode_tracker = Arc::try_unwrap(barcode_tracker).unwrap().into_inner();
-        barcode_tracker.write_to_report_file(&output_file);
+        // let mut barcode_tracker = Arc::try_unwrap(barcode_tracker).unwrap().into_inner();
+        // barcode_tracker.write_to_report_file(&output_file);
         println!("{}", group_report);
     }
 }

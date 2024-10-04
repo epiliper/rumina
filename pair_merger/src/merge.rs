@@ -5,6 +5,7 @@ use rust_htslib::bam::{
     Record,
 };
 use std::collections::HashMap;
+use std::str;
 
 use crate::merge_report::*;
 
@@ -134,8 +135,8 @@ pub fn attempt_merge(read_a: &Record, read_b: &Record) -> Option<IndexMap<i64, u
             if *other_nuc != nuc {
                 println!(
                     "Discordant read detected! base a: {}, base b: {}",
-                    nuc.to_string(),
-                    other_nuc.to_string()
+                    str::from_utf8(&[nuc]).unwrap(),
+                    str::from_utf8(&[*other_nuc]).unwrap(),
                 );
                 discordant = true;
                 break;

@@ -13,6 +13,7 @@ const MAX_UMI_LENGTH: usize = 30;
 #[derive(Debug)]
 pub struct BarcodeTracker {
     barcode_counter: IndexMap<StaticUMI, u16>,
+    outfile: String,
 }
 
 // a UMI barcode in an ArrayVec of u8, efficient for
@@ -21,9 +22,10 @@ pub struct BarcodeTracker {
 pub type StaticUMI = ArrayVec<u8, MAX_UMI_LENGTH>;
 
 impl BarcodeTracker {
-    pub fn new() -> Self {
+    pub fn new(outfile: &String) -> Self {
         BarcodeTracker {
             barcode_counter: IndexMap::with_capacity(1000),
+            outfile: outfile.to_string(),
         }
     }
 
@@ -32,8 +34,8 @@ impl BarcodeTracker {
         self.barcode_counter.entry(umi).or_insert(0).add_assign(1);
     }
 
-    pub fn write_to_report_file(&mut self, output_file: &String) {
-        let barcode_file = Path::new(&output_file)
+    pub fn write_to_report_file(&mut self) {
+        let barcode_file = Path::new(&self.outfile)
             .parent()
             .unwrap()
             .join("barcodes.tsv");
@@ -47,7 +49,7 @@ impl BarcodeTracker {
             .open(barcode_file)
             .expect("unable to open minmax file");
 
-        for (umi, count) in self.barcode_counter.iter() {
+        for (umi, count) in self.barcode_counter.drain(..) {
             writeln!(barcode_f, "{}\t{}", String::from_utf8_lossy(&umi), count).unwrap();
         }
     }
