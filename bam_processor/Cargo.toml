@@ -15,6 +15,7 @@ rust-htslib = "0.47.0"
 arrayvec = "0.7.6"
 colored = "2"
 indicatif = "0.17.8"
+num-format = "0.4.4"
 
 [profile.release]
 codegen-units = 1

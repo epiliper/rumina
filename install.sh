@@ -6,9 +6,6 @@ NC=$'\e[0m'
 cd bam_processor
 cargo build --release 
 
-cd ../multibam 
-cargo build --release
-
 cd ../pair_merger
 cargo build --release
 

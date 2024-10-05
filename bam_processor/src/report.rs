@@ -7,6 +7,10 @@ use std::io::Write;
 use std::ops::AddAssign;
 use std::path::Path;
 
+use num_format::{Locale, ToFormattedString};
+
+const LOCALE: Locale = Locale::en;
+
 const MAX_UMI_LENGTH: usize = 30;
 
 // This module defines the report generated during deduplication.
@@ -156,19 +160,19 @@ impl fmt::Display for GroupReport {
             {}: {}\n\
             {}: {}",
             "Minimum reads per group".cyan(),
-            self.min_reads,
+            self.min_reads.to_formatted_string(&LOCALE),
             "Maximum reads per group".cyan(),
-            self.max_reads,
+            self.max_reads.to_formatted_string(&LOCALE),
             "Total UMI groups".cyan(),
-            self.num_groups,
+            self.num_groups.to_formatted_string(&LOCALE),
             "Groups passing singleton filtering".cyan(),
-            self.num_passing_groups,
+            self.num_passing_groups.to_formatted_string(&LOCALE),
             "Total UMIs considered".cyan(),
-            self.num_umis,
+            self.num_umis.to_formatted_string(&LOCALE),
             "Input reads (mapped)".cyan(),
-            self.num_reads_input_file,
+            self.num_reads_input_file.to_formatted_string(&LOCALE),
             "Output reads".cyan(),
-            self.num_reads_output_file
+            self.num_reads_output_file.to_formatted_string(&LOCALE)
         )
     }
 }

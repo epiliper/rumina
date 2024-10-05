@@ -59,4 +59,4 @@ for i, file in enumerate(temp_bams, 1):
 end_time = time.time()
 
 execution_time = end_time - start_time
-print("Execution time: ", execution_time)
+print(f"Execution time: {round(execution_time, 2)} seconds")

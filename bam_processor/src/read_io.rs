@@ -5,7 +5,7 @@ use crate::readkey::ReadKey;
 use crate::report::{BarcodeTracker, StaticUMI};
 use crate::GroupReport;
 use crate::GroupingMethod;
-use indicatif::{MultiProgress, ProgressBar};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use parking_lot::Mutex;
 use rayon::prelude::*;
 use rust_htslib::bam::ext::BamRecordExtensions;
@@ -125,7 +125,14 @@ impl<'a> ChunkProcessor<'a> {
     pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap, multiprog: &MultiProgress) {
         let grouping_method = Arc::new(&self.grouping_method);
 
-        let coord_bar = multiprog.add(ProgressBar::new(bottomhash.read_dict.len() as u64));
+        let mut coord_bar = multiprog.add(ProgressBar::new(bottomhash.read_dict.len() as u64));
+        coord_bar = ProgressBar::with_style(
+            coord_bar,
+            ProgressStyle::with_template("{prefix}:\t{human_pos}/{human_len:7} {bar:40.cyan/blue}")
+                .unwrap(),
+        );
+
+        coord_bar.set_prefix("REFERENCE COORDINATE");
 
         bottomhash.read_dict.par_drain(..).for_each(|position| {
             for umi in position.1 {
@@ -185,7 +192,6 @@ impl<'a> ChunkProcessor<'a> {
             coord_bar.inc(1);
         });
 
-        coord_bar.finish();
         coord_bar.finish_and_clear();
     }
 
@@ -231,11 +237,28 @@ impl<'a> ChunkProcessor<'a> {
             let windows = get_windows(window_size, &reader, tid);
 
             let multiprog = MultiProgress::new();
-            let window_bar = multiprog.add(ProgressBar::new(windows.len() as u64));
+
+            let mut read_bar = ProgressBar::new_spinner()
+                .with_style(ProgressStyle::with_template("{msg}").unwrap());
+
+            read_bar = multiprog.add(read_bar);
+            let mut window_bar = multiprog.add(ProgressBar::new(windows.len() as u64));
+
+            window_bar = ProgressBar::with_style(
+                window_bar,
+                ProgressStyle::with_template(
+                    "{prefix}:\t\t       {human_pos}/{human_len:7} {msg:15}{spinner.white}",
+                )
+                .unwrap(),
+            );
+
+            window_bar.set_prefix("WINDOW");
 
             for window in windows {
                 let start = window[0];
                 let end = window[1];
+
+                let mut window_reads = 0;
 
                 reader
                     .fetch((tid, window[0], window[1]))
@@ -247,18 +270,22 @@ impl<'a> ChunkProcessor<'a> {
                         if read.reference_end() <= end && read.reference_end() >= start {
                             (pos, key) = self.get_read_pos_key(&read);
                             self.pull_read(read, pos, key, &mut bottomhash, self.separator);
+                            window_reads += 1;
                         }
                         // forward-mapping reads
                     } else if read.reference_start() < end && read.reference_start() >= start {
                         (pos, key) = self.get_read_pos_key(&read);
                         self.pull_read(read, pos, key, &mut bottomhash, self.separator);
+                        window_reads += 1;
                     }
                 }
+                window_bar.set_message(format!("{window_reads} reads"));
                 Self::group_reads(self, &mut bottomhash, &multiprog);
                 self.write_reads(&mut bam_writer);
                 window_bar.inc(1);
+                read_bar.set_message(format!("Processed {} total reads...", self.read_counter));
             }
+            window_bar.finish();
         }
-        println!("Grouping {} reads...", self.read_counter);
     }
 }

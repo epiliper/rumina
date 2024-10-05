@@ -1,5 +1,8 @@
 use colored::Colorize;
+use num_format::{Locale, ToFormattedString};
 use std::fmt;
+
+const LOCALE: Locale = Locale::en;
 
 pub enum MergeResult {
     Discordant,
@@ -51,15 +54,15 @@ impl fmt::Display for MergeReport {
             "PAIR MERGER".yellow(),
             "=============================".yellow(),
             "Discordant read pairs".yellow(),
-            self.num_discordant,
+            self.num_discordant.to_formatted_string(&LOCALE),
             "Unmerged reads".yellow(),
-            self.num_unmerged,
+            self.num_unmerged.to_formatted_string(&LOCALE),
             "Merged read pairs".yellow(),
-            self.num_merged,
+            self.num_merged.to_formatted_string(&LOCALE),
             "Reads in".yellow(),
-            self.num_inreads,
+            self.num_inreads.to_formatted_string(&LOCALE),
             "Reads out".yellow(),
-            self.num_outreads,
+            self.num_outreads.to_formatted_string(&LOCALE),
             "=============================".yellow(),
         )
     }

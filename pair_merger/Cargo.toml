@@ -11,6 +11,7 @@ clap = {version = "4.5.4", features = ["derive"]}
 crossbeam = "0.8.4"
 tikv-jemallocator = "0.5"
 colored = "2"
+num-format = "0.4.4"
 
 [profile.release]
 codegen-units = 1
