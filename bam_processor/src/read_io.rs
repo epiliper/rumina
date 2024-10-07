@@ -233,15 +233,15 @@ impl<'a> ChunkProcessor<'a> {
 
         let ref_count = reader.header().clone().target_count();
 
+        let mut read_bar =
+            ProgressBar::new_spinner().with_style(ProgressStyle::with_template("{msg}").unwrap());
+
         for tid in 0..ref_count {
             let windows = get_windows(window_size, &reader, tid);
 
             let multiprog = MultiProgress::new();
-
-            let mut read_bar = ProgressBar::new_spinner()
-                .with_style(ProgressStyle::with_template("{msg}").unwrap());
-
             read_bar = multiprog.add(read_bar);
+
             let mut window_bar = multiprog.add(ProgressBar::new(windows.len() as u64));
 
             window_bar = ProgressBar::with_style(
@@ -254,38 +254,40 @@ impl<'a> ChunkProcessor<'a> {
 
             window_bar.set_prefix("WINDOW");
 
-            for window in windows {
-                let start = window[0];
-                let end = window[1];
-
+            for window_chunk in windows.chunks(3) {
                 let mut window_reads = 0;
+                for window in window_chunk {
+                    let start = window[0];
+                    let end = window[1];
 
-                reader
-                    .fetch((tid, window[0], window[1]))
-                    .expect("Error: invalid window value supplied!");
+                    reader
+                        .fetch((tid, window[0], window[1]))
+                        .expect("Error: invalid window value supplied!");
 
-                for read in reader.records().map(|read| read.unwrap()) {
-                    if read.is_reverse() {
-                        // reverse-mapping reads
-                        if read.reference_end() <= end && read.reference_end() >= start {
+                    for read in reader.records().map(|read| read.unwrap()) {
+                        if read.is_reverse() {
+                            // reverse-mapping reads
+                            if read.reference_end() <= end && read.reference_end() >= start {
+                                (pos, key) = self.get_read_pos_key(&read);
+                                self.pull_read(read, pos, key, &mut bottomhash, self.separator);
+                                window_reads += 1;
+                            }
+                            // forward-mapping reads
+                        } else if read.reference_start() < end && read.reference_start() >= start {
                             (pos, key) = self.get_read_pos_key(&read);
                             self.pull_read(read, pos, key, &mut bottomhash, self.separator);
                             window_reads += 1;
                         }
-                        // forward-mapping reads
-                    } else if read.reference_start() < end && read.reference_start() >= start {
-                        (pos, key) = self.get_read_pos_key(&read);
-                        self.pull_read(read, pos, key, &mut bottomhash, self.separator);
-                        window_reads += 1;
                     }
                 }
-                window_bar.set_message(format!("{window_reads} reads"));
+                window_bar.set_message(format!("{window_reads} reads in window"));
                 Self::group_reads(self, &mut bottomhash, &multiprog);
                 self.write_reads(&mut bam_writer);
-                window_bar.inc(1);
+                window_bar.inc(3);
                 read_bar.set_message(format!("Processed {} total reads...", self.read_counter));
             }
             window_bar.finish();
         }
+        read_bar.finish();
     }
 }
