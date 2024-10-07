@@ -18,6 +18,7 @@ use std::sync::Arc;
 mod bottomhash;
 mod deduplicator;
 mod grouper;
+mod progbars;
 mod read_io;
 mod read_picker;
 mod readkey;

@@ -1,11 +1,12 @@
 use crate::bottomhash::BottomHashMap;
 use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
+use crate::progbars::*;
 use crate::readkey::ReadKey;
 use crate::report::{BarcodeTracker, StaticUMI};
 use crate::GroupReport;
 use crate::GroupingMethod;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::MultiProgress;
 use parking_lot::Mutex;
 use rayon::prelude::*;
 use rust_htslib::bam::ext::BamRecordExtensions;
@@ -125,12 +126,8 @@ impl<'a> ChunkProcessor<'a> {
     pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap, multiprog: &MultiProgress) {
         let grouping_method = Arc::new(&self.grouping_method);
 
-        let mut coord_bar = multiprog.add(ProgressBar::new(bottomhash.read_dict.len() as u64));
-        coord_bar = ProgressBar::with_style(
-            coord_bar,
-            ProgressStyle::with_template("{prefix}:\t{human_pos}/{human_len:7} {bar:40.cyan/blue}")
-                .unwrap(),
-        );
+        let mut coord_bar = make_coordbar(bottomhash.read_dict.len() as u64);
+        coord_bar = multiprog.add(coord_bar);
 
         coord_bar.set_prefix("REFERENCE COORDINATE");
 
@@ -233,8 +230,7 @@ impl<'a> ChunkProcessor<'a> {
 
         let ref_count = reader.header().clone().target_count();
 
-        let mut read_bar =
-            ProgressBar::new_spinner().with_style(ProgressStyle::with_template("{msg}").unwrap());
+        let mut read_bar = make_readbar();
 
         for tid in 0..ref_count {
             let windows = get_windows(window_size, &reader, tid);
@@ -242,15 +238,8 @@ impl<'a> ChunkProcessor<'a> {
             let multiprog = MultiProgress::new();
             read_bar = multiprog.add(read_bar);
 
-            let mut window_bar = multiprog.add(ProgressBar::new(windows.len() as u64));
-
-            window_bar = ProgressBar::with_style(
-                window_bar,
-                ProgressStyle::with_template(
-                    "{prefix}:\t\t       {human_pos}/{human_len:7} {msg:15}{spinner.white}",
-                )
-                .unwrap(),
-            );
+            let mut window_bar = make_windowbar(windows.len() as u64);
+            window_bar = multiprog.add(window_bar);
 
             window_bar.set_prefix("WINDOW");
 
