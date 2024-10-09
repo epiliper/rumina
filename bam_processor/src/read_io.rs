@@ -1,4 +1,4 @@
-use crate::bottomhash::BottomHashMap;
+use crate::bottomhash::{self, BottomHashMap};
 use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::progbars::*;
@@ -6,6 +6,7 @@ use crate::readkey::ReadKey;
 use crate::report::{BarcodeTracker, StaticUMI};
 use crate::GroupReport;
 use crate::GroupingMethod;
+use indexmap::IndexMap;
 use indicatif::MultiProgress;
 use parking_lot::Mutex;
 use rayon::prelude::*;
@@ -214,7 +215,9 @@ impl<'a> ChunkProcessor<'a> {
         self.reads_to_output
             .lock()
             .drain(..)
-            .for_each(|read| bam_writer.write(&read).unwrap())
+            .for_each(|read| bam_writer.write(&read).unwrap());
+
+        self.reads_to_output = Arc::new(Mutex::new(Vec::with_capacity(1_000_000)));
     }
 
     // for every position, group, and process UMIs. output remaining UMIs to write list
@@ -223,7 +226,6 @@ impl<'a> ChunkProcessor<'a> {
         mut reader: IndexedReader,
         window_size: Option<i64>,
         mut bam_writer: Writer,
-        mut bottomhash: BottomHashMap,
     ) {
         let mut pos;
         let mut key;
@@ -244,6 +246,10 @@ impl<'a> ChunkProcessor<'a> {
             window_bar.set_prefix("WINDOW");
 
             for window_chunk in windows.chunks(3) {
+                let mut bottomhash = bottomhash::BottomHashMap {
+                    read_dict: IndexMap::with_capacity(1_500_000),
+                };
+
                 let mut window_reads = 0;
                 for window in window_chunk {
                     let start = window[0];

@@ -78,11 +78,6 @@ fn main() {
         .build()
         .expect("ERROR: Invalid number of threads specified!");
 
-    // holds organized reads
-    let bottomhash = bottomhash::BottomHashMap {
-        read_dict: IndexMap::new(),
-    };
-
     // create tag seed based on input file name
     let mut hasher = DefaultHasher::new();
     input_file.hash(&mut hasher);
@@ -115,7 +110,7 @@ fn main() {
     };
 
     // do grouping and processing
-    read_handler.process_chunks(bam_reader, split_window, bam_writer, bottomhash);
+    read_handler.process_chunks(bam_reader, split_window, bam_writer);
     let num_reads_in = read_handler.read_counter;
 
     drop(read_handler);
@@ -130,8 +125,6 @@ fn main() {
         println!("{}", "DONE".green());
 
         group_report.write_to_report_file(&output_file);
-        // let mut barcode_tracker = Arc::try_unwrap(barcode_tracker).unwrap().into_inner();
-        // barcode_tracker.write_to_report_file(&output_file);
         println!("{}", group_report);
     }
 }
