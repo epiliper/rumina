@@ -124,7 +124,7 @@ def group_bam(input_file, split_window):
     ]
 
     if split_window:
-        tag_cmd.append(split_window)
+        tag_cmd.append(str(split_window))
 
     if args.length:
         tag_cmd.append("--length")
