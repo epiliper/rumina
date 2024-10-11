@@ -38,7 +38,7 @@ pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
     // the sequence with the most reads is at index 0 (can be tied)
     sequences.sort_by(|_a, b, _c, d| d.1.cmp(&b.1));
 
-    let mut most_reads_groups: Vec<Vec<Record>> = Vec::with_capacity(100_000);
+    let mut most_reads_groups: Vec<Vec<Record>> = Vec::new();
     let mut first = true;
     let mut max = 0;
 
@@ -74,7 +74,7 @@ pub fn push_all_reads(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
 
 // get the number of reads across all UMIs within a group
 // this is useful for setting a threshold for reads observed per UMI group
-pub fn get_counts(top_umi: &Vec<&String>, counts: &HashMap<&String, i32>) -> i64 {
+pub fn get_counts(top_umi: &Vec<&str>, counts: &HashMap<&str, i32>) -> i64 {
     let mut read_count = 0;
     for umi in top_umi {
         read_count += counts.get(umi).unwrap();

@@ -27,7 +27,7 @@ impl BottomHashMap {
             .or_default()
             .entry(key)
             .or_default()
-            .entry(umi.to_string())
+            .entry(umi)
             .or_insert_with(|| ReadsAndCount {
                 reads: Vec::new(),
                 count: 0,

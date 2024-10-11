@@ -56,7 +56,7 @@ impl BarcodeTracker {
         for (umi, count) in self.barcode_counter.drain(..) {
             writeln!(barcode_f, "{}\t{}", String::from_utf8_lossy(&umi), count).unwrap();
         }
-        self.barcode_counter = IndexMap::with_capacity(1000);
+        self.barcode_counter.clear();
     }
 }
 

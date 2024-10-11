@@ -16,18 +16,18 @@ pub fn edit_distance(ua: &str, ub: &str) -> usize {
 
 // this struct contains logic for error correction of UMIs downstream of read batching.
 // this phase of the pipeline is driven by the cluster() and no_cluster() functions.
-pub struct Grouper<'b> {
-    pub umis: &'b Vec<String>,
+pub struct Grouper<'a> {
+    pub umis: &'a Vec<String>,
 }
 
 impl<'b> Grouper<'b> {
     // gets the group neighbors of all group neighbors of a given UMI.
     pub fn breadth_first_search(
-        mut node: &'b String,
-        adj_list: &IndexMap<&'b String, Vec<&'b String>>,
-    ) -> HashSet<&'b String> {
-        let mut searched: HashSet<&String> = HashSet::new();
-        let mut queue: VecDeque<&String> = VecDeque::new();
+        mut node: &'b str,
+        adj_list: &IndexMap<&str, Vec<&'b str>>,
+    ) -> HashSet<&'b str> {
+        let mut searched: HashSet<&str> = HashSet::new();
+        let mut queue: VecDeque<&str> = VecDeque::new();
 
         queue.push_back(node);
         searched.insert(node);
@@ -47,7 +47,7 @@ impl<'b> Grouper<'b> {
     }
 
     // groups UMIs with substring neighbors to reduce number of comparisons.
-    pub fn get_substring_map(&self) -> IndexMap<(usize, usize), IndexMap<&str, Vec<&String>>> {
+    pub fn get_substring_map(&self) -> IndexMap<(usize, usize), IndexMap<&str, Vec<&str>>> {
         let umi_length = self.umis.first().unwrap().len();
         let mut slices = Vec::with_capacity(umi_length * 2);
 
@@ -64,7 +64,7 @@ impl<'b> Grouper<'b> {
             }
         }
 
-        let mut substring_map: IndexMap<(usize, usize), IndexMap<&str, Vec<&String>>> =
+        let mut substring_map: IndexMap<(usize, usize), IndexMap<&str, Vec<&str>>> =
             IndexMap::new();
 
         let indices = slices.clone();
@@ -72,10 +72,10 @@ impl<'b> Grouper<'b> {
         for (slice, idx) in zip(slices, indices) {
             let slice_entry = substring_map.entry(idx).or_default();
 
-            for umi in self.umis {
+            for umi in self.umis.iter() {
                 slice_entry
                     .entry(&umi[slice.0..slice.1])
-                    .or_insert(vec![umi])
+                    .or_insert(Vec::new())
                     .push(umi);
             }
         }
@@ -84,13 +84,13 @@ impl<'b> Grouper<'b> {
     }
 
     // create an IndexMap (k, [v]) where UMI k has edit distance calculated for each UMI within [v].
-    pub fn iter_substring_neighbors(
-        &self,
-        substring_map: IndexMap<(usize, usize), IndexMap<&'b str, Vec<&'b String>>>,
-    ) -> IndexMap<&'b String, IndexSet<&'b String>> {
-        let mut neighbors: IndexMap<&'b String, IndexSet<&'b String>> = IndexMap::new();
+    pub fn iter_substring_neighbors<'c>(
+        &'c self,
+        substring_map: IndexMap<(usize, usize), IndexMap<&'c str, Vec<&'c str>>>,
+    ) -> IndexMap<&str, IndexSet<&str>> {
+        let mut neighbors: IndexMap<&str, IndexSet<&str>> = IndexMap::new();
 
-        let mut observed: HashSet<&String> = HashSet::new();
+        // let mut observed: HashSet<&str> = HashSet::new();
         for u in self.umis.iter() {
             for (slice, substrings) in &substring_map {
                 neighbors
@@ -99,11 +99,11 @@ impl<'b> Grouper<'b> {
                     .extend(substrings.get(&u[slice.0..slice.1]).unwrap())
             }
 
-            observed.insert(u);
-            neighbors
-                .get_mut(u)
-                .unwrap()
-                .retain(|nbr| !observed.contains(nbr));
+            // observed.insert(u);
+            // neighbors
+            //     .get_mut(u.as_str())
+            //     .unwrap()
+            //     .retain(|nbr| !observed.contains(nbr));
         }
 
         neighbors
@@ -113,9 +113,9 @@ impl<'b> Grouper<'b> {
     // then (group A) ---> (group B)
     pub fn add_edge_directional(
         &self,
-        umi_a: &String,
-        umi_b: &String,
-        counts: &HashMap<&String, i32>,
+        umi_a: &str,
+        umi_b: &str,
+        counts: &HashMap<&str, i32>,
         threshold: usize,
     ) -> bool {
         edit_distance(umi_a, umi_b) <= threshold
@@ -124,13 +124,13 @@ impl<'b> Grouper<'b> {
     }
 
     // groups umis via directional algorithm
-    pub fn get_adj_list_directional(
-        &self,
-        counts: &HashMap<&String, i32>,
-        substring_neighbors: IndexMap<&'b String, IndexSet<&'b String>>,
+    pub fn get_adj_list_directional<'d>(
+        &'d self,
+        counts: &HashMap<&str, i32>,
+        substring_neighbors: IndexMap<&'d str, IndexSet<&'d str>>,
         threshold: usize,
-    ) -> IndexMap<&'b String, Vec<&'b String>> {
-        let mut adj_list: IndexMap<&'b String, Vec<&'b String>> =
+    ) -> IndexMap<&'d str, Vec<&'d str>> {
+        let mut adj_list: IndexMap<&'d str, Vec<&'d str>> =
             IndexMap::with_capacity(substring_neighbors.values().len());
 
         substring_neighbors.iter().for_each(|x| {
@@ -153,17 +153,17 @@ impl<'b> Grouper<'b> {
     }
 
     // groups umis via acyclic algorithm
-    pub fn get_adj_list_acyclic(
-        &self,
-        counts: &HashMap<&String, i32>,
-        substring_neighbors: IndexMap<&'b String, IndexSet<&'b String>>,
+    pub fn get_adj_list_acyclic<'d>(
+        &'d self,
+        counts: &HashMap<&str, i32>,
+        substring_neighbors: IndexMap<&'d str, IndexSet<&'d str>>,
         threshold: usize,
-    ) -> IndexMap<&'b String, Vec<&'b String>> {
-        let mut adj_list: IndexMap<&'b String, Vec<&'b String>> =
+    ) -> IndexMap<&'d str, Vec<&'d str>> {
+        let mut adj_list: IndexMap<&'d str, Vec<&'d str>> =
             IndexMap::with_capacity(substring_neighbors.values().len());
 
         // if a barcode is already part of a tree, don't group it again
-        let mut found: HashSet<&String> = HashSet::with_capacity(adj_list.len());
+        let mut found: HashSet<&str> = HashSet::with_capacity(adj_list.len());
 
         substring_neighbors.iter().for_each(|x| {
             let umi = x.0;
@@ -189,12 +189,12 @@ impl<'b> Grouper<'b> {
     // with a list of grouped UMIs.
     // via depth-first-search
     // this is fed directly into the main_grouper function
-    pub fn get_connected_components(
-        &self,
-        adj_list: IndexMap<&'b String, Vec<&'b String>>,
-    ) -> Option<Vec<HashSet<&String>>> {
-        let mut components: Vec<HashSet<&String>> = Vec::new();
-        let mut found: HashSet<&String> = HashSet::new();
+    pub fn get_connected_components<'e>(
+        &'e self,
+        adj_list: IndexMap<&'e str, Vec<&'e str>>,
+    ) -> Option<Vec<HashSet<&str>>> {
+        let mut components: Vec<HashSet<&str>> = Vec::new();
+        let mut found: HashSet<&str> = HashSet::new();
 
         if !adj_list.is_empty() {
             adj_list.keys().for_each(|node| {
@@ -212,9 +212,9 @@ impl<'b> Grouper<'b> {
     }
 
     // get a list of UMIs, each with their own list of UMIs belonging to their group
-    pub fn get_umi_groups(&self, clusters: Vec<HashSet<&'b String>>) -> Vec<Vec<&'b String>> {
-        let mut observed: HashSet<&String> = HashSet::new();
-        let mut groups: Vec<Vec<&String>> = Vec::new();
+    pub fn get_umi_groups(&self, clusters: Vec<HashSet<&'b str>>) -> Vec<Vec<&'b str>> {
+        let mut observed: HashSet<&str> = HashSet::new();
+        let mut groups: Vec<Vec<&str>> = Vec::new();
 
         for cluster in clusters {
             if cluster.len() == 1 {
@@ -222,7 +222,7 @@ impl<'b> Grouper<'b> {
                 groups.push(vec![node]);
                 observed.insert(node);
             } else {
-                let mut temp_cluster: Vec<&String> = Vec::new();
+                let mut temp_cluster: Vec<&str> = Vec::new();
 
                 for node in cluster {
                     if !observed.contains(&node) {
@@ -239,13 +239,13 @@ impl<'b> Grouper<'b> {
     // used with the raw method. No UMI error correction.
     pub fn no_clustering(
         &self,
-        counts: HashMap<&'b String, i32>,
-    ) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
+        counts: HashMap<&'b str, i32>,
+    ) -> (HashMap<&str, i32>, Option<Vec<Vec<&str>>>) {
         let umis = self
             .umis
             .iter()
-            .map(|x| HashSet::from([x]))
-            .collect::<Vec<HashSet<&'b String>>>();
+            .map(|x| HashSet::from([x.as_str()]))
+            .collect::<Vec<HashSet<&'b str>>>();
         let final_umis = Some(self.get_umi_groups(umis));
 
         (counts, final_umis)
@@ -254,9 +254,9 @@ impl<'b> Grouper<'b> {
     // used with directional and acyclic methods. Driver function of UMI-error correction
     pub fn cluster(
         &self,
-        counts: HashMap<&'b String, i32>,
+        counts: HashMap<&'b str, i32>,
         grouping_method: Arc<&GroupingMethod>,
-    ) -> (HashMap<&String, i32>, Option<Vec<Vec<&String>>>) {
+    ) -> (HashMap<&str, i32>, Option<Vec<Vec<&str>>>) {
         let clusterer = match *grouping_method {
             GroupingMethod::Directional => Grouper::get_adj_list_directional,
             GroupingMethod::Acyclic => Grouper::get_adj_list_acyclic,

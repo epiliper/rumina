@@ -15,7 +15,7 @@ use rust_htslib::bam::{Header, IndexedReader, Read, Record, Writer};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-pub fn get_umi<'a>(record: &'a Record, separator: &String) -> &'a str {
+pub fn get_umi<'b>(record: &'b Record, separator: &String) -> &'b str {
     unsafe {
         std::str::from_utf8_unchecked(record.qname())
             .rsplit_once(separator)
@@ -24,7 +24,7 @@ pub fn get_umi<'a>(record: &'a Record, separator: &String) -> &'a str {
     }
 }
 
-pub fn get_umi_static<'a>(raw_umi: &'a str) -> StaticUMI {
+pub fn get_umi_static<'c>(raw_umi: &'c str) -> StaticUMI {
     let mut umi = StaticUMI::new();
     umi.extend(raw_umi.as_bytes().into_iter().map(|b| *b));
     umi
@@ -81,7 +81,6 @@ pub fn make_bam_reader(input_file: &String, num_threads: usize) -> (Header, Inde
 pub struct ChunkProcessor<'a> {
     pub separator: &'a String,
     pub read_counter: i64,
-    pub reads_to_output: Arc<Mutex<Vec<Record>>>,
     pub min_max: Arc<Mutex<GroupReport>>,
     pub grouping_method: GroupingMethod,
     pub group_by_length: bool,
@@ -124,13 +123,19 @@ impl<'a> ChunkProcessor<'a> {
     // run grouping on pulled reads
     // add tags to Records
     // output them to list for writing to bam
-    pub fn group_reads(&mut self, bottomhash: &mut BottomHashMap, multiprog: &MultiProgress) {
+    pub fn group_reads(
+        &mut self,
+        bottomhash: &mut BottomHashMap,
+        multiprog: &MultiProgress,
+    ) -> Vec<Record> {
         let grouping_method = Arc::new(&self.grouping_method);
 
         let mut coord_bar = make_coordbar(bottomhash.read_dict.len() as u64);
         coord_bar = multiprog.add(coord_bar);
 
         coord_bar.set_prefix("REFERENCE COORDINATE");
+
+        let outreads = Arc::new(Mutex::new(Vec::new()));
 
         bottomhash.read_dict.par_drain(..).for_each(|position| {
             for umi in position.1 {
@@ -147,13 +152,13 @@ impl<'a> ChunkProcessor<'a> {
                     .collect::<Vec<String>>();
 
                 let grouper = Grouper { umis: &umis };
-                let mut counts: HashMap<&String, i32> = HashMap::with_capacity(umis_reads.len());
+                let mut counts: HashMap<&str, i32> = HashMap::with_capacity(umis_reads.len());
 
                 // get number of reads for each raw UMI
                 let mut num_umis = 0;
 
                 for umi in &umis {
-                    counts.entry(umi).or_insert(umis_reads[umi].count);
+                    counts.entry(umi.as_str()).or_insert(umis_reads[umi].count);
                     num_umis += 1;
                 }
 
@@ -174,9 +179,13 @@ impl<'a> ChunkProcessor<'a> {
                     Arc::clone(&self.barcode_tracker),
                 );
 
+                drop(grouper);
+
                 // update grouping report
                 if let Some(tagged_reads) = tagged_reads {
-                    self.reads_to_output.lock().extend(tagged_reads.1);
+                    let mut out = outreads.lock();
+                    out.extend(tagged_reads.1);
+                    drop(out);
 
                     if let Some(group_report) = tagged_reads.0 {
                         let mut min_max = self.min_max.lock();
@@ -191,6 +200,9 @@ impl<'a> ChunkProcessor<'a> {
         });
 
         coord_bar.finish_and_clear();
+        Arc::try_unwrap(outreads)
+            .expect("Unable to dereference tagged reads!")
+            .into_inner()
     }
 
     // organize reads in bottomhash based on position
@@ -211,13 +223,10 @@ impl<'a> ChunkProcessor<'a> {
         self.read_counter += 1;
     }
 
-    pub fn write_reads(&mut self, bam_writer: &mut Writer) {
-        self.reads_to_output
-            .lock()
+    pub fn write_reads(&mut self, mut outreads: Vec<Record>, bam_writer: &mut Writer) {
+        outreads
             .drain(..)
             .for_each(|read| bam_writer.write(&read).unwrap());
-
-        self.reads_to_output = Arc::new(Mutex::new(Vec::with_capacity(1_000_000)));
     }
 
     // for every position, group, and process UMIs. output remaining UMIs to write list
@@ -245,7 +254,7 @@ impl<'a> ChunkProcessor<'a> {
 
             window_bar.set_prefix("WINDOW");
 
-            for window_chunk in windows.chunks(3) {
+            for window_chunk in windows.chunks(2) {
                 let mut bottomhash = bottomhash::BottomHashMap {
                     read_dict: IndexMap::with_capacity(1_500_000),
                 };
@@ -276,8 +285,9 @@ impl<'a> ChunkProcessor<'a> {
                     }
                 }
                 window_bar.set_message(format!("{window_reads} reads in window"));
-                Self::group_reads(self, &mut bottomhash, &multiprog);
-                self.write_reads(&mut bam_writer);
+                let outreads = Self::group_reads(self, &mut bottomhash, &multiprog);
+                bottomhash.read_dict.clear();
+                self.write_reads(outreads, &mut bam_writer);
                 window_bar.inc(3);
                 read_bar.set_message(format!("Processed {} total reads...", self.read_counter));
             }

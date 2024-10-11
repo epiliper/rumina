@@ -63,7 +63,7 @@ impl<'a> GroupHandler<'a> {
     // driver function of grouping
     pub fn tag_records(
         &mut self,
-        grouping_output: (HashMap<&String, i32>, Option<Vec<Vec<&String>>>),
+        grouping_output: (HashMap<&str, i32>, Option<Vec<Vec<&str>>>),
         mut umis_records: IndexMap<String, ReadsAndCount>,
         barcode_tracker: Arc<Mutex<BarcodeTracker>>,
     ) -> Option<(Option<GroupReport>, Vec<Record>)> {
@@ -82,15 +82,15 @@ impl<'a> GroupHandler<'a> {
     }
     pub fn tag_groups(
         &mut self,
-        mut final_umis: Vec<Vec<&String>>,
+        mut final_umis: Vec<Vec<&str>>,
         umis_records: &mut IndexMap<String, ReadsAndCount>,
-        counts: HashMap<&String, i32>,
+        counts: HashMap<&str, i32>,
         barcode_tracker: Arc<Mutex<BarcodeTracker>>,
     ) -> (Option<GroupReport>, Vec<Record>) {
         // for each UMI within a group, assign the same tag
 
         let mut rng = StdRng::seed_from_u64(self.seed);
-        let mut output_list: Vec<Record> = Vec::with_capacity(1_000_000);
+        let mut output_list: Vec<Record> = Vec::new();
         let mut used_tags: HashSet<[u8; UMI_TAG_LEN]> = HashSet::with_capacity(output_list.len());
 
         // either group reads, or group and deduplicate

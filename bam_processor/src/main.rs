@@ -6,7 +6,6 @@ use crate::report::{BarcodeTracker, GroupReport};
 use clap::ValueEnum;
 use colored::Colorize;
 use indexmap::IndexMap;
-use rust_htslib::bam::Record;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 use clap::Parser;
@@ -75,15 +74,14 @@ fn main() {
 
     ThreadPoolBuilder::new()
         .num_threads(args.threads)
-        .build()
+        // .build()
+        .build_global()
         .expect("ERROR: Invalid number of threads specified!");
 
     // create tag seed based on input file name
     let mut hasher = DefaultHasher::new();
     input_file.hash(&mut hasher);
     let seed = hasher.finish();
-
-    let reads_to_write: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
 
     // create bam input/output
     let (header, bam_reader) = make_bam_reader(&input_file, args.threads);
@@ -97,7 +95,6 @@ fn main() {
     // holds filtered reads awaiting writing to output bam file
     let mut read_handler = ChunkProcessor {
         separator: &separator,
-        reads_to_output: Arc::clone(&reads_to_write),
         min_max: Arc::clone(&min_maxes),
         grouping_method,
         group_by_length: args.length,
