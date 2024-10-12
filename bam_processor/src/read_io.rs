@@ -15,6 +15,8 @@ use rust_htslib::bam::{Header, IndexedReader, Read, Record, Writer};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+const WINDOW_CHUNK_SIZE: usize = 3; // number of coord windows processed at once
+
 pub fn get_umi<'b>(record: &'b Record, separator: &String) -> &'b str {
     unsafe {
         std::str::from_utf8_unchecked(record.qname())
@@ -100,7 +102,6 @@ impl<'a> ChunkProcessor<'a> {
             // set end pos as start to group with forward-reads covering same region
             pos = read.reference_end();
             pos += read.cigar().leading_softclips(); // pad with right-side soft clip
-                                                     //
             key = ReadKey {
                 length: read.seq_len() * self.group_by_length as usize,
                 reverse: true,
@@ -254,9 +255,9 @@ impl<'a> ChunkProcessor<'a> {
 
             window_bar.set_prefix("WINDOW");
 
-            for window_chunk in windows.chunks(2) {
+            for window_chunk in windows.chunks(WINDOW_CHUNK_SIZE) {
                 let mut bottomhash = bottomhash::BottomHashMap {
-                    read_dict: IndexMap::with_capacity(1_500_000),
+                    read_dict: IndexMap::with_capacity(500),
                 };
 
                 let mut window_reads = 0;
@@ -288,7 +289,7 @@ impl<'a> ChunkProcessor<'a> {
                 let outreads = Self::group_reads(self, &mut bottomhash, &multiprog);
                 bottomhash.read_dict.clear();
                 self.write_reads(outreads, &mut bam_writer);
-                window_bar.inc(3);
+                window_bar.inc(WINDOW_CHUNK_SIZE as u64);
                 read_bar.set_message(format!("Processed {} total reads...", self.read_counter));
             }
             window_bar.finish();

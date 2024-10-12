@@ -87,26 +87,14 @@ impl<'b> Grouper<'b> {
     pub fn iter_substring_neighbors<'c>(
         &'c self,
         substring_map: IndexMap<(usize, usize), IndexMap<&'c str, Vec<&'c str>>>,
-    ) -> IndexMap<&str, IndexSet<&str>> {
-        let mut neighbors: IndexMap<&str, IndexSet<&str>> = IndexMap::new();
-
-        // let mut observed: HashSet<&str> = HashSet::new();
-        for u in self.umis.iter() {
+    ) -> impl Iterator<Item = (&str, IndexSet<&str>)> {
+        self.umis.iter().map(move |u| {
+            let mut neighbors: IndexSet<&str> = IndexSet::new();
             for (slice, substrings) in &substring_map {
-                neighbors
-                    .entry(u)
-                    .or_insert_with(|| IndexSet::new())
-                    .extend(substrings.get(&u[slice.0..slice.1]).unwrap())
+                neighbors.extend(substrings.get(&u[slice.0..slice.1]).unwrap());
             }
-
-            // observed.insert(u);
-            // neighbors
-            //     .get_mut(u.as_str())
-            //     .unwrap()
-            //     .retain(|nbr| !observed.contains(nbr));
-        }
-
-        neighbors
+            (u.as_str(), neighbors)
+        })
     }
 
     // if UMI group A within edit distance threshold and has ≥2n-1 read count compared to group B,
@@ -127,13 +115,12 @@ impl<'b> Grouper<'b> {
     pub fn get_adj_list_directional<'d>(
         &'d self,
         counts: &HashMap<&str, i32>,
-        substring_neighbors: IndexMap<&'d str, IndexSet<&'d str>>,
+        substring_neighbors: impl Iterator<Item = (&'d str, IndexSet<&'d str>)>,
         threshold: usize,
     ) -> IndexMap<&'d str, Vec<&'d str>> {
-        let mut adj_list: IndexMap<&'d str, Vec<&'d str>> =
-            IndexMap::with_capacity(substring_neighbors.values().len());
+        let mut adj_list: IndexMap<&'d str, Vec<&'d str>> = IndexMap::new();
 
-        substring_neighbors.iter().for_each(|x| {
+        substring_neighbors.for_each(|x| {
             let umi = x.0;
             let neighbors = x.1;
 
@@ -156,16 +143,15 @@ impl<'b> Grouper<'b> {
     pub fn get_adj_list_acyclic<'d>(
         &'d self,
         counts: &HashMap<&str, i32>,
-        substring_neighbors: IndexMap<&'d str, IndexSet<&'d str>>,
+        substring_neighbors: impl Iterator<Item = (&'d str, IndexSet<&'d str>)>,
         threshold: usize,
     ) -> IndexMap<&'d str, Vec<&'d str>> {
-        let mut adj_list: IndexMap<&'d str, Vec<&'d str>> =
-            IndexMap::with_capacity(substring_neighbors.values().len());
+        let mut adj_list: IndexMap<&'d str, Vec<&'d str>> = IndexMap::new();
 
         // if a barcode is already part of a tree, don't group it again
-        let mut found: HashSet<&str> = HashSet::with_capacity(adj_list.len());
+        let mut found: HashSet<&str> = HashSet::new();
 
-        substring_neighbors.iter().for_each(|x| {
+        substring_neighbors.for_each(|x| {
             let umi = x.0;
             let neighbors = x.1;
 
