@@ -101,7 +101,7 @@ impl<'a> ChunkProcessor<'a> {
         if read.is_reverse() {
             // set end pos as start to group with forward-reads covering same region
             pos = read.reference_end();
-            pos += read.cigar().leading_softclips(); // pad with right-side soft clip
+            pos += read.cigar().trailing_softclips(); // pad with right-side soft clip
             key = ReadKey {
                 length: read.seq_len() * self.group_by_length as usize,
                 reverse: true,
@@ -110,7 +110,7 @@ impl<'a> ChunkProcessor<'a> {
             (pos, key)
         } else {
             pos = read.reference_start();
-            pos -= read.cigar().trailing_softclips(); // pad with left-side soft clip
+            pos -= read.cigar().leading_softclips(); // pad with left-side soft clip
 
             key = ReadKey {
                 length: read.seq_len() * self.group_by_length as usize,
