@@ -140,6 +140,11 @@ def group_bam(input_file, split_window):
 
     subprocess.run(tag_cmd)
 
+    if args.merge_fr:
+        merge_file = merge_fr(tagged_file_name)
+        os.remove(tagged_file_name)
+        tagged_file_name = merge_file
+
     if not args.no_report:
         sort_and_index(input_file, tagged_file_name)
 
@@ -148,9 +153,6 @@ def group_bam(input_file, split_window):
 
 def sort_and_index(input_file, output_file):
     print("sorting and indexing output BAM...\r")
-
-    if args.merge_fr:
-        output_file = merge_fr(output_file)
 
     temp_file = output_file.split(".bam")[0] + "_s.bam"
     os.rename(output_file, temp_file)
