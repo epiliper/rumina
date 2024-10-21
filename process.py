@@ -142,7 +142,7 @@ def group_bam(input_file, split_window):
 
     if args.merge_fr:
         merge_file = merge_fr(tagged_file_name)
-        os.remove(tagged_file_name)
+        # os.remove(tagged_file_name)
         tagged_file_name = merge_file
 
     if not args.no_report:

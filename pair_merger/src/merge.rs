@@ -30,13 +30,20 @@ pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> (MergeRepo
                     let (merged, result) = find_merges(&read, &mut reads);
 
                     match result {
-                        MergeResult::Discordant => {}
-                        MergeResult::NoMerge => corrected_reads.push(read),
-                        MergeResult::Merge => corrected_reads.push(merged.unwrap()),
+                        MergeResult::Discordant => num_reads -= 2,
+
+                        MergeResult::NoMerge => {
+                            corrected_reads.push(read);
+                            num_reads -= 1
+                        }
+                        MergeResult::Merge => {
+                            corrected_reads.push(merged.unwrap());
+                            num_reads -= 2
+                        }
                     }
 
                     merge_report.count(result);
-                    num_reads -= 1;
+                    // num_reads -= 1;
                 }
                 corrected_reads.extend(reads.drain(..));
             }
