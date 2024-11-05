@@ -57,16 +57,23 @@ Options are:
     )
 
     flags.add_argument(
+        "--sort_outbam",
+        action="store_true",
+        default=True,
+        help="sort and index the output BAM file. Required for generating coverage/depth reports (see --no_report).",
+    )
+
+    flags.add_argument(
         "--only-group",
         action="store_true",
         help="if used, reads are grouped and tagged but not deduplicated or error corrected. This is useful if you want to manually review what grouping looks like.",
     )
 
     flags.add_argument(
-            "--merge-fr",
-            action="store_true",
-            help="merge forward and reverse reads that overlap, with the same UMI"
-            )
+        "--merge-fr",
+        action="store_true",
+        help="merge forward and reverse reads that overlap, with the same UMI",
+    )
 
     flags.add_argument("--singletons", action="store_true")
 

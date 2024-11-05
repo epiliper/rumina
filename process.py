@@ -113,6 +113,9 @@ def group_bam(input_file, split_window):
         os.path.basename(input_file).split(".bam")[0] + suffix,
     )
 
+    if args.only_group:
+        tagged_file_name = tagged_file_name.split(".bam")[0] + "_GROUP_ONLY.bam"
+
     tag_cmd = os.path.join(exec_path, "bam_processor/target/release/bam_processor")
     tag_cmd = [
         tag_cmd,
@@ -142,23 +145,26 @@ def group_bam(input_file, split_window):
 
     if args.merge_fr:
         merge_file = merge_fr(tagged_file_name)
-        # os.remove(tagged_file_name)
+        os.remove(tagged_file_name)
         tagged_file_name = merge_file
 
+    if args.sort_outbam:
+        sort_and_index(tagged_file_name)
+
     if not args.no_report:
-        sort_and_index(input_file, tagged_file_name)
+        generate_report(input_file, tagged_file_name)
 
     return tagged_file_name
 
 
-def sort_and_index(input_file, output_file):
+def sort_and_index(output_file):
     print("sorting and indexing output BAM...\r")
 
     temp_file = output_file.split(".bam")[0] + "_s.bam"
     os.rename(output_file, temp_file)
 
-    if args.only_group:
-        output_file = output_file.split(".bam")[0] + "_GROUP_ONLY.bam"
+    # if args.only_group:
+    #     output_file = output_file.split(".bam")[0] + "_GROUP_ONLY.bam"
 
     pysam.sort(f"-@ {args.threads}", temp_file, "-o", output_file)
     os.remove(temp_file)
@@ -166,4 +172,4 @@ def sort_and_index(input_file, output_file):
     pysam.index(f"-@ {args.threads}", output_file)
     print("getting coverage/depth report...\r")
 
-    generate_report(input_file, output_file)
+    # generate_report(input_file, output_file)
