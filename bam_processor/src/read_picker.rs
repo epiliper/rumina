@@ -36,7 +36,7 @@ pub fn correct_errors(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
     }
 
     // the sequence with the most reads is at index 0 (can be tied)
-    sequences.sort_by(|_a, b, _c, d| d.1.cmp(&b.1));
+    sequences.sort_by(|a, b, c, d| d.1.cmp(&b.1).then_with(|| a.cmp(c)));
 
     let mut most_reads_groups: Vec<Vec<Record>> = Vec::new();
     let mut first = true;
