@@ -1,7 +1,7 @@
 import pysam
 import subprocess
 import os
-from cov_reporter import generate_report
+from cov_reporter import generate_group_report, generate_cov_depth_report
 from logo import print_file_end
 
 from args import init_args
@@ -152,7 +152,10 @@ def group_bam(input_file, split_window):
         sort_and_index(tagged_file_name)
 
     if not args.no_report:
-        generate_report(input_file, tagged_file_name)
+        generate_group_report(input_file, tagged_file_name)
+
+    if args.cov_depth_report:
+        generate_cov_depth_report(input_file, tagged_file_name)
 
     return tagged_file_name
 
@@ -162,9 +165,6 @@ def sort_and_index(output_file):
 
     temp_file = output_file.split(".bam")[0] + "_s.bam"
     os.rename(output_file, temp_file)
-
-    # if args.only_group:
-    #     output_file = output_file.split(".bam")[0] + "_GROUP_ONLY.bam"
 
     pysam.sort(f"-@ {args.threads}", temp_file, "-o", output_file)
     os.remove(temp_file)

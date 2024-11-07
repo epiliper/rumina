@@ -32,7 +32,7 @@ def get_coverage(input_file, region):
     return region_df
 
 
-def generate_report(original_file, final_file):
+def generate_group_report(original_file, final_file):
     work_path = os.path.dirname(final_file)
     minmax_file = os.path.join(work_path, "minmax.txt")
 
@@ -43,7 +43,6 @@ def generate_report(original_file, final_file):
     )
 
     group_report = pd.DataFrame(columns=COLUMNS)
-    cov_report = pd.DataFrame()
 
     group_report["num_reads_input_file"] = [df["num_reads_input_file"].sum()]
     group_report["num_reads_output_file"] = [df["num_reads_output_file"].sum()]
@@ -59,6 +58,21 @@ def generate_report(original_file, final_file):
     group_report["num_total_groups"] = [df["num_total_groups"].sum()]
     group_report["num_raw_umis"] = [df["num_raw_umis"].sum()]
 
+    save_dir = os.path.dirname(final_file)
+    group_report["query_name"] = os.path.basename(original_file).split(".bam")[0]
+
+    group_tsv = os.path.join(save_dir, final_file.split(".bam")[0] + "_grouping.tsv")
+
+    group_report.to_csv(group_tsv, sep="\t", index=None)
+    # IMPORTANT:
+    # for accurate reporting of split files,
+    # rumina will append to minmax file,
+    # delete it after each sample
+    os.remove(minmax_file)
+
+
+def generate_cov_depth_report(original_file, final_file):
+    cov_report = pd.DataFrame()
     with pysam.AlignmentFile(final_file, "rb") as outbam:
         references = outbam.references
 
@@ -71,16 +85,5 @@ def generate_report(original_file, final_file):
             cov_report = pd.concat([cov_report, future.result()], ignore_index=True)
 
     save_dir = os.path.dirname(final_file)
-    group_report["query_name"] = os.path.basename(original_file).split(".bam")[0]
-
-    group_tsv = os.path.join(save_dir, final_file.split(".bam")[0] + "_grouping.tsv")
     cov_tsv = os.path.join(save_dir, final_file.split(".bam")[0] + "_coverage.tsv")
-
-    group_report.to_csv(group_tsv, sep="\t", index=None)
     cov_report.to_csv(cov_tsv, sep="\t", index=None)
-
-    # IMPORTANT:
-    # for accurate reporting of split files,
-    # rumina will append to minmax file,
-    # delete it after each sample
-    os.remove(minmax_file)

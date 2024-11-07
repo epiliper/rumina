@@ -45,9 +45,15 @@ Options are:
     )
 
     flags.add_argument(
+        "--cov_depth_report",
+        action="store_true",
+        help="""Calculate coverage and depth reporting on output files using 'bedtools genomecov'. This can save several minutes per file when working with large files\n""",
+    )
+
+    flags.add_argument(
         "--no_report",
         action="store_true",
-        help="""If used, disables coverage and depth reporting on output files using 'bedtools genomecov'. This can save several minutes per file when working with large files\n""",
+        help="""Disables grouping statistics reporting. Not computationaly intensive, but reduces output file count.""",
     )
 
     flags.add_argument(
@@ -59,7 +65,6 @@ Options are:
     flags.add_argument(
         "--sort_outbam",
         action="store_true",
-        default=True,
         help="sort and index the output BAM file. Required for generating coverage/depth reports (see --no_report).",
     )
 
@@ -102,6 +107,11 @@ Options are:
 
     if args.split_window is None:
         pass
+
+    if args.cov_depth_report and not args.sort_outbam:
+        sys.exit(
+            "Cannot generate coverage and depth reports without sorting output files. Either use --sort_outbam or disable reporting with --no_report."
+        )
 
     elif args.split_window.isdigit():
         if int(args.split_window) == 0:
