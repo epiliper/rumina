@@ -195,8 +195,10 @@ impl<'a> ChunkProcessor<'a> {
                     }
                 }
             }
-            self.barcode_tracker.lock().write_to_report_file();
 
+            if self.track_barcodes {
+                self.barcode_tracker.lock().write_to_report_file();
+            }
             coord_bar.inc(1);
         });
 
