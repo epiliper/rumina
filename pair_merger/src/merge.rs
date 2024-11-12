@@ -1,4 +1,6 @@
 use indexmap::IndexMap;
+use parking_lot::Mutex;
+use rayon::prelude::*;
 use rust_htslib::bam::{
     ext::BamRecordExtensions,
     record::{Cigar, CigarString},
@@ -6,20 +8,28 @@ use rust_htslib::bam::{
 };
 use std::collections::HashMap;
 use std::str;
+use std::sync::Arc;
 
 use crate::merge_report::*;
 
 pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> (MergeReport, Vec<Record>) {
-    let mut corrected_reads: Vec<Record> = Vec::new();
+    let corrected_reads: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
+    let results: Arc<Mutex<Vec<MergeResult>>> = Arc::new(Mutex::new(Vec::new()));
+
     let mut merge_report = MergeReport::new();
 
-    for (_umi, mut reads) in umis_reads.drain() {
+    // for (_umi, mut reads) in umis_reads.drain() {
+    umis_reads.par_drain().for_each(|(_umi, mut reads)| {
         match reads.len() {
             1 => {
                 println!("Warning: 1 read found for UMI marked as duplicate. Rerunning RUMINA on this file is recommended. If this issue persists, see GitHub issues page.");
-                corrected_reads.extend(reads.drain(..));
+                corrected_reads.lock().extend(reads.drain(..));
             }
             _ => {
+
+                let mut outreads: Vec<Record> = Vec::with_capacity(100);
+                let mut merge_results: Vec<MergeResult> = Vec::with_capacity(50);
+
                 // sort the read list by reads likely to overlap
                 reads.sort_by(|ra, rb| ra.pos().cmp(&rb.pos()));
                 let mut num_reads = reads.len();
@@ -33,23 +43,35 @@ pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> (MergeRepo
                         MergeResult::Discordant => num_reads -= 2,
 
                         MergeResult::NoMerge => {
-                            corrected_reads.push(read);
+                            outreads.push(read);
                             num_reads -= 1
                         }
                         MergeResult::Merge => {
-                            corrected_reads.push(merged.unwrap());
+                            outreads.push(merged.unwrap());
                             num_reads -= 2
                         }
                     }
 
-                    merge_report.count(result);
+                    merge_results.push(result);
+                    // merge_report.count(result);
                     // num_reads -= 1;
                 }
-                corrected_reads.extend(reads.drain(..));
+                corrected_reads.lock().extend(outreads);
+                results.lock().extend(merge_results);
             }
         }
+    });
+
+    for res in results.lock().drain(..) {
+        merge_report.count(res);
     }
-    (merge_report, corrected_reads)
+
+    (
+        merge_report,
+        Arc::try_unwrap(corrected_reads)
+            .expect("Failed to dereference merged reads!")
+            .into_inner(),
+    )
 }
 
 pub fn is_opp_orientation(read_a: &Record, read_b: &Record) -> bool {
