@@ -3,6 +3,7 @@ use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::progbars::*;
 use crate::readkey::ReadKey;
+use crate::report::{init_barcode_writer, BarcodeSender, BarcodeWriter};
 use crate::report::{BarcodeTracker, StaticUMI};
 use crate::GroupReport;
 use crate::GroupingMethod;
@@ -89,7 +90,7 @@ pub struct ChunkProcessor<'a> {
     pub seed: u64,
     pub only_group: bool,
     pub singletons: bool,
-    pub track_barcodes: bool,
+    pub track_barcodes: Option<String>,
     pub barcode_tracker: Arc<Mutex<BarcodeTracker>>,
 }
 
@@ -127,6 +128,7 @@ impl<'a> ChunkProcessor<'a> {
     pub fn group_reads(
         &mut self,
         bottomhash: &mut BottomHashMap,
+        bc_sender: &Option<BarcodeSender>,
         multiprog: &MultiProgress,
     ) -> Vec<Record> {
         let grouping_method = Arc::new(&self.grouping_method);
@@ -168,7 +170,7 @@ impl<'a> ChunkProcessor<'a> {
                     group_only: self.only_group,
                     singletons: self.singletons,
                     separator: self.separator,
-                    track_barcodes: self.track_barcodes,
+                    track_barcodes: self.track_barcodes.is_some(),
                 };
 
                 // perform UMI clustering per the method specified
@@ -196,8 +198,11 @@ impl<'a> ChunkProcessor<'a> {
                 }
             }
 
-            if self.track_barcodes {
-                self.barcode_tracker.lock().write_to_report_file();
+            if let Some(s) = bc_sender {
+                for (bc, count) in self.barcode_tracker.lock().barcode_counter.drain(..) {
+                    s.send((bc, count))
+                        .expect("failed to send barcode to writing channel!");
+                }
             }
             coord_bar.inc(1);
         });
@@ -241,6 +246,14 @@ impl<'a> ChunkProcessor<'a> {
     ) {
         let mut pos;
         let mut key;
+
+        let (bc_sender, bc_writer): BarcodeWriter;
+
+        if let Some(outfile) = &self.track_barcodes {
+            (bc_sender, bc_writer) = init_barcode_writer(outfile)
+        } else {
+            (bc_sender, bc_writer) = (None, None)
+        }
 
         let ref_count = reader.header().clone().target_count();
 
@@ -288,13 +301,17 @@ impl<'a> ChunkProcessor<'a> {
                     }
                 }
                 window_bar.set_message(format!("{window_reads} reads in window"));
-                let outreads = Self::group_reads(self, &mut bottomhash, &multiprog);
+                let outreads = Self::group_reads(self, &mut bottomhash, &bc_sender, &multiprog);
                 bottomhash.read_dict.clear();
                 self.write_reads(outreads, &mut bam_writer);
                 window_bar.inc(WINDOW_CHUNK_SIZE as u64);
                 read_bar.set_message(format!("Processed {} total reads...", self.read_counter));
             }
             window_bar.finish();
+        }
+        if self.track_barcodes.is_some() {
+            drop(bc_sender.unwrap());
+            let _ = bc_writer.unwrap().join();
         }
         read_bar.finish();
     }

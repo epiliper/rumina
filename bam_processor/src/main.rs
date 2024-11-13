@@ -67,10 +67,15 @@ struct Args {
 fn main() {
     let args = Args::parse();
     let input_file = args.input;
-    let output_file = args.output;
+    let output_file = &args.output;
     let separator = args.separator;
     let grouping_method = args.grouping_method;
     let split_window = args.split_window;
+    let mut track_barcodes = None;
+
+    if args.track_barcodes {
+        track_barcodes = Some(output_file)
+    }
 
     ThreadPoolBuilder::new()
         .num_threads(args.threads)
@@ -102,7 +107,7 @@ fn main() {
         only_group: args.only_group,
         singletons: args.singletons,
         read_counter: 0,
-        track_barcodes: args.track_barcodes,
+        track_barcodes: track_barcodes.cloned(),
         barcode_tracker: Arc::clone(&barcode_tracker),
     };
 

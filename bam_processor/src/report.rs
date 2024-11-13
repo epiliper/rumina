@@ -1,11 +1,13 @@
 use arrayvec::ArrayVec;
 use colored::Colorize;
+use crossbeam::channel::{bounded, Receiver, Sender};
 use indexmap::IndexMap;
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::ops::AddAssign;
 use std::path::Path;
+use std::thread;
 
 use num_format::{Locale, ToFormattedString};
 
@@ -16,14 +18,9 @@ const MAX_UMI_LENGTH: usize = 30;
 // This module defines the report generated during deduplication.
 #[derive(Debug)]
 pub struct BarcodeTracker {
-    barcode_counter: IndexMap<StaticUMI, u16>,
+    pub barcode_counter: IndexMap<StaticUMI, u16>,
     outfile: String,
 }
-
-// a UMI barcode in an ArrayVec of u8, efficient for
-// reporting barcodes without operating on them.
-// #[derive(Debug)]
-pub type StaticUMI = ArrayVec<u8, MAX_UMI_LENGTH>;
 
 impl BarcodeTracker {
     pub fn new(outfile: &String) -> Self {
@@ -32,32 +29,46 @@ impl BarcodeTracker {
             outfile: outfile.to_string(),
         }
     }
-
-    // count UMI
     pub fn count(&mut self, umi: StaticUMI) {
         self.barcode_counter.entry(umi).or_insert(0).add_assign(1);
     }
+}
+// a UMI barcode in an ArrayVec of u8, efficient for
+// reporting barcodes without operating on them.
+// #[derive(Debug)
+pub type StaticUMI = ArrayVec<u8, MAX_UMI_LENGTH>;
 
-    pub fn write_to_report_file(&mut self) {
-        let barcode_file = Path::new(&self.outfile)
-            .parent()
-            .unwrap()
-            .join("barcodes.tsv");
+pub type BarcodeSender = Sender<(StaticUMI, u16)>;
 
-        if !barcode_file.exists() {
-            let _ = File::create(&barcode_file);
-        }
+pub type BarcodeWriter = (Option<BarcodeSender>, Option<thread::JoinHandle<()>>);
 
-        let mut barcode_f = OpenOptions::new()
-            .append(true)
-            .open(barcode_file)
-            .expect("unable to open minmax file");
+pub fn init_barcode_writer(outfile: &String) -> BarcodeWriter {
+    let (s, r): (BarcodeSender, Receiver<(StaticUMI, u16)>) = bounded(1_000_000);
 
-        for (umi, count) in self.barcode_counter.drain(..) {
-            writeln!(barcode_f, "{}\t{}", String::from_utf8_lossy(&umi), count).unwrap();
-        }
-        self.barcode_counter.clear();
+    let barcode_file = Path::new(&outfile).parent().unwrap().join("barcodes.tsv");
+
+    if !barcode_file.exists() {
+        let _ = File::create(&barcode_file);
     }
+
+    let mut barcode_f = OpenOptions::new()
+        .append(true)
+        .open(barcode_file)
+        .expect("unable to open minmax file");
+
+    let writer_handle = thread::spawn(move || loop {
+        match r.recv() {
+            Ok((bc, count)) => {
+                writeln!(barcode_f, "{}\t{}", String::from_utf8_lossy(&bc), count).unwrap();
+            }
+
+            Err(_) => {
+                break;
+            }
+        }
+    });
+
+    return (Some(s), Some(writer_handle));
 }
 
 // This report contains details like UMIs in/out, reads in/out, and other details, and is updated
