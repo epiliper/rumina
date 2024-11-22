@@ -1,7 +1,7 @@
 use crate::bottomhash::ReadsAndCount;
-use crate::read_io::{get_umi, get_umi_static};
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
 use crate::report::{BarcodeTracker, GroupReport};
+use crate::utils::{get_umi, get_umi_static};
 use crate::IndexMap;
 use parking_lot::Mutex;
 use rust_htslib::bam::record::Aux;
