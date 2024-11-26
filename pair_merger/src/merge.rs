@@ -22,7 +22,7 @@ pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> (MergeRepo
     umis_reads.par_drain().for_each(|(_umi, mut reads)| {
         match reads.len() {
             1 => {
-                println!("Warning: 1 read found for UMI marked as duplicate. Rerunning RUMINA on this file is recommended. If this issue persists, see GitHub issues page.");
+                print!("\rWarning: 1 read found for UMI marked as duplicate. Rerunning RUMINA on this file is recommended. If this issue persists, see GitHub issues page.");
                 corrected_reads.lock().extend(reads.drain(..));
             }
             _ => {
@@ -31,30 +31,29 @@ pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> (MergeRepo
                 let mut merge_results: Vec<MergeResult> = Vec::with_capacity(50);
 
                 // sort the read list by reads likely to overlap
-                reads.sort_by(|ra, rb| ra.pos().cmp(&rb.pos()));
-                let mut num_reads = reads.len();
+                reads.sort_by(|ra, rb| ra.pos().cmp(&rb.pos())
+                    .then_with(|| ra.qname().cmp(&rb.qname()))
+                    .then_with(|| ra.is_reverse().cmp(&!rb.is_reverse()))
+                    .then_with(|| ra.tid().cmp(&rb.tid()))
+                    );
 
-                while num_reads > 1 {
-                    let read = reads.swap_remove(0);
+                while !reads.is_empty() {
+                    let read = reads.remove(0);
 
                     let (merged, result) = find_merges(&read, &mut reads);
 
                     match result {
-                        MergeResult::Discordant => num_reads -= 2,
+                        MergeResult::Discordant => (),
 
                         MergeResult::NoMerge => {
                             outreads.push(read);
-                            num_reads -= 1
                         }
                         MergeResult::Merge => {
                             outreads.push(merged.unwrap());
-                            num_reads -= 2
                         }
                     }
 
                     merge_results.push(result);
-                    // merge_report.count(result);
-                    // num_reads -= 1;
                 }
                 corrected_reads.lock().extend(outreads);
                 results.lock().extend(merge_results);
@@ -162,8 +161,8 @@ pub fn attempt_merge(read_a: &Record, read_b: &Record) -> Option<IndexMap<i64, u
     for (gpos, nuc) in ra {
         if let Some(other_nuc) = rb.get(&gpos) {
             if *other_nuc != nuc {
-                println!(
-                    "Discordant read detected! base a: {}, base b: {}",
+                print!(
+                    "\rDiscordant read detected! base a: {}, base b: {}",
                     str::from_utf8(&[nuc]).unwrap(),
                     str::from_utf8(&[*other_nuc]).unwrap(),
                 );
