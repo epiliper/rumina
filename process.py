@@ -77,7 +77,7 @@ def calculate_split(input):
         return 100
 
 
-def merge_fr(tagged_file_name):
+def merge_fr(tagged_file_name, ref_fasta):
     print("Merging overlapping forward/reverse amplicons...")
     dupes = os.path.join(work_path, args.outdir, "barcodes.tsv")
     outfile = tagged_file_name.split(".bam")[0] + "_merged.bam"
@@ -91,6 +91,8 @@ def merge_fr(tagged_file_name):
             tagged_file_name,
             "-o",
             outfile,
+            "-r",
+            ref_fasta,
             "--threads",
             args.threads,
         ],
@@ -144,7 +146,7 @@ def group_bam(input_file, split_window):
     subprocess.run(tag_cmd)
 
     if args.merge_fr:
-        merge_file = merge_fr(tagged_file_name)
+        merge_file = merge_fr(tagged_file_name, args.merge_fr)
         os.remove(tagged_file_name)
         tagged_file_name = merge_file
 

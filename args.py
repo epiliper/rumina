@@ -47,7 +47,7 @@ Options are:
     flags.add_argument(
         "--cov_depth_report",
         action="store_true",
-        help="""Calculate coverage and depth reporting on output files using 'bedtools genomecov'. This can save several minutes per file when working with large files\n""",
+        help="""Calculate coverage and depth reporting on output files using 'bedtools genomecov'. This can add several minutes of runtime per file when working with large files\n""",
     )
 
     flags.add_argument(
@@ -59,7 +59,7 @@ Options are:
     flags.add_argument(
         "--length",
         action="store_true",
-        help="if used, groups reads by length in addition to reference coordinate. Recommended for metagenomics data with high read depth.",
+        help="if used, groups reads by length in addition to reference coordinate.",
     )
 
     flags.add_argument(
@@ -76,8 +76,7 @@ Options are:
 
     flags.add_argument(
         "--merge-fr",
-        action="store_true",
-        help="merge forward and reverse reads that overlap, with the same UMI",
+        help="merge forward and reverse reads that overlap, with the same UMI. Specify a reference genome (in FASTA format) for realignment of merged reads",
     )
 
     flags.add_argument("--singletons", action="store_true")
@@ -133,4 +132,12 @@ Options are:
 
         If you don't want to split your input, don't use this argument.
         """)
+
+    if not any(ext in str(args.merge_fr) for ext in [".fa", ".fasta"]):
+        sys.exit(
+            "Error: Reference file provided via --merge_fr doesn't appear to be in FASTA format"
+        )
+    elif not os.path.exists(args.merge_fr):
+        sys.exit("Error: cannot find --merge_fr reference FASTA")
+
     return args
