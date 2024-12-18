@@ -25,6 +25,7 @@ pub struct ChunkProcessor {
     pub only_group: bool,
     pub singletons: bool,
     pub track_barcodes: Option<String>,
+    pub r1_only: bool,
     pub barcode_tracker: Arc<Mutex<BarcodeTracker>>,
 }
 

@@ -75,8 +75,14 @@ Options are:
     )
 
     flags.add_argument(
-        "--merge-fr",
-        help="merge forward and reverse reads that overlap, with the same UMI. Specify a reference genome (in FASTA format) for realignment of merged reads",
+        "--merge_pairs",
+        help="merge forward and reverse reads that overlap, with the same (corrected) UMI. Specify a reference genome (in FASTA format) for realignment of merged reads",
+    )
+
+    flags.add_argument(
+        "--halve_pairs",
+        action="store_true",
+        help="only use R1 for deduplication, and discard R1. Similar to UMI-tools.",
     )
 
     flags.add_argument("--singletons", action="store_true")
@@ -133,11 +139,17 @@ Options are:
         If you don't want to split your input, don't use this argument.
         """)
 
-    if not any(ext in str(args.merge_fr) for ext in [".fa", ".fasta"]):
-        sys.exit(
-            "Error: Reference file provided via --merge_fr doesn't appear to be in FASTA format"
-        )
-    elif not os.path.exists(args.merge_fr):
-        sys.exit("Error: cannot find --merge_fr reference FASTA")
+    if args.merge_pairs:
+        if args.halve_pairs:
+            sys.exit(
+                "Cannot use --merge_pairs and --halve_pairs simultaneously. Please pick one option."
+            )
+
+        if not any(ext in str(args.merge_pairs) for ext in [".fa", ".fasta"]):
+            sys.exit(
+                "Error: Reference file provided via --merge_pairs doesn't appear to be in FASTA format"
+            )
+        elif not os.path.exists(args.merge_pairs):
+            sys.exit("Error: cannot find --merge_pairs reference FASTA")
 
     return args

@@ -64,6 +64,9 @@ struct Args {
 
     #[arg(long = "track-umis")]
     track_barcodes: bool,
+
+    #[arg(long = "r1-only")]
+    r1_only: bool,
 }
 
 fn main() {
@@ -108,6 +111,7 @@ fn main() {
         only_group,
         singletons,
         track_barcodes,
+        args.r1_only,
         min_maxes.clone(),
         barcode_tracker,
         seed,

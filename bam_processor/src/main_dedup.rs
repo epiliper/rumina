@@ -28,6 +28,7 @@ pub fn init_processor(
     only_group: bool,
     singletons: bool,
     track_barcodes: Option<&String>,
+    r1_only: bool,
     min_maxes: Arc<Mutex<GroupReport>>,
     barcode_tracker: Arc<Mutex<BarcodeTracker>>,
     seed: u64,
@@ -45,6 +46,7 @@ pub fn init_processor(
         singletons,
         read_counter: 0,
         track_barcodes: track_barcodes.cloned(),
+        r1_only,
         barcode_tracker: Arc::clone(&barcode_tracker),
     };
 
@@ -99,6 +101,9 @@ pub fn process_chunks(
                     .expect("Error: invalid window value supplied!");
 
                 for read in reader.records().map(|read| read.unwrap()) {
+                    if !read.is_last_in_template() && chunk_processor.r1_only {
+                        continue;
+                    }
                     if read.is_reverse() {
                         // reverse-mapping reads
                         if read.reference_end() <= end && read.reference_end() >= start {
