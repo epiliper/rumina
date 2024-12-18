@@ -5,6 +5,7 @@ use clap::Parser;
 use crossbeam::channel::{bounded, Receiver, Sender};
 use merge::handle_dupes;
 use rayon::ThreadPoolBuilder;
+use realign::init_remapper;
 use rust_htslib::bam::{record::Aux, Format, Header, Read, Reader, Record, Writer};
 use std::collections::HashMap;
 use std::fs::File;
@@ -16,6 +17,7 @@ use std::thread;
 
 mod merge;
 mod merge_report;
+mod realign;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -25,6 +27,8 @@ struct Args {
     outbam: String,
     #[arg(short = 'l')]
     dupe_list: String,
+    #[arg(short = 'r')]
+    ref_fasta: String,
     #[arg(long = "threads")]
     threads: usize,
 }
@@ -51,6 +55,7 @@ fn main() {
 
     // get list of duplicate UMIs
     let mut duplicate_umis: HashMap<String, i32> = HashMap::new();
+    let (mapper, ref_fasta) = init_remapper(args.ref_fasta);
 
     let dupes = File::open(dupe_list).expect("Duplicate barcode file not found!");
     let dupes = BufReader::new(dupes);
@@ -140,7 +145,7 @@ fn main() {
         .into_inner()
         .expect("Mutex poisoned!");
 
-    let (mut merge_report, mut merged_reads) = handle_dupes(&mut remainder);
+    let (mut merge_report, mut merged_reads) = handle_dupes(&mut remainder, mapper, ref_fasta);
 
     merged_reads
         .drain(..)

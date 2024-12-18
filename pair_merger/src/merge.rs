@@ -1,18 +1,19 @@
 use indexmap::IndexMap;
 use parking_lot::Mutex;
 use rayon::prelude::*;
-use rust_htslib::bam::{
-    ext::BamRecordExtensions,
-    record::{Cigar, CigarString},
-    Record,
-};
+use rust_htslib::bam::{ext::BamRecordExtensions, Record};
 use std::collections::HashMap;
 use std::str;
 use std::sync::Arc;
 
 use crate::merge_report::*;
+use crate::realign::{align_to_ref, ReMapper};
 
-pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> (MergeReport, Vec<Record>) {
+pub fn handle_dupes(
+    umis_reads: &mut HashMap<String, Vec<Record>>,
+    mut mapper: ReMapper,
+    ref_fasta: Vec<u8>,
+) -> (MergeReport, Vec<Record>) {
     let corrected_reads: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
     let results: Arc<Mutex<Vec<MergeResult>>> = Arc::new(Mutex::new(Vec::new()));
 
@@ -40,7 +41,7 @@ pub fn handle_dupes(umis_reads: &mut HashMap<String, Vec<Record>>) -> (MergeRepo
                 while !reads.is_empty() {
                     let read = reads.remove(0);
 
-                    let (merged, result) = find_merges(&read, &mut reads);
+                    let (merged, result) = find_merges(&read, &mut reads, &mut mapper.clone(), &ref_fasta);
 
                     match result {
                         MergeResult::Discordant => (),
@@ -89,12 +90,17 @@ pub fn is_overlap(read_a: &Record, read_b: &Record) -> bool {
 }
 
 // for groups of >2 reads, find every overlapping f/r read pair, attempt merge
-pub fn find_merges(read: &Record, reads: &mut Vec<Record>) -> (Option<Record>, MergeResult) {
+pub fn find_merges(
+    read: &Record,
+    reads: &mut Vec<Record>,
+    mapper: &mut ReMapper,
+    ref_seq: &Vec<u8>,
+) -> (Option<Record>, MergeResult) {
     for (i, other_read) in reads.iter().enumerate() {
         if is_opp_orientation(read, other_read) && is_overlap(read, other_read) {
             if let Some(merge) = attempt_merge(read, other_read) {
                 let (start_pos, merged_seq) = construct_sequence(merge);
-                let merged_rec = construct_read(read, start_pos, merged_seq);
+                let merged_rec = construct_read(read, merged_seq, mapper, ref_seq);
                 reads.remove(i);
 
                 return (Some(merged_rec), MergeResult::Merge);
@@ -124,17 +130,26 @@ pub fn construct_sequence<'a>(mut read_blueprint: IndexMap<i64, u8>) -> (i64, Ve
     (*start, new_seq)
 }
 
-pub fn construct_read(original_read: &Record, start_pos: i64, new_seq: Vec<u8>) -> Record {
+pub fn construct_read(
+    original_read: &Record,
+    new_seq: Vec<u8>,
+    mapper: &mut ReMapper,
+    ref_seq: &Vec<u8>,
+) -> Record {
     let mut new_rec = original_read.clone();
+
+    let (start, _end, cigar) = align_to_ref(mapper, &new_seq, &ref_seq);
+
     let qname = [new_rec.qname(), b":MERGED"].concat();
     new_rec.set(
         &qname,
-        Some(&CigarString(vec![Cigar::Match(new_seq.len() as u32)])),
+        // Some(&CigarString(vec![Cigar::Match(new_seq.len() as u32)])),
+        Some(&cigar),
         new_seq.as_slice(),
         vec![255; new_seq.len() as usize].as_slice(),
     );
 
-    new_rec.set_pos(start_pos);
+    new_rec.set_pos(start as i64);
     return new_rec;
 }
 
