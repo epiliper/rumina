@@ -54,7 +54,7 @@ pub fn handle_dupes(
                             merge_results.push(result);
                         }
                         MergeResult::Merge(merged_bases) => {
-                            let (start_pos, merged_seq) = construct_sequence(merged_bases.unwrap());
+                            let (_start_pos, merged_seq) = construct_sequence(merged_bases.unwrap());
                             let merged_read = construct_read(&read, merged_seq, &mut mapper.clone(), &ref_fasta);
                             outreads.push(merged_read);
                             merge_results.push(MergeResult::Merge(None));
@@ -114,7 +114,7 @@ pub fn find_merges(read: &Record, reads: &mut Vec<Record>, min_overlap_bp: usize
         }
     }
 
-    MergeResult::NoMerge(None)
+    MergeResult::NoMerge(())
 }
 
 pub fn construct_sequence<'a>(mut read_blueprint: IndexMap<i64, u8>) -> (i64, Vec<u8>) {
@@ -199,10 +199,10 @@ pub fn attempt_merge(read_a: &Record, read_b: &Record, min_overlap_bp: usize) ->
         if num_overlap >= min_overlap_bp {
             MergeResult::Merge(Some(rb))
         } else {
-            MergeResult::NoMerge(None)
+            MergeResult::NoMerge(())
         }
     } else {
-        MergeResult::Discordant(None)
+        MergeResult::Discordant(())
     }
 }
 

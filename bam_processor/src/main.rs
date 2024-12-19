@@ -98,8 +98,7 @@ fn main() {
 
     // create deduplication report
     let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(GroupReport::new()));
-    let barcode_tracker: Arc<Mutex<BarcodeTracker>> =
-        Arc::new(Mutex::new(BarcodeTracker::new(&output_file)));
+    let barcode_tracker: Arc<Mutex<BarcodeTracker>> = Arc::new(Mutex::new(BarcodeTracker::new()));
 
     let (bam_reader, bam_writer, mut read_handler) = init_processor(
         input_file,

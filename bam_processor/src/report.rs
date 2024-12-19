@@ -19,14 +19,12 @@ const MAX_UMI_LENGTH: usize = 30;
 #[derive(Debug)]
 pub struct BarcodeTracker {
     pub barcode_counter: IndexMap<StaticUMI, u16>,
-    outfile: String,
 }
 
 impl BarcodeTracker {
-    pub fn new(outfile: &String) -> Self {
+    pub fn new() -> Self {
         BarcodeTracker {
             barcode_counter: IndexMap::with_capacity(1000),
-            outfile: outfile.to_string(),
         }
     }
     pub fn count(&mut self, umi: StaticUMI) {

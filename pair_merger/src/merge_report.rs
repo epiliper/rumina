@@ -6,8 +6,8 @@ use std::fmt;
 const LOCALE: Locale = Locale::en;
 
 pub enum MergeResult {
-    Discordant(Option<IndexMap<i64, u8>>),
-    NoMerge(Option<IndexMap<i64, u8>>),
+    Discordant(()),
+    NoMerge(()),
     Merge(Option<IndexMap<i64, u8>>),
 }
 
