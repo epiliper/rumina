@@ -205,3 +205,96 @@ pub fn attempt_merge(read_a: &Record, read_b: &Record, min_overlap_bp: usize) ->
         MergeResult::Discordant(None)
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use bio::alignment::pairwise::banded::Aligner;
+    use bio::scores::blosum62;
+    use rust_htslib::bam::{
+        record::{Cigar, CigarString},
+        Record,
+    };
+    use std::collections::HashMap;
+
+    fn create_bam_record(qname: &str, tid: i32, pos: i64, seq: &str, is_reverse: bool) -> Record {
+        let mut record = Record::new();
+        record.set_qname(qname.as_bytes());
+        record.set_tid(tid);
+        record.set_pos(pos);
+        record.set(
+            b"test",
+            Some(&CigarString(vec![Cigar::Match(seq.len() as u32)])),
+            seq.as_bytes(),
+            vec![255; seq.len()].as_slice(),
+        );
+        if is_reverse {
+            record.set_reverse();
+            record.set_flags(0x2 | 0x10)
+        } else {
+            record.set_flags(0x2);
+        }
+        // record.set_flag(record.flag() & !0x4);
+        println!("{}", record.is_reverse());
+        record
+    }
+
+    #[test]
+    fn test_is_opp_orientation() {
+        let read_a = create_bam_record("read_a", 0, 10, "ATCG", false);
+        let read_b = create_bam_record("read_b", 2, 10, "ATCG", true);
+
+        assert!(is_opp_orientation(&read_a, &read_b));
+        assert!(!is_opp_orientation(&read_a, &read_a));
+    }
+
+    #[test]
+    fn test_is_overlap() {
+        let read_a = create_bam_record("read_a", 0, 10, "ATCG", false);
+        let read_b = create_bam_record("read_b", 0, 12, "ATCG", false);
+
+        assert!(is_overlap(&read_a, &read_b));
+
+        let read_c = create_bam_record("read_c", 0, 20, "ATCG", false);
+        assert!(!is_overlap(&read_a, &read_c));
+    }
+
+    #[test]
+    fn test_construct_sequence() {
+        let mut read_blueprint = IndexMap::new();
+        read_blueprint.insert(10, b'A');
+        read_blueprint.insert(11, b'T');
+        read_blueprint.insert(12, b'C');
+        read_blueprint.insert(13, b'G');
+
+        let (start, seq) = construct_sequence(read_blueprint);
+        assert_eq!(start, 10);
+        assert_eq!(seq, vec![b'A', b'T', b'C', b'G']);
+    }
+
+    // Test the handle_dupes function (simplified test)
+    #[test]
+    fn test_handle_dupes() {
+        let mut umis_reads: HashMap<String, Vec<Record>> = HashMap::new();
+        umis_reads.insert(
+            "umi1".to_string(),
+            vec![
+                create_bam_record("read1", 0, 10, "ATCG", false),
+                create_bam_record("read2", 0, 13, "GATC", true),
+            ],
+        );
+
+        let mapper: ReMapper = Aligner::new(-5, -1, blosum62, 19, 70);
+        let ref_fasta = vec![b'A', b'T', b'C', b'G', b'A', b'T', b'C'];
+
+        let (merge_report, corrected_reads) = handle_dupes(&mut umis_reads, mapper, ref_fasta, 1);
+        let out_read = &corrected_reads[0];
+        println!("{}", merge_report);
+        println!("{:?}", out_read.cigar().to_string());
+        println!("{:?}", out_read.seq().as_bytes());
+        assert_eq!(out_read.seq().as_bytes(), b"ATCGATC");
+        assert_eq!(out_read.cigar().to_string(), "7=");
+        assert!(!corrected_reads.is_empty());
+    }
+}
