@@ -264,3 +264,154 @@ impl<'b> Grouper<'b> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_edit_distance() {
+        let ua = "ATCG";
+        let ub = "ATGG";
+        assert_eq!(edit_distance(ua, ub), 1);
+
+        let ua = "ATCG";
+        let ub = "ATCG";
+        assert_eq!(edit_distance(ua, ub), 0);
+
+        let ua = "ATCG";
+        let ub = "GGGG";
+        assert_eq!(edit_distance(ua, ub), 3);
+    }
+
+    #[test]
+    fn test_get_substring_map() {
+        let umis = vec!["ATCG".to_string(), "ATGG".to_string(), "ACGG".to_string()];
+        let grouper = Grouper { umis: &umis };
+        let substring_map = grouper.get_substring_map();
+
+        // Check if the substring map is correctly generated
+        assert!(!substring_map.is_empty());
+        for (_slice, substrings) in &substring_map {
+            for (substring, umis) in substrings {
+                assert!(!umis.is_empty());
+                for umi in umis {
+                    assert!(umi.contains(substring));
+                }
+            }
+        }
+
+        assert_eq!(
+            *substring_map.get(&(0, 2)).unwrap().get("AT").unwrap(),
+            vec!["ATCG", "ATGG"]
+        )
+    }
+
+    #[test]
+    fn test_add_edge_directional() {
+        let umis = vec!["ATCG".to_string(), "ATGG".to_string(), "ACGG".to_string()];
+        let grouper = Grouper { umis: &umis };
+        let mut counts = HashMap::new();
+        counts.insert("ATCG", 10);
+        counts.insert("ATGG", 5);
+        counts.insert("ACGG", 3);
+
+        assert!(grouper.add_edge_directional("ATCG", "ATGG", &counts, 1));
+        assert!(!grouper.add_edge_directional("ATGG", "ATCG", &counts, 1));
+        assert!(!grouper.add_edge_directional("ATCG", "ACGG", &counts, 1));
+    }
+
+    #[test]
+    fn test_get_adj_list_directional() {
+        let umis = vec!["ATCG".to_string(), "ATGG".to_string(), "ACGG".to_string()];
+        let grouper = Grouper { umis: &umis };
+        let mut counts = HashMap::new();
+        counts.insert("ATCG", 10);
+        counts.insert("ATGG", 5);
+        counts.insert("ACGG", 3);
+
+        let substring_map = grouper.get_substring_map();
+        let neighbors = grouper.iter_substring_neighbors(substring_map);
+        let adj_list = grouper.get_adj_list_directional(&counts, neighbors, 1);
+
+        // Check if the adjacency list is correctly generated
+        assert!(!adj_list.is_empty());
+        assert_eq!(adj_list.get("ATCG").unwrap()[0], "ATGG");
+        assert_eq!(adj_list.get("ATGG").unwrap()[0], "ACGG");
+    }
+
+    #[test]
+    fn test_get_umi_groups() {
+        let umis = vec![
+            "ATCG".to_string(),
+            "ATGG".to_string(),
+            "ACGG".to_string(),
+            "GATT".to_string(),
+        ];
+        let grouper = Grouper { umis: &umis };
+        let mut counts = HashMap::new();
+        counts.insert("ATCG", 10);
+        counts.insert("ATGG", 5);
+        counts.insert("ACGG", 3);
+        counts.insert("GATT", 25);
+
+        let substring_map = grouper.get_substring_map();
+        let neighbors = grouper.iter_substring_neighbors(substring_map);
+        let adj_list = grouper.get_adj_list_directional(&counts, neighbors, 1);
+        let components = grouper.get_connected_components(adj_list).unwrap();
+        let groups = grouper.get_umi_groups(components);
+
+        // Check if UMI groups are correctly generated
+        println!("{:?}", groups);
+        assert!(!groups.is_empty());
+        assert_eq!(groups.len(), 2);
+        for group in &groups {
+            assert!(!group.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_cluster_directional() {
+        let umis = vec![
+            "ATCG".to_string(),
+            "ATGG".to_string(),
+            "ACGG".to_string(),
+            "GATT".to_string(),
+        ];
+        let grouper = Grouper { umis: &umis };
+        let mut counts = HashMap::new();
+        counts.insert("ATCG", 10);
+        counts.insert("ATGG", 5);
+        counts.insert("ACGG", 3);
+        counts.insert("GATT", 25);
+
+        let grouping_method = Arc::new(&GroupingMethod::Directional);
+        let (_counts, groups) = grouper.cluster(counts, grouping_method);
+
+        // Check if clustering is correctly performed
+        assert!(groups.is_some());
+        let groups = groups.unwrap();
+        assert_eq!(groups.len(), 2)
+    }
+
+    #[test]
+    fn test_no_clustering() {
+        let umis = vec!["ATCG".to_string(), "ATGG".to_string(), "ACGG".to_string()];
+        let grouper = Grouper { umis: &umis };
+        let mut counts = HashMap::new();
+        counts.insert("ATCG", 10);
+        counts.insert("ATGG", 5);
+        counts.insert("ACGG", 3);
+
+        let (_counts, groups) = grouper.no_clustering(counts);
+
+        // Check if no clustering is correctly performed
+        assert!(groups.is_some());
+        let groups = groups.unwrap();
+        assert_eq!(groups.len(), umis.len());
+        for group in &groups {
+            assert_eq!(group.len(), 1);
+        }
+    }
+}
