@@ -122,3 +122,119 @@ pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bottomhash::ReadsAndCount;
+    use rust_htslib::bam::Record;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_correct_errors_single_read() {
+        let mut clusters: Vec<ReadsAndCount> = Vec::new();
+        let mut reads = Vec::new();
+        let mut record = Record::new();
+        // Simulate a BAM record with some sequence and quality scores
+        record.set(b"read1", None, b"ATCG", b"####");
+        reads.push(record);
+        clusters.push(ReadsAndCount { reads, count: 1 });
+        let result = correct_errors(&mut clusters);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].seq().as_bytes(), b"ATCG");
+    }
+
+    #[test]
+    fn test_correct_errors_multiple_reads() {
+        let mut clusters: Vec<ReadsAndCount> = Vec::new();
+        let mut reads1 = Vec::new();
+        let mut reads2 = Vec::new();
+        let mut record1 = Record::new();
+        let mut record2 = Record::new();
+        let mut record3 = Record::new();
+        // Simulate BAM records with some sequences and quality scores
+        record1.set(b"read1", None, b"ATCG", b"####");
+        record2.set(b"read2", None, b"ATCG", b"####");
+        record3.set(b"read3", None, b"ATGG", b"####");
+        reads1.push(record1);
+        reads1.push(record2);
+        reads2.push(record3);
+        clusters.push(ReadsAndCount {
+            reads: reads1,
+            count: 2,
+        });
+        clusters.push(ReadsAndCount {
+            reads: reads2,
+            count: 1,
+        });
+        let result = correct_errors(&mut clusters);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].seq().as_bytes(), b"ATCG");
+    }
+
+    #[test]
+    fn test_get_counts() {
+        let top_umi = vec!["UMI1", "UMI2"];
+        let counts = HashMap::from([("UMI1", 10), ("UMI2", 5)]);
+        let result = get_counts(&top_umi, &counts);
+        assert_eq!(result, 15);
+    }
+
+    #[test]
+    fn test_get_best_phred_single_group() {
+        let mut clusters: Vec<Vec<Record>> = Vec::new();
+        let mut reads = Vec::new();
+        let mut record1 = Record::new();
+        let mut record2 = Record::new();
+        // Simulate BAM records with some sequences and quality scores
+        record1.set(b"read1", None, b"ATCG", b"####");
+        record2.set(b"read2", None, b"ATAG", b"##!#");
+        reads.push(record1);
+        reads.push(record2);
+        clusters.push(reads);
+        let result = get_best_phred(clusters);
+        assert_eq!(result.seq().as_bytes(), b"ATCG");
+    }
+
+    #[test]
+    fn test_get_best_phred_multiple_groups() {
+        let mut clusters: Vec<Vec<Record>> = Vec::new();
+        let mut reads1 = Vec::new();
+        let mut reads2 = Vec::new();
+        let mut record1 = Record::new();
+        let mut record2 = Record::new();
+        let mut record3 = Record::new();
+        let mut record4 = Record::new();
+        // Simulate BAM records with some sequences and quality scores
+        record1.set(b"read1", None, b"ATCG", b"####");
+        record2.set(b"read2", None, b"ATCG", b"!!!!");
+        record3.set(b"read3", None, b"ATTG", b"!!!!");
+        record4.set(b"read4", None, b"ATGG", b"!!!!");
+        reads1.push(record1);
+        reads1.push(record2);
+        reads2.push(record3);
+        reads2.push(record4);
+        clusters.push(reads1);
+        clusters.push(reads2);
+        let result = get_best_phred(clusters);
+        assert_eq!(result.seq().as_bytes(), b"ATCG");
+    }
+
+    #[test]
+    fn test_correction_tied_for_majority() {
+        let mut clusters: Vec<Vec<Record>> = Vec::new();
+        let mut reads1 = Vec::new();
+        let mut reads2 = Vec::new();
+        let mut record1 = Record::new();
+        let mut record2 = Record::new();
+        // Simulate BAM records with some sequences and quality scores
+        record1.set(b"read1", None, b"ATCG", b"####");
+        record2.set(b"read2", None, b"ATAG", b"##!#");
+        reads1.push(record1);
+        reads2.push(record2);
+        clusters.push(reads1);
+        clusters.push(reads2);
+        let result = get_best_phred(clusters);
+        assert_eq!(result.seq().as_bytes(), b"ATCG");
+    }
+}
