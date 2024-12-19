@@ -93,6 +93,8 @@ def merge_fr(tagged_file_name, ref_fasta):
             outfile,
             "-r",
             ref_fasta,
+            "-b",
+            args.min_overlap_bp,
             "--threads",
             args.threads,
         ],

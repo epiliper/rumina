@@ -1,13 +1,14 @@
 use colored::Colorize;
+use indexmap::IndexMap;
 use num_format::{Locale, ToFormattedString};
 use std::fmt;
 
 const LOCALE: Locale = Locale::en;
 
 pub enum MergeResult {
-    Discordant,
-    NoMerge,
-    Merge,
+    Discordant(Option<IndexMap<i64, u8>>),
+    NoMerge(Option<IndexMap<i64, u8>>),
+    Merge(Option<IndexMap<i64, u8>>),
 }
 
 pub struct MergeReport {
@@ -21,9 +22,9 @@ pub struct MergeReport {
 impl MergeReport {
     pub fn count(&mut self, merge_result: MergeResult) {
         match merge_result {
-            MergeResult::Discordant => self.num_discordant += 1,
-            MergeResult::NoMerge => self.num_unmerged += 1,
-            MergeResult::Merge => self.num_merged += 1,
+            MergeResult::Discordant(_) => self.num_discordant += 1,
+            MergeResult::NoMerge(_) => self.num_unmerged += 1,
+            MergeResult::Merge(_) => self.num_merged += 1,
         }
     }
 

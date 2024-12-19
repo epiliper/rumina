@@ -80,9 +80,15 @@ Options are:
     )
 
     flags.add_argument(
+        "--min_overlap_bp",
+        default="3",
+        help="minimum number of bases for reads to overlap to be merged via --merge_pairs. Reads below this threshold will be discarded.",
+    )
+
+    flags.add_argument(
         "--halve_pairs",
         action="store_true",
-        help="only use R1 for deduplication, and discard R1. Similar to UMI-tools.",
+        help="only use R1 for deduplication, and discard R2. Similar to UMI-tools.",
     )
 
     flags.add_argument("--singletons", action="store_true")
@@ -144,6 +150,11 @@ Options are:
             sys.exit(
                 "Cannot use --merge_pairs and --halve_pairs simultaneously. Please pick one option."
             )
+
+            if args.min_overlap_bp < 0:
+                sys.exit(
+                    "Cannot use negative value for --min_overlap_bp. Please pick a positive value"
+                )
 
         if not any(ext in str(args.merge_pairs) for ext in [".fa", ".fasta"]):
             sys.exit(

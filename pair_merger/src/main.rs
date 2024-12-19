@@ -29,6 +29,8 @@ struct Args {
     dupe_list: String,
     #[arg(short = 'r')]
     ref_fasta: String,
+    #[arg(short = 'b')]
+    min_overlap_bp: usize,
     #[arg(long = "threads")]
     threads: usize,
 }
@@ -145,7 +147,8 @@ fn main() {
         .into_inner()
         .expect("Mutex poisoned!");
 
-    let (mut merge_report, mut merged_reads) = handle_dupes(&mut remainder, mapper, ref_fasta);
+    let (mut merge_report, mut merged_reads) =
+        handle_dupes(&mut remainder, mapper, ref_fasta, args.min_overlap_bp);
 
     merged_reads
         .drain(..)

@@ -11,8 +11,9 @@ use crate::realign::{align_to_ref, ReMapper};
 
 pub fn handle_dupes(
     umis_reads: &mut HashMap<String, Vec<Record>>,
-    mut mapper: ReMapper,
+    mapper: ReMapper,
     ref_fasta: Vec<u8>,
+    min_overlap_bp: usize,
 ) -> (MergeReport, Vec<Record>) {
     let corrected_reads: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
     let results: Arc<Mutex<Vec<MergeResult>>> = Arc::new(Mutex::new(Vec::new()));
@@ -41,20 +42,25 @@ pub fn handle_dupes(
                 while !reads.is_empty() {
                     let read = reads.remove(0);
 
-                    let (merged, result) = find_merges(&read, &mut reads, &mut mapper.clone(), &ref_fasta);
+                    let result = find_merges(&read, &mut reads, min_overlap_bp);
 
                     match result {
-                        MergeResult::Discordant => (),
-
-                        MergeResult::NoMerge => {
-                            outreads.push(read);
+                        MergeResult::Discordant(_) => {
+                            merge_results.push(result);
                         }
-                        MergeResult::Merge => {
-                            outreads.push(merged.unwrap());
+
+                        MergeResult::NoMerge(_) => {
+                            outreads.push(read);
+                            merge_results.push(result);
+                        }
+                        MergeResult::Merge(merged_bases) => {
+                            let (start_pos, merged_seq) = construct_sequence(merged_bases.unwrap());
+                            let merged_read = construct_read(&read, merged_seq, &mut mapper.clone(), &ref_fasta);
+                            outreads.push(merged_read);
+                            merge_results.push(MergeResult::Merge(None));
                         }
                     }
 
-                    merge_results.push(result);
                 }
                 corrected_reads.lock().extend(outreads);
                 results.lock().extend(merge_results);
@@ -90,27 +96,25 @@ pub fn is_overlap(read_a: &Record, read_b: &Record) -> bool {
 }
 
 // for groups of >2 reads, find every overlapping f/r read pair, attempt merge
-pub fn find_merges(
-    read: &Record,
-    reads: &mut Vec<Record>,
-    mapper: &mut ReMapper,
-    ref_seq: &Vec<u8>,
-) -> (Option<Record>, MergeResult) {
+pub fn find_merges(read: &Record, reads: &mut Vec<Record>, min_overlap_bp: usize) -> MergeResult {
     for (i, other_read) in reads.iter().enumerate() {
-        if is_opp_orientation(read, other_read) && is_overlap(read, other_read) {
-            if let Some(merge) = attempt_merge(read, other_read) {
-                let (start_pos, merged_seq) = construct_sequence(merge);
-                let merged_rec = construct_read(read, merged_seq, mapper, ref_seq);
-                reads.remove(i);
+        if is_opp_orientation(&read, other_read) && is_overlap(&read, other_read) {
+            let merge_result = attempt_merge(&read, other_read, min_overlap_bp);
 
-                return (Some(merged_rec), MergeResult::Merge);
-            } else {
-                reads.remove(i);
-                return (None, MergeResult::Discordant);
+            match merge_result {
+                MergeResult::Discordant(_) => {
+                    reads.remove(i);
+                }
+                MergeResult::NoMerge(_) => {}
+                MergeResult::Merge(_) => {
+                    reads.remove(i);
+                }
             }
+            return merge_result;
         }
     }
-    return (None, MergeResult::NoMerge);
+
+    MergeResult::NoMerge(None)
 }
 
 pub fn construct_sequence<'a>(mut read_blueprint: IndexMap<i64, u8>) -> (i64, Vec<u8>) {
@@ -155,7 +159,7 @@ pub fn construct_read(
 
 // with two overlapping reads, attempt to merge the reads
 // halt if the reads have discordant sequence
-pub fn attempt_merge(read_a: &Record, read_b: &Record) -> Option<IndexMap<i64, u8>> {
+pub fn attempt_merge(read_a: &Record, read_b: &Record, min_overlap_bp: usize) -> MergeResult {
     // check that these reads have opposing orientation
     let mut ra: IndexMap<i64, u8> = IndexMap::new();
     let mut rb: IndexMap<i64, u8> = IndexMap::new();
@@ -171,6 +175,7 @@ pub fn attempt_merge(read_a: &Record, read_b: &Record) -> Option<IndexMap<i64, u
         rb.entry(pair[1]).or_insert(rbs[pair[0] as usize]);
     });
 
+    let mut num_overlap = 0;
     let mut discordant = false;
 
     for (gpos, nuc) in ra {
@@ -184,14 +189,19 @@ pub fn attempt_merge(read_a: &Record, read_b: &Record) -> Option<IndexMap<i64, u
                 discordant = true;
                 break;
             } else {
+                num_overlap += 1;
             }
         } else {
             rb.entry(gpos).or_insert(nuc);
         }
     }
     if !discordant {
-        return Some(rb);
+        if num_overlap >= min_overlap_bp {
+            MergeResult::Merge(Some(rb))
+        } else {
+            MergeResult::NoMerge(None)
+        }
     } else {
-        return None;
+        MergeResult::Discordant(None)
     }
 }
