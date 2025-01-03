@@ -1,0 +1,32 @@
+name: Build and Test Rust Binaries
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        
+    - name: build and test bam_processor
+      run: |
+        cd bam_processor
+        cargo build --verbose
+        cargo test --verbose
+        
+    - name: build and test pair_merger
+      run: |
+        cd pair_merger
+        cargo build --verbose
+        cargo test --verbose
