@@ -1,4 +1,5 @@
 use crate::bottomhash::ReadsAndCount;
+use crate::grouper::GroupIterator;
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
 use crate::report::{BarcodeTracker, GroupReport};
 use crate::utils::{get_umi, get_umi_static};
@@ -63,7 +64,7 @@ impl<'a> GroupHandler<'a> {
     // driver function of grouping
     pub fn tag_records(
         &mut self,
-        grouping_output: (HashMap<&str, i32>, Option<Vec<Vec<&str>>>),
+        grouping_output: (HashMap<&str, i32>, Option<GroupIterator>),
         mut umis_records: IndexMap<String, ReadsAndCount>,
         barcode_tracker: Arc<Mutex<BarcodeTracker>>,
     ) -> Option<(Option<GroupReport>, Vec<Record>)> {
@@ -82,7 +83,8 @@ impl<'a> GroupHandler<'a> {
     }
     pub fn tag_groups(
         &mut self,
-        mut final_umis: Vec<Vec<&str>>,
+        // mut final_umis: Vec<Vec<&str>>,
+        final_umis: GroupIterator,
         umis_records: &mut IndexMap<String, ReadsAndCount>,
         counts: HashMap<&str, i32>,
         barcode_tracker: Arc<Mutex<BarcodeTracker>>,
@@ -101,16 +103,16 @@ impl<'a> GroupHandler<'a> {
 
         // to report min and max observed reads per group
         let mut group_report = GroupReport::new();
-        group_report.num_groups += final_umis.len() as i64;
+        // group_report.num_groups += final_umis.len() as i64;
 
         let read_count_thres = match self.singletons {
             true => 0,
             false => 3, // groups should have 3+ reads for reliable majority rule
         };
 
-        final_umis.sort_unstable();
+        // final_umis.sort_unstable();
 
-        for top_umi in final_umis.drain(..) {
+        for top_umi in final_umis {
             let num_reads_in_group = get_counts(&top_umi, &counts);
             if num_reads_in_group >= read_count_thres {
                 let ug_tag = generate_tag(&mut rng, &mut used_tags);

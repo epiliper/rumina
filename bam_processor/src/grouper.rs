@@ -1,10 +1,12 @@
 use crate::GroupingMethod;
 use indexmap::{IndexMap, IndexSet};
+// use std::collections::hash_set::IntoIter;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::iter::zip;
 use std::sync::Arc;
+use std::vec::IntoIter;
 
 use std::str;
 use strsim::hamming;
@@ -12,6 +14,41 @@ use strsim::hamming;
 // gets edit distance (hamming distance) between two umis
 pub fn edit_distance(ua: &str, ub: &str) -> usize {
     hamming(ua, ub).unwrap()
+}
+
+pub struct GroupIterator<'b> {
+    pub clusters: IntoIter<HashSet<&'b str>>,
+    observed: HashSet<&'b str>,
+}
+
+impl<'b> Iterator for GroupIterator<'b> {
+    type Item = Vec<&'b str>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = self.clusters.next();
+
+        if next.is_some() {
+            let cluster = next.unwrap();
+            if cluster.len() == 1 {
+                let node = cluster.iter().next().unwrap();
+                self.observed.insert(node);
+                return Some(vec![node]);
+            }
+
+            let mut temp_cluster: Vec<&str> = Vec::new();
+
+            for node in cluster {
+                if !self.observed.contains(&node) {
+                    temp_cluster.push(node);
+                    self.observed.insert(node);
+                }
+            }
+
+            return Some(temp_cluster);
+        }
+
+        None
+    }
 }
 
 // this struct contains logic for error correction of UMIs downstream of read batching.
@@ -197,42 +234,21 @@ impl<'b> Grouper<'b> {
         }
     }
 
-    // get a list of UMIs, each with their own list of UMIs belonging to their group
-    pub fn get_umi_groups(&self, clusters: Vec<HashSet<&'b str>>) -> Vec<Vec<&'b str>> {
-        let mut observed: HashSet<&str> = HashSet::new();
-        let mut groups: Vec<Vec<&str>> = Vec::new();
-
-        for cluster in clusters {
-            if cluster.len() == 1 {
-                let node = cluster.iter().next().unwrap();
-                groups.push(vec![node]);
-                observed.insert(node);
-            } else {
-                let mut temp_cluster: Vec<&str> = Vec::new();
-
-                for node in cluster {
-                    if !observed.contains(&node) {
-                        temp_cluster.push(node);
-                        observed.insert(node);
-                    }
-                }
-                groups.push(temp_cluster);
-            }
-        }
-        groups
-    }
-
     // used with the raw method. No UMI error correction.
     pub fn no_clustering(
         &self,
         counts: HashMap<&'b str, i32>,
-    ) -> (HashMap<&str, i32>, Option<Vec<Vec<&str>>>) {
+    ) -> (HashMap<&str, i32>, GroupIterator) {
         let umis = self
             .umis
             .iter()
             .map(|x| HashSet::from([x.as_str()]))
             .collect::<Vec<HashSet<&'b str>>>();
-        let final_umis = Some(self.get_umi_groups(umis));
+        // let final_umis = self.get_umi_groups(umis);
+        let final_umis = GroupIterator {
+            clusters: umis.into_iter(),
+            observed: HashSet::new(),
+        };
 
         (counts, final_umis)
     }
@@ -242,12 +258,13 @@ impl<'b> Grouper<'b> {
         &self,
         counts: HashMap<&'b str, i32>,
         grouping_method: Arc<&GroupingMethod>,
-    ) -> (HashMap<&str, i32>, Option<Vec<Vec<&str>>>) {
+    ) -> (HashMap<&str, i32>, Option<GroupIterator>) {
         let clusterer = match *grouping_method {
             GroupingMethod::Directional => Grouper::get_adj_list_directional,
             GroupingMethod::Acyclic => Grouper::get_adj_list_acyclic,
             GroupingMethod::Raw => {
-                return self.no_clustering(counts);
+                let (counts, groups) = self.no_clustering(counts);
+                return (counts, Some(groups));
             }
         };
 
@@ -257,8 +274,12 @@ impl<'b> Grouper<'b> {
 
         if !adj_list.is_empty() {
             let clusters = self.get_connected_components(adj_list).unwrap();
-            let final_umis = Some(self.get_umi_groups(clusters));
-            (counts, final_umis)
+            // let final_umis = self.get_umi_groups(clusters);
+            let final_umis = GroupIterator {
+                clusters: clusters.into_iter(),
+                observed: HashSet::new(),
+            };
+            (counts, Some(final_umis))
         } else {
             (counts, None)
         }
@@ -360,7 +381,13 @@ mod tests {
         let neighbors = grouper.iter_substring_neighbors(substring_map);
         let adj_list = grouper.get_adj_list_directional(&counts, neighbors, 1);
         let components = grouper.get_connected_components(adj_list).unwrap();
-        let groups = grouper.get_umi_groups(components);
+        // let groups = grouper.get_umi_groups(components);
+        let groups = GroupIterator {
+            clusters: components.into_iter(),
+            observed: HashSet::new(),
+        };
+
+        let groups = groups.into_iter().collect::<Vec<_>>();
 
         // Check if UMI groups are correctly generated
         println!("{:?}", groups);
@@ -388,6 +415,7 @@ mod tests {
 
         let grouping_method = Arc::new(&GroupingMethod::Directional);
         let (_counts, groups) = grouper.cluster(counts, grouping_method);
+        let groups = Some(groups.iter().collect::<Vec<_>>());
 
         // Check if clustering is correctly performed
         assert!(groups.is_some());
@@ -405,12 +433,11 @@ mod tests {
         counts.insert("ACGG", 3);
 
         let (_counts, groups) = grouper.no_clustering(counts);
+        let groups = groups.collect::<Vec<_>>();
 
         // Check if no clustering is correctly performed
-        assert!(groups.is_some());
-        let groups = groups.unwrap();
         assert_eq!(groups.len(), umis.len());
-        for group in &groups {
+        for group in groups {
             assert_eq!(group.len(), 1);
         }
     }
