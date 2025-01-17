@@ -77,7 +77,7 @@ def calculate_split(input):
         return 100
 
 
-def merge_fr(tagged_file_name, ref_fasta):
+def merge_fr(tagged_file_name, ref_fasta, split_window):
     print("Merging overlapping forward/reverse amplicons...")
     outfile = tagged_file_name.split(".bam")[0] + "_merged.bam"
 
@@ -90,8 +90,8 @@ def merge_fr(tagged_file_name, ref_fasta):
         args.threads,
     ]
 
-    if args.split_window:
-        tag_cmd.extend(["--split_window", str(args.split_window)])
+    if split_window:
+        tag_cmd.extend(["--split_window", str(split_window)])
 
     tag_cmd.extend(
         [
@@ -161,7 +161,7 @@ def group_bam(input_file, split_window):
 
     if args.merge_pairs:
         sort_and_index(tagged_file_name)
-        merge_file = merge_fr(tagged_file_name, args.merge_pairs)
+        merge_file = merge_fr(tagged_file_name, args.merge_pairs, split_window)
         tagged_file_name = merge_file
 
     if args.sort_outbam:
