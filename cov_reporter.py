@@ -3,20 +3,10 @@ import os
 import warnings
 import pysam
 from concurrent.futures import ThreadPoolExecutor
+from args import init_args
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
-
-COLUMNS = [
-    "num_reads_input_file",
-    "num_reads_output_file",
-    "num_raw_umis",
-    "num_total_groups",
-    "num_passing_groups",
-    "least_reads_group",
-    "least_reads_per_group",
-    "most_reads_group",
-    "most_reads_per_group",
-]
+args = init_args()
 
 
 def get_coverage(input_file, region):
@@ -32,46 +22,8 @@ def get_coverage(input_file, region):
     return region_df
 
 
-def generate_group_report(original_file, final_file):
-    work_path = os.path.dirname(final_file)
-    minmax_file = os.path.join(work_path, "minmax.txt")
-
-    df = pd.read_csv(
-        minmax_file,
-        sep="\t",
-        names=COLUMNS,
-    )
-
-    group_report = pd.DataFrame(columns=COLUMNS)
-
-    group_report["num_reads_input_file"] = [df["num_reads_input_file"].sum()]
-    group_report["num_reads_output_file"] = [df["num_reads_output_file"].sum()]
-    group_report["least_reads_per_group"] = [int(df["least_reads_per_group"].min())]
-    group_report["least_reads_group"] = [
-        df.iloc[df["least_reads_per_group"].idxmin()].least_reads_group
-    ]
-    group_report["most_reads_per_group"] = [int(df["most_reads_per_group"].max())]
-    group_report["most_reads_group"] = [
-        df.iloc[df["most_reads_per_group"].idxmax()].most_reads_group
-    ]
-    group_report["num_passing_groups"] = [df["num_passing_groups"].sum()]
-    group_report["num_total_groups"] = [df["num_total_groups"].sum()]
-    group_report["num_raw_umis"] = [df["num_raw_umis"].sum()]
-
-    save_dir = os.path.dirname(final_file)
-    group_report["query_name"] = os.path.basename(original_file).split(".bam")[0]
-
-    group_tsv = os.path.join(save_dir, final_file.split(".bam")[0] + "_grouping.tsv")
-
-    group_report.to_csv(group_tsv, sep="\t", index=None)
-    # IMPORTANT:
-    # for accurate reporting of split files,
-    # rumina will append to minmax file,
-    # delete it after each sample
-    os.remove(minmax_file)
-
-
 def generate_cov_depth_report(original_file, final_file):
+    sort_and_index(final_file)
     cov_report = pd.DataFrame()
     with pysam.AlignmentFile(final_file, "rb") as outbam:
         references = outbam.references
@@ -87,3 +39,13 @@ def generate_cov_depth_report(original_file, final_file):
     save_dir = os.path.dirname(final_file)
     cov_tsv = os.path.join(save_dir, final_file.split(".bam")[0] + "_coverage.tsv")
     cov_report.to_csv(cov_tsv, sep="\t", index=None)
+
+
+def sort_and_index(output_file):
+    temp_file = output_file.split(".bam")[0] + "_s.bam"
+    os.rename(output_file, temp_file)
+
+    pysam.sort(f"-@ {args.threads}", temp_file, "-o", output_file)
+    os.remove(temp_file)
+
+    pysam.index(f"-@ {args.threads}", output_file)

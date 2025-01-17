@@ -1,5 +1,6 @@
 use arrayvec::ArrayVec;
 use colored::Colorize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -15,10 +16,10 @@ pub type StaticUMI = ArrayVec<u8, MAX_UMI_LENGTH>;
 
 // This report contains details like UMIs in/out, reads in/out, and other details, and is updated
 // after the deduplication of each batch.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GroupReport {
-    pub min_reads: i64,
-    pub max_reads: i64,
+    pub min_reads_per_group: i64,
+    pub max_reads_per_group: i64,
     pub min_reads_group: [u8; 8],
     pub max_reads_group: [u8; 8],
     pub num_passing_groups: i64,
@@ -31,9 +32,9 @@ pub struct GroupReport {
 impl GroupReport {
     pub fn new() -> Self {
         GroupReport {
-            min_reads: i64::MAX,
+            min_reads_per_group: i64::MAX,
             min_reads_group: *b"NONENONE",
-            max_reads: 0,
+            max_reads_per_group: 0,
             max_reads_group: *b"NONENONE",
             num_passing_groups: 0,
             num_groups: 0,
@@ -45,18 +46,18 @@ impl GroupReport {
 
     // detect if report is empty (occurs if no groups pass singleton filter)
     pub fn is_blank(&self) -> bool {
-        self.max_reads == 0
+        self.max_reads_per_group == 0
     }
 
     // after a batch has been processed, check to see if fields need to be udpated
     pub fn update(&mut self, other_report: GroupReport, num_umis: i32) {
-        if other_report.max_reads > self.max_reads {
-            self.max_reads = other_report.max_reads;
+        if other_report.max_reads_per_group > self.max_reads_per_group {
+            self.max_reads_per_group = other_report.max_reads_per_group;
             self.max_reads_group = other_report.max_reads_group;
         }
 
-        if other_report.min_reads < self.min_reads {
-            self.min_reads = other_report.min_reads;
+        if other_report.min_reads_per_group < self.min_reads_per_group {
+            self.min_reads_per_group = other_report.min_reads_per_group;
             self.min_reads_group = other_report.min_reads_group;
         }
 
@@ -72,19 +73,33 @@ impl GroupReport {
     // once deduplication of the file is complete, only list UMIs that were observed more than
     // once.
     pub fn write_to_report_file(&mut self, output_file: &String) {
+        let outname = output_file.split_once(".").unwrap().0;
         let report_file = Path::new(&output_file)
             .parent()
             .unwrap()
-            .join("rumina_report.txt");
-        //
-        if !report_file.exists() {
-            let _ = File::create(&report_file);
-        }
+            .join(format!("{}_rumina_report.tsv", outname));
+
+        let _ = File::create(&report_file);
 
         let mut report_f = OpenOptions::new()
             .append(true)
             .open(report_file)
             .expect("unable to open minmax file");
+
+        let _ = report_f.write(
+            concat!(
+                "num_reads_input_file\t",
+                "num_reads_output_file\t",
+                "num_total_barcodes\t",
+                "num_total_groups\t",
+                "num_passing_groups\t",
+                "min_reads_group\t",
+                "min_reads_per_group\t",
+                "max_reads_group\t",
+                "max_reads_per_group\n"
+            )
+            .as_bytes(),
+        );
 
         let _ = report_f.write(
             format!(
@@ -95,9 +110,9 @@ impl GroupReport {
                 self.num_groups,
                 self.num_passing_groups,
                 String::from_utf8(self.min_reads_group.to_vec()).unwrap(),
-                self.min_reads,
+                self.min_reads_per_group,
                 String::from_utf8(self.max_reads_group.to_vec()).unwrap(),
-                self.max_reads,
+                self.max_reads_per_group,
             )
             .as_bytes(),
         );
@@ -117,9 +132,9 @@ impl fmt::Display for GroupReport {
             {}: {}\n\
             {}: {}",
             "Minimum reads per group".cyan(),
-            self.min_reads.to_formatted_string(&LOCALE),
+            self.min_reads_per_group.to_formatted_string(&LOCALE),
             "Maximum reads per group".cyan(),
-            self.max_reads.to_formatted_string(&LOCALE),
+            self.max_reads_per_group.to_formatted_string(&LOCALE),
             "Total UMI groups".cyan(),
             self.num_groups.to_formatted_string(&LOCALE),
             "Groups passing singleton filtering".cyan(),

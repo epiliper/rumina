@@ -141,7 +141,7 @@ fn main() {
 
             // report on min and max number of reads per group
             // this creates minmax.txt
-            if group_report.min_reads != i64::MAX {
+            if !group_report.is_blank() {
                 println!("{}", "DONE".green());
 
                 group_report.write_to_report_file(&output_file);

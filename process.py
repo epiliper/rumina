@@ -1,10 +1,11 @@
 import pysam
 import subprocess
 import os
-from cov_reporter import generate_group_report, generate_cov_depth_report
 from logo import print_file_end
+from cov_reporter import generate_cov_depth_report, sort_and_index
 
 from args import init_args
+
 
 args = init_args()
 
@@ -38,6 +39,7 @@ def get_all_files(input):
 
     else:
         files_to_clean.append(input)
+
 
     return files_to_clean
 
@@ -165,20 +167,7 @@ def group_bam(input_file, split_window):
     if args.sort_outbam:
         sort_and_index(tagged_file_name)
 
-    if not args.no_report:
-        generate_group_report(input_file, tagged_file_name)
-
     if args.cov_depth_report:
         generate_cov_depth_report(input_file, tagged_file_name)
 
     return tagged_file_name
-
-
-def sort_and_index(output_file):
-    temp_file = output_file.split(".bam")[0] + "_s.bam"
-    os.rename(output_file, temp_file)
-
-    pysam.sort(f"-@ {args.threads}", temp_file, "-o", output_file)
-    os.remove(temp_file)
-
-    pysam.index(f"-@ {args.threads}", output_file)

@@ -93,28 +93,26 @@ impl<'a> GroupHandler<'a> {
 
         // to report min and max observed reads per group
         let mut group_report = GroupReport::new();
-        // group_report.num_groups += final_umis.len() as i64;
 
         let read_count_thres = match self.singletons {
             true => 0,
             false => 3, // groups should have 3+ reads for reliable majority rule
         };
 
-        // final_umis.sort_unstable();
-
         for top_umi in final_umis {
             let num_reads_in_group = get_counts(&top_umi, &counts);
+            group_report.num_groups += 1;
             if num_reads_in_group >= read_count_thres {
                 let ug_tag = generate_tag(&mut rng, &mut used_tags);
 
                 // check if number of reads per group is new minimum or maximum
-                if num_reads_in_group < group_report.min_reads {
-                    group_report.min_reads = num_reads_in_group;
+                if num_reads_in_group < group_report.min_reads_per_group {
+                    group_report.min_reads_per_group = num_reads_in_group;
                     group_report.min_reads_group = ug_tag;
                 }
 
-                if num_reads_in_group > group_report.max_reads {
-                    group_report.max_reads = num_reads_in_group;
+                if num_reads_in_group > group_report.max_reads_per_group {
+                    group_report.max_reads_per_group = num_reads_in_group;
                     group_report.max_reads_group = ug_tag;
                 }
 
