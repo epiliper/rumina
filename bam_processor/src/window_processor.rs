@@ -3,8 +3,6 @@ use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::progbars::*;
 use crate::readkey::ReadKey;
-use crate::report::BarcodeSender;
-use crate::report::BarcodeTracker;
 use crate::utils::get_umi;
 use crate::GroupReport;
 use crate::GroupingMethod;
@@ -24,9 +22,7 @@ pub struct ChunkProcessor {
     pub split_window: Option<i64>,
     pub only_group: bool,
     pub singletons: bool,
-    pub track_barcodes: Option<String>,
     pub r1_only: bool,
-    pub barcode_tracker: Arc<Mutex<BarcodeTracker>>,
 }
 
 impl ChunkProcessor {
@@ -36,7 +32,6 @@ impl ChunkProcessor {
     pub fn group_reads(
         &mut self,
         bottomhash: &mut BottomHashMap,
-        bc_sender: &Option<BarcodeSender>,
         multiprog: &MultiProgress,
         separator: &String,
     ) -> Vec<Record> {
@@ -79,17 +74,12 @@ impl ChunkProcessor {
                     group_only: self.only_group,
                     singletons: self.singletons,
                     separator: &separator,
-                    track_barcodes: self.track_barcodes.is_some(),
                 };
 
                 // perform UMI clustering per the method specified
                 let groupies = grouper.cluster(counts, Arc::clone(&grouping_method));
 
-                let tagged_reads = group_handler.tag_records(
-                    groupies,
-                    umis_reads,
-                    Arc::clone(&self.barcode_tracker),
-                );
+                let tagged_reads = group_handler.tag_records(groupies, umis_reads);
 
                 drop(grouper);
 
@@ -107,12 +97,6 @@ impl ChunkProcessor {
                 }
             }
 
-            if let Some(s) = bc_sender {
-                for (bc, count) in self.barcode_tracker.lock().barcode_counter.drain(..) {
-                    s.send((bc, count))
-                        .expect("failed to send barcode to writing channel!");
-                }
-            }
             coord_bar.inc(1);
         });
 

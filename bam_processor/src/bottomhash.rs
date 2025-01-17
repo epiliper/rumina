@@ -48,7 +48,7 @@ pub struct ReadsAndCount {
 
 // when a read is added to ReadsAndCount, increase the read count at x umi
 impl ReadsAndCount {
-    fn up(&mut self, read: Record) {
+    pub fn up(&mut self, read: Record) {
         self.count += 1;
         self.reads.push(read);
     }

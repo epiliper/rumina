@@ -1,13 +1,11 @@
 use crate::bottomhash::ReadsAndCount;
 use crate::grouper::GroupIterator;
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
-use crate::report::{BarcodeTracker, GroupReport};
+use crate::report::GroupReport;
 use crate::utils::{get_umi, get_umi_static};
 use crate::IndexMap;
-use parking_lot::Mutex;
 use rust_htslib::bam::record::Aux;
 use rust_htslib::bam::Record;
-use std::sync::Arc;
 
 use core::str;
 use rand::rngs::StdRng;
@@ -32,7 +30,6 @@ pub struct GroupHandler<'a> {
     pub group_only: bool,
     pub singletons: bool,
     pub separator: &'a String,
-    pub track_barcodes: bool,
 }
 
 pub fn generate_tag(
@@ -66,16 +63,10 @@ impl<'a> GroupHandler<'a> {
         &mut self,
         grouping_output: (HashMap<&str, i32>, Option<GroupIterator>),
         mut umis_records: IndexMap<String, ReadsAndCount>,
-        barcode_tracker: Arc<Mutex<BarcodeTracker>>,
     ) -> Option<(Option<GroupReport>, Vec<Record>)> {
         match grouping_output.1 {
             Some(groups) => {
-                let reads = self.tag_groups(
-                    groups,
-                    &mut umis_records,
-                    grouping_output.0,
-                    barcode_tracker,
-                );
+                let reads = self.tag_groups(groups, &mut umis_records, grouping_output.0);
                 Some(reads)
             }
             None => None,
@@ -87,7 +78,6 @@ impl<'a> GroupHandler<'a> {
         final_umis: GroupIterator,
         umis_records: &mut IndexMap<String, ReadsAndCount>,
         counts: HashMap<&str, i32>,
-        barcode_tracker: Arc<Mutex<BarcodeTracker>>,
     ) -> (Option<GroupReport>, Vec<Record>) {
         // for each UMI within a group, assign the same tag
 
@@ -153,15 +143,6 @@ impl<'a> GroupHandler<'a> {
                         Aux::String(str::from_utf8(read_umi.as_slice()).unwrap()),
                     )
                     .unwrap();
-
-                    {
-                        if self.track_barcodes {
-                            // group_report.barcode_tracker.count(read_umi);
-                            let mut bc_tracker = barcode_tracker.lock();
-                            bc_tracker.count(read_umi);
-                            drop(bc_tracker);
-                        }
-                    }
 
                     group_report.num_reads_output_file += 1;
                 });

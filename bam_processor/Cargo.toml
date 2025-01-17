@@ -17,6 +17,7 @@ colored = "2"
 indicatif = "0.17.8"
 num-format = "0.4.4"
 crossbeam = "0.8.4"
+bio = "2.0.3"
 
 [profile.release]
 codegen-units = 1

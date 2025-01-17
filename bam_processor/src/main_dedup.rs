@@ -1,9 +1,7 @@
 use crate::bottomhash;
 use crate::progbars::*;
-use crate::report::{init_barcode_writer, BarcodeWriter};
 use crate::utils::{get_read_pos_key, get_windows, make_bam_reader, make_bam_writer};
 use crate::window_processor::*;
-use crate::BarcodeTracker;
 use crate::GroupReport;
 use crate::GroupingMethod;
 use indexmap::IndexMap;
@@ -13,7 +11,7 @@ use rust_htslib::bam::ext::BamRecordExtensions;
 use rust_htslib::bam::{IndexedReader, Read, Writer};
 use std::sync::Arc;
 
-const WINDOW_CHUNK_SIZE: usize = 3; // number of coord windows processed at once
+pub const WINDOW_CHUNK_SIZE: usize = 3; // number of coord windows processed at once
 
 // this struct serves to retrieve reads from either indexed or unindexed BAM files, batch them, and
 // organize them in the bottomhash data structure for downtream UMI-based operations.
@@ -27,10 +25,8 @@ pub fn init_processor(
     group_by_length: bool,
     only_group: bool,
     singletons: bool,
-    track_barcodes: Option<&String>,
     r1_only: bool,
     min_maxes: Arc<Mutex<GroupReport>>,
-    barcode_tracker: Arc<Mutex<BarcodeTracker>>,
     seed: u64,
 ) -> (IndexedReader, Writer, ChunkProcessor) {
     let (header, bam_reader) = make_bam_reader(&input_file, threads);
@@ -45,9 +41,7 @@ pub fn init_processor(
         only_group,
         singletons,
         read_counter: 0,
-        track_barcodes: track_barcodes.cloned(),
         r1_only,
-        barcode_tracker: Arc::clone(&barcode_tracker),
     };
 
     (bam_reader, bam_writer, read_handler)
@@ -62,14 +56,6 @@ pub fn process_chunks(
 ) {
     let mut pos;
     let mut key;
-
-    let (bc_sender, bc_writer): BarcodeWriter;
-
-    if let Some(outfile) = &chunk_processor.track_barcodes {
-        (bc_sender, bc_writer) = init_barcode_writer(outfile)
-    } else {
-        (bc_sender, bc_writer) = (None, None)
-    }
 
     let ref_count = reader.header().clone().target_count();
 
@@ -123,7 +109,6 @@ pub fn process_chunks(
             let outreads = ChunkProcessor::group_reads(
                 chunk_processor,
                 &mut bottomhash,
-                &bc_sender,
                 &multiprog,
                 separator,
             );
@@ -136,10 +121,6 @@ pub fn process_chunks(
             ));
         }
         window_bar.finish();
-    }
-    if chunk_processor.track_barcodes.is_some() {
-        drop(bc_sender.unwrap());
-        let _ = bc_writer.unwrap().join();
     }
     read_bar.finish();
 }

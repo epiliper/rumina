@@ -1,13 +1,9 @@
 use arrayvec::ArrayVec;
 use colored::Colorize;
-use crossbeam::channel::{bounded, Receiver, Sender};
-use indexmap::IndexMap;
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-use std::ops::AddAssign;
 use std::path::Path;
-use std::thread;
 
 use num_format::{Locale, ToFormattedString};
 
@@ -15,59 +11,7 @@ const LOCALE: Locale = Locale::en;
 
 const MAX_UMI_LENGTH: usize = 30;
 
-// This module defines the report generated during deduplication.
-#[derive(Debug)]
-pub struct BarcodeTracker {
-    pub barcode_counter: IndexMap<StaticUMI, u16>,
-}
-
-impl BarcodeTracker {
-    pub fn new() -> Self {
-        BarcodeTracker {
-            barcode_counter: IndexMap::with_capacity(1000),
-        }
-    }
-    pub fn count(&mut self, umi: StaticUMI) {
-        self.barcode_counter.entry(umi).or_insert(0).add_assign(1);
-    }
-}
-// a UMI barcode in an ArrayVec of u8, efficient for
-// reporting barcodes without operating on them.
-// #[derive(Debug)
 pub type StaticUMI = ArrayVec<u8, MAX_UMI_LENGTH>;
-
-pub type BarcodeSender = Sender<(StaticUMI, u16)>;
-
-pub type BarcodeWriter = (Option<BarcodeSender>, Option<thread::JoinHandle<()>>);
-
-pub fn init_barcode_writer(outfile: &String) -> BarcodeWriter {
-    let (s, r): (BarcodeSender, Receiver<(StaticUMI, u16)>) = bounded(1_000_000);
-
-    let barcode_file = Path::new(&outfile).parent().unwrap().join("barcodes.tsv");
-
-    if !barcode_file.exists() {
-        let _ = File::create(&barcode_file);
-    }
-
-    let mut barcode_f = OpenOptions::new()
-        .append(true)
-        .open(barcode_file)
-        .expect("unable to open minmax file");
-
-    let writer_handle = thread::spawn(move || loop {
-        match r.recv() {
-            Ok((bc, count)) => {
-                writeln!(barcode_f, "{}\t{}", String::from_utf8_lossy(&bc), count).unwrap();
-            }
-
-            Err(_) => {
-                break;
-            }
-        }
-    });
-
-    return (Some(s), Some(writer_handle));
-}
 
 // This report contains details like UMIs in/out, reads in/out, and other details, and is updated
 // after the deduplication of each batch.

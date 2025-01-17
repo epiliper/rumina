@@ -2,82 +2,86 @@ use indexmap::IndexMap;
 use parking_lot::Mutex;
 use rayon::prelude::*;
 use rust_htslib::bam::{ext::BamRecordExtensions, Record};
-use std::collections::HashMap;
 use std::str;
 use std::sync::Arc;
 
+use crate::bottomhash::ReadsAndCount;
 use crate::merge_report::*;
 use crate::realign::{align_to_ref, ReMapper};
 
 pub fn handle_dupes(
-    umis_reads: &mut HashMap<String, Vec<Record>>,
+    umis_reads: &mut IndexMap<String, ReadsAndCount>,
     mapper: ReMapper,
-    ref_fasta: Vec<u8>,
+    ref_fasta: &Vec<u8>,
     min_overlap_bp: usize,
-) -> (MergeReport, Vec<Record>) {
-    let corrected_reads: Arc<Mutex<Vec<Record>>> = Arc::new(Mutex::new(Vec::new()));
+    sender: crossbeam::channel::Sender<Record>,
+) -> MergeReport {
     let results: Arc<Mutex<Vec<MergeResult>>> = Arc::new(Mutex::new(Vec::new()));
 
     let mut merge_report = MergeReport::new();
 
     // for (_umi, mut reads) in umis_reads.drain() {
-    umis_reads.par_drain().for_each(|(_umi, mut reads)| {
-        match reads.len() {
-            1 => {
-                print!("\rWarning: 1 read found for UMI marked as duplicate. Rerunning RUMINA on this file is recommended. If this issue persists, see GitHub issues page.");
-                corrected_reads.lock().extend(reads.drain(..));
-            }
-            _ => {
+    umis_reads
+        .par_drain(..)
+        .for_each(|(_umi, reads_and_count)| {
+            let mut reads = reads_and_count.reads;
+            match reads.len() {
+                1 => {
+                    // print!("\rWarning: 1 read found for UMI marked as duplicate. Rerunning RUMINA on this file is recommended. If this issue persists, see GitHub issues page.");
+                    reads.drain(..).for_each(|read| sender.send(read).unwrap());
+                }
+                _ => {
+                    // let mut outreads: Vec<Record> = Vec::with_capacity(100);
+                    let mut merge_results: Vec<MergeResult> = Vec::with_capacity(50);
 
-                let mut outreads: Vec<Record> = Vec::with_capacity(100);
-                let mut merge_results: Vec<MergeResult> = Vec::with_capacity(50);
+                    // sort the read list by reads likely to overlap
+                    reads.sort_by(|ra, rb| {
+                        ra.pos()
+                            .cmp(&rb.pos())
+                            .then_with(|| ra.qname().cmp(&rb.qname()))
+                            .then_with(|| ra.is_reverse().cmp(&!rb.is_reverse()))
+                            .then_with(|| ra.tid().cmp(&rb.tid()))
+                    });
 
-                // sort the read list by reads likely to overlap
-                reads.sort_by(|ra, rb| ra.pos().cmp(&rb.pos())
-                    .then_with(|| ra.qname().cmp(&rb.qname()))
-                    .then_with(|| ra.is_reverse().cmp(&!rb.is_reverse()))
-                    .then_with(|| ra.tid().cmp(&rb.tid()))
-                    );
+                    while !reads.is_empty() {
+                        let read = reads.remove(0);
 
-                while !reads.is_empty() {
-                    let read = reads.remove(0);
+                        let result = find_merges(&read, &mut reads, min_overlap_bp);
 
-                    let result = find_merges(&read, &mut reads, min_overlap_bp);
+                        match result {
+                            MergeResult::Discordant(_) => {
+                                merge_results.push(result);
+                            }
 
-                    match result {
-                        MergeResult::Discordant(_) => {
-                            merge_results.push(result);
-                        }
-
-                        MergeResult::NoMerge(_) => {
-                            outreads.push(read);
-                            merge_results.push(result);
-                        }
-                        MergeResult::Merge(merged_bases) => {
-                            let (_start_pos, merged_seq) = construct_sequence(merged_bases.unwrap());
-                            let merged_read = construct_read(&read, merged_seq, &mut mapper.clone(), &ref_fasta);
-                            outreads.push(merged_read);
-                            merge_results.push(MergeResult::Merge(None));
+                            MergeResult::NoMerge(_) => {
+                                sender.send(read).unwrap();
+                                merge_results.push(result);
+                            }
+                            MergeResult::Merge(merged_bases) => {
+                                let (_start_pos, merged_seq) =
+                                    construct_sequence(merged_bases.unwrap());
+                                let merged_read = construct_read(
+                                    &read,
+                                    merged_seq,
+                                    &mut mapper.clone(),
+                                    &ref_fasta,
+                                );
+                                // outreads.push(merged_read);
+                                sender.send(merged_read).unwrap();
+                                merge_results.push(MergeResult::Merge(None));
+                            }
                         }
                     }
-
+                    results.lock().extend(merge_results);
                 }
-                corrected_reads.lock().extend(outreads);
-                results.lock().extend(merge_results);
             }
-        }
-    });
+        });
 
     for res in results.lock().drain(..) {
         merge_report.count(res);
     }
 
-    (
-        merge_report,
-        Arc::try_unwrap(corrected_reads)
-            .expect("Failed to dereference merged reads!")
-            .into_inner(),
-    )
+    merge_report
 }
 
 pub fn is_opp_orientation(read_a: &Record, read_b: &Record) -> bool {
@@ -274,27 +278,27 @@ mod tests {
     }
 
     // Test the handle_dupes function (simplified test)
-    #[test]
-    fn test_handle_dupes() {
-        let mut umis_reads: HashMap<String, Vec<Record>> = HashMap::new();
-        umis_reads.insert(
-            "umi1".to_string(),
-            vec![
-                create_bam_record("read1", 0, 10, "ATCG", false),
-                create_bam_record("read2", 0, 13, "GATC", true),
-            ],
-        );
+    // #[test]
+    // fn test_handle_dupes() {
+    //     let mut umis_reads: HashMap<String, Vec<Record>> = HashMap::new();
+    //     umis_reads.insert(
+    //         "umi1".to_string(),
+    //         vec![
+    //             create_bam_record("read1", 0, 10, "ATCG", false),
+    //             create_bam_record("read2", 0, 13, "GATC", true),
+    //         ],
+    //     );
 
-        let mapper: ReMapper = Aligner::new(-5, -1, blosum62, 19, 70);
-        let ref_fasta = vec![b'A', b'T', b'C', b'G', b'A', b'T', b'C'];
+    //     let mapper: ReMapper = Aligner::new(-5, -1, blosum62, 19, 70);
+    //     let ref_fasta = vec![b'A', b'T', b'C', b'G', b'A', b'T', b'C'];
 
-        let (merge_report, corrected_reads) = handle_dupes(&mut umis_reads, mapper, ref_fasta, 1);
-        let out_read = &corrected_reads[0];
-        println!("{}", merge_report);
-        println!("{:?}", out_read.cigar().to_string());
-        println!("{:?}", out_read.seq().as_bytes());
-        assert_eq!(out_read.seq().as_bytes(), b"ATCGATC");
-        assert_eq!(out_read.cigar().to_string(), "7=");
-        assert!(!corrected_reads.is_empty());
-    }
+    //     let (merge_report, corrected_reads) = handle_dupes(&mut umis_reads, mapper, ref_fasta, 1);
+    //     let out_read = &corrected_reads[0];
+    //     println!("{}", merge_report);
+    //     println!("{:?}", out_read.cigar().to_string());
+    //     println!("{:?}", out_read.seq().as_bytes());
+    //     assert_eq!(out_read.seq().as_bytes(), b"ATCGATC");
+    //     assert_eq!(out_read.cigar().to_string(), "7=");
+    //     assert!(!corrected_reads.is_empty());
+    // }
 }

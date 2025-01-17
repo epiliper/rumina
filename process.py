@@ -79,28 +79,32 @@ def calculate_split(input):
 
 def merge_fr(tagged_file_name, ref_fasta):
     print("Merging overlapping forward/reverse amplicons...")
-    dupes = os.path.join(work_path, args.outdir, "barcodes.tsv")
     outfile = tagged_file_name.split(".bam")[0] + "_merged.bam"
 
-    subprocess.run(
+    print(tagged_file_name)
+
+    tag_cmd = [
+        os.path.join(exec_path, "bam_processor/target/release/bam_processor"),
+        tagged_file_name,
+        outfile,
+        args.threads,
+    ]
+
+    if args.split_window:
+        tag_cmd.extend(["--split_window", str(args.split_window)])
+
+    tag_cmd.extend(
         [
-            os.path.join(exec_path, "pair_merger/target/release/pair_merger"),
-            "-l",
-            dupes,
-            "-i",
-            tagged_file_name,
-            "-o",
-            outfile,
-            "-r",
-            ref_fasta,
-            "-b",
+            "merge",
+            "--merge_pairs",
+            args.merge_pairs,
+            "--min_overlap_bp",
             args.min_overlap_bp,
-            "--threads",
-            args.threads,
-        ],
+        ]
     )
 
-    os.remove(dupes)
+    subprocess.run(tag_cmd)
+
     return outfile
 
 
@@ -125,13 +129,21 @@ def group_bam(input_file, split_window):
         tag_cmd,
         input_file,
         tagged_file_name,
-        args.separator,
-        args.grouping_method,
         args.threads,
     ]
 
     if split_window:
-        tag_cmd.append(str(split_window))
+        tag_cmd.extend(["--split_window", str(split_window)])
+
+    tag_cmd.extend(
+        [
+            "group",
+            "-s",
+            args.separator,
+            "-g",
+            args.grouping_method,
+        ]
+    )
 
     if args.length:
         tag_cmd.append("--length")
@@ -142,17 +154,14 @@ def group_bam(input_file, split_window):
     if args.singletons:
         tag_cmd.append("--singletons")
 
-    if args.merge_pairs:
-        tag_cmd.append("--track-umis")
-
     elif args.halve_pairs:
         tag_cmd.append("--r1-only")
 
     subprocess.run(tag_cmd)
 
     if args.merge_pairs:
+        sort_and_index(tagged_file_name)
         merge_file = merge_fr(tagged_file_name, args.merge_pairs)
-        os.remove(tagged_file_name)
         tagged_file_name = merge_file
 
     if args.sort_outbam:

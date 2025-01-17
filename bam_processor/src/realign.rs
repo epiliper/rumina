@@ -5,7 +5,7 @@ use rust_htslib::bam::record::{Cigar, CigarString};
 
 pub type ReMapper = Aligner<fn(u8, u8) -> i32>;
 
-pub fn init_remapper(ref_fasta_file: String) -> (ReMapper, Vec<u8>) {
+pub fn init_remapper(ref_fasta_file: &String) -> (ReMapper, Vec<u8>) {
     let aligner: ReMapper = Aligner::new(-5, -1, blosum62, 19, 70);
 
     let reader = fasta::Reader::from_file(ref_fasta_file).expect("Error reading fasta file!");
