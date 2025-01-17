@@ -1,6 +1,7 @@
 use crate::bottomhash::ReadsAndCount;
 use crate::main_dedup::WINDOW_CHUNK_SIZE;
 use crate::merge::handle_dupes;
+use crate::merge_report::MergeReport;
 use crate::realign::init_remapper;
 use crate::utils::{get_windows, make_bam_reader, make_bam_writer};
 use crossbeam::channel::{bounded, Receiver, Sender};
@@ -37,7 +38,9 @@ pub struct PairMerger {
 }
 
 impl PairMerger {
-    pub fn merge_windows(&mut self) {
+    pub fn merge_windows(&mut self) -> MergeReport {
+        let mut merge_report = MergeReport::new();
+
         let (header, mut reader) = make_bam_reader(&self.infile, self.threads);
         let mut writer = make_bam_writer(&self.outfile, header, self.threads);
         let (mapper, ref_fasta) = init_remapper(&self.ref_fasta);
@@ -104,19 +107,25 @@ impl PairMerger {
                         }
                     }
                 }
-                handle_dupes(
+                let merge_results = handle_dupes(
                     &mut bundles.read_dict,
                     mapper.clone(),
                     &ref_fasta,
                     self.min_overlap_bp,
                     s.clone(),
                 );
+
+                for res in merge_results {
+                    merge_report.count(res);
+                }
             }
         }
 
         drop(s);
         let num_writes = writer_handle.join().expect("Writer thread panicked!");
-        println!("NUM WRITES: {num_writes}");
-        println!("NUM INREADS: {read_count}");
+        merge_report.num_inreads = read_count;
+        merge_report.num_outreads = num_writes;
+
+        merge_report
     }
 }

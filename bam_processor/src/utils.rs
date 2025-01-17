@@ -1,5 +1,5 @@
+use crate::group_report::StaticUMI;
 use crate::readkey::ReadKey;
-use crate::report::StaticUMI;
 use rust_htslib::bam::ext::BamRecordExtensions;
 use rust_htslib::bam::{Header, IndexedReader, Read, Record, Writer};
 

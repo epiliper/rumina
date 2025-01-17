@@ -5,6 +5,7 @@ use std::fmt;
 
 const LOCALE: Locale = Locale::en;
 
+#[derive(Debug)]
 pub enum MergeResult {
     Discordant(()),
     NoMerge(()),

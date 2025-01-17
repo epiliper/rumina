@@ -15,10 +15,8 @@ pub fn handle_dupes(
     ref_fasta: &Vec<u8>,
     min_overlap_bp: usize,
     sender: crossbeam::channel::Sender<Record>,
-) -> MergeReport {
+) -> Vec<MergeResult> {
     let results: Arc<Mutex<Vec<MergeResult>>> = Arc::new(Mutex::new(Vec::new()));
-
-    let mut merge_report = MergeReport::new();
 
     // for (_umi, mut reads) in umis_reads.drain() {
     umis_reads
@@ -77,11 +75,7 @@ pub fn handle_dupes(
             }
         });
 
-    for res in results.lock().drain(..) {
-        merge_report.count(res);
-    }
-
-    merge_report
+    Arc::try_unwrap(results).unwrap().into_inner()
 }
 
 pub fn is_opp_orientation(read_a: &Record, read_b: &Record) -> bool {
@@ -151,7 +145,6 @@ pub fn construct_read(
     let qname = [new_rec.qname(), b":MERGED"].concat();
     new_rec.set(
         &qname,
-        // Some(&CigarString(vec![Cigar::Match(new_seq.len() as u32)])),
         Some(&cigar),
         new_seq.as_slice(),
         vec![255; new_seq.len() as usize].as_slice(),
@@ -216,11 +209,11 @@ mod tests {
     use super::*;
     use bio::alignment::pairwise::banded::Aligner;
     use bio::scores::blosum62;
+    use crossbeam::channel::{bounded, Receiver, Sender};
     use rust_htslib::bam::{
         record::{Cigar, CigarString},
         Record,
     };
-    use std::collections::HashMap;
 
     fn create_bam_record(qname: &str, tid: i32, pos: i64, seq: &str, is_reverse: bool) -> Record {
         let mut record = Record::new();
@@ -278,27 +271,35 @@ mod tests {
     }
 
     // Test the handle_dupes function (simplified test)
-    // #[test]
-    // fn test_handle_dupes() {
-    //     let mut umis_reads: HashMap<String, Vec<Record>> = HashMap::new();
-    //     umis_reads.insert(
-    //         "umi1".to_string(),
-    //         vec![
-    //             create_bam_record("read1", 0, 10, "ATCG", false),
-    //             create_bam_record("read2", 0, 13, "GATC", true),
-    //         ],
-    //     );
+    #[test]
+    fn test_handle_dupes() {
+        let mut umis_reads: IndexMap<String, ReadsAndCount> = IndexMap::new();
+        let mut merge_report = MergeReport::new();
+        let (s, r): (Sender<Record>, Receiver<Record>) = bounded(10);
+        umis_reads.insert(
+            "umi1".to_string(),
+            ReadsAndCount {
+                reads: vec![
+                    create_bam_record("read1", 0, 10, "ATCG", false),
+                    create_bam_record("read2", 0, 13, "GATC", true),
+                ],
 
-    //     let mapper: ReMapper = Aligner::new(-5, -1, blosum62, 19, 70);
-    //     let ref_fasta = vec![b'A', b'T', b'C', b'G', b'A', b'T', b'C'];
+                count: 2,
+            },
+        );
 
-    //     let (merge_report, corrected_reads) = handle_dupes(&mut umis_reads, mapper, ref_fasta, 1);
-    //     let out_read = &corrected_reads[0];
-    //     println!("{}", merge_report);
-    //     println!("{:?}", out_read.cigar().to_string());
-    //     println!("{:?}", out_read.seq().as_bytes());
-    //     assert_eq!(out_read.seq().as_bytes(), b"ATCGATC");
-    //     assert_eq!(out_read.cigar().to_string(), "7=");
-    //     assert!(!corrected_reads.is_empty());
-    // }
+        let mapper: ReMapper = Aligner::new(-5, -1, blosum62, 19, 70);
+        let ref_fasta = vec![b'A', b'T', b'C', b'G', b'A', b'T', b'C'];
+
+        let results = handle_dupes(&mut umis_reads, mapper, &ref_fasta, 1, s.clone());
+        for res in results {
+            merge_report.count(res);
+        }
+        let out_read = r.recv().unwrap();
+        println!("{}", merge_report);
+        println!("{:?}", out_read.cigar().to_string());
+        println!("{:?}", out_read.seq().as_bytes());
+        assert_eq!(out_read.seq().as_bytes(), b"ATCGATC");
+        assert_eq!(out_read.cigar().to_string(), "7=");
+    }
 }

@@ -78,10 +78,7 @@ def calculate_split(input):
 
 
 def merge_fr(tagged_file_name, ref_fasta, split_window):
-    print("Merging overlapping forward/reverse amplicons...")
     outfile = tagged_file_name.split(".bam")[0] + "_merged.bam"
-
-    print(tagged_file_name)
 
     tag_cmd = [
         os.path.join(exec_path, "bam_processor/target/release/bam_processor"),
@@ -104,6 +101,7 @@ def merge_fr(tagged_file_name, ref_fasta, split_window):
     )
 
     subprocess.run(tag_cmd)
+    os.remove(tagged_file_name)
 
     return outfile
 
@@ -177,8 +175,6 @@ def group_bam(input_file, split_window):
 
 
 def sort_and_index(output_file):
-    print("sorting and indexing output BAM...\r")
-
     temp_file = output_file.split(".bam")[0] + "_s.bam"
     os.rename(output_file, temp_file)
 
@@ -186,6 +182,3 @@ def sort_and_index(output_file):
     os.remove(temp_file)
 
     pysam.index(f"-@ {args.threads}", output_file)
-    print("getting coverage/depth report...\r")
-
-    # generate_report(input_file, output_file)

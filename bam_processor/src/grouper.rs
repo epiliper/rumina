@@ -1,6 +1,5 @@
 use crate::GroupingMethod;
 use indexmap::{IndexMap, IndexSet};
-// use std::collections::hash_set::IntoIter;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -16,6 +15,7 @@ pub fn edit_distance(ua: &str, ub: &str) -> usize {
     hamming(ua, ub).unwrap()
 }
 
+#[derive(Debug)]
 pub struct GroupIterator<'b> {
     pub clusters: IntoIter<HashSet<&'b str>>,
     observed: HashSet<&'b str>,
@@ -415,11 +415,11 @@ mod tests {
 
         let grouping_method = Arc::new(&GroupingMethod::Directional);
         let (_counts, groups) = grouper.cluster(counts, grouping_method);
-        let groups = Some(groups.iter().collect::<Vec<_>>());
+        let groups = groups.unwrap().into_iter().collect::<Vec<_>>();
+        println!("{:?}", groups);
 
         // Check if clustering is correctly performed
-        assert!(groups.is_some());
-        let groups = groups.unwrap();
+        let groups = groups;
         assert_eq!(groups.len(), 2)
     }
 

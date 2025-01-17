@@ -1,9 +1,9 @@
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
+use crate::group_report::GroupReport;
 use crate::main_dedup::{init_processor, process_chunks};
 use crate::pair_merger::PairMerger;
-use crate::report::GroupReport;
 use colored::Colorize;
 use indexmap::IndexMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 mod bottomhash;
 mod deduplicator;
+mod group_report;
 mod grouper;
 mod main_dedup;
 mod merge;
@@ -25,7 +26,6 @@ mod progbars;
 mod read_picker;
 mod readkey;
 mod realign;
-mod report;
 mod utils;
 mod window_processor;
 
@@ -162,10 +162,8 @@ fn main() {
                 split_window: args.split_window,
             };
 
-            merger.merge_windows();
+            let merge_report = merger.merge_windows();
+            print!("{merge_report}");
         }
     }
 }
-
-// }
-// }

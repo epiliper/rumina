@@ -72,7 +72,10 @@ impl GroupReport {
     // once deduplication of the file is complete, only list UMIs that were observed more than
     // once.
     pub fn write_to_report_file(&mut self, output_file: &String) {
-        let report_file = Path::new(&output_file).parent().unwrap().join("minmax.txt");
+        let report_file = Path::new(&output_file)
+            .parent()
+            .unwrap()
+            .join("rumina_report.txt");
         //
         if !report_file.exists() {
             let _ = File::create(&report_file);
