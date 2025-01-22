@@ -2,12 +2,19 @@ import argparse
 import os
 import sys
 
+class CustomHelpFormatter(argparse.HelpFormatter):
+    def _format_action_invocation(self, action):
+        if not action.option_strings:
+            return self._metavar_formatter(action, action.dest)(1)[0]
+        else:
+            parts = action.option_strings
+            return ', '.join(parts)
 
 def init_args():
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawTextHelpFormatter,
+        # formatter_class=argparse.RawTextHelpFormatter,
+        formatter_class=CustomHelpFormatter,
         prog="RUMINA",
-
         description="A pipeline to perform consensus-based error correction via UMI barcodes",
         usage="rumina [input] [grouping_method] [--separator [SEPARATOR]] [--split_window [SPLIT_WINDOW]] [--no_report]",
     )
@@ -18,8 +25,8 @@ def init_args():
 
     required_named.add_argument(
         "input",
-        help="""A .bam file or a directory of .bam files to be processed. Bam files must have UMIs present in the read QNAME.
-""",
+        help="A .bam file or a directory of .bam files to be processed.\n"
+             "Bam files must have UMIs present in the read QNAME, AND be sorted and indexed with samtools.",
     )
 
     required_named.add_argument(
@@ -27,12 +34,10 @@ def init_args():
         required=True,
         type=str,
         choices=["raw", "directional", "acyclic"],
-        help="""Specifies how/if to merge UMIs based on edit distance, to account for PCR mutations and NGS errors in UMI sequence.
-Options are:
-- directional: Merge UMIs via directinal clustering.
-- raw: Treat each raw UMI as genuine; UMIs are not merged.
-
-""",
+        help="Specifies UMI merging method for UMI error correction:\n"
+             "- directional: Merge UMIs via directional clustering\n"
+             "- acyclic: Same as directional, but networks are limited to a depth of one. May reduce overcorrection in barcode-diverse samples (e.g. metagenomics specimens)\n"
+             "- raw: Treat each raw UMI as genuine; no merging",
     )
 
     required_named.add_argument(
@@ -40,68 +45,82 @@ Options are:
         action="store",
         type=str,
         required=True,
-        help="""Specifies the character in the read QNAME delimiting the UMI barcode from the rest of the string. This is usually '_' or ':'. 
-
-""",
+        help="Character in read QNAME delimiting UMI barcode. Usually '_' or ':'",
     )
 
     flags.add_argument(
         "--cov_depth_report",
         action="store_true",
-        help="""Calculate coverage and depth reporting on output files using 'bedtools genomecov'. This can add several minutes of runtime per file when working with large files\n""",
+        help="Calculate coverage/depth using 'bedtools genomecov (may add runtime for large files)",
     )
 
     flags.add_argument(
         "--length",
         action="store_true",
-        help="if used, groups reads by length in addition to reference coordinate.",
+        help="Group reads by length in addition to reference coordinate",
     )
 
     flags.add_argument(
         "--sort_outbam",
         action="store_true",
-        help="sort and index the output BAM file. Required for generating coverage/depth reports (see --no_report).",
+        help="Sort and index output BAM file",
     )
 
     flags.add_argument(
         "--only-group",
         action="store_true",
-        help="if used, reads are grouped and tagged but not deduplicated or error corrected. This is useful if you want to manually review what grouping looks like.",
+        help="Group and tag reads without deduplication/error correction",
     )
 
     flags.add_argument(
         "--merge_pairs",
-        help="merge forward and reverse reads that overlap, with the same (corrected) UMI. Specify a reference genome (in FASTA format) for realignment of merged reads",
+        help="Merge overlapping forward/reverse reads with same UMI. Requires reference genome FASTA for realignment"
     )
 
     flags.add_argument(
         "--min_overlap_bp",
         default="3",
-        help="minimum number of bases for reads to overlap to be merged via --merge_pairs. Reads below this threshold will be discarded.",
+        help="Minimum bases for read overlap (--merge_pairs)",
     )
 
     flags.add_argument(
         "--halve_pairs",
         action="store_true",
-        help="only use R1 for deduplication, and discard R2. Similar to UMI-tools.",
+        help="Use only R1 for deduplication, discard R2, similar to UMI-tools",
     )
 
-    flags.add_argument("--singletons", action="store_true")
+    flags.add_argument(
+        "--singletons", 
+        action="store_true",
+        help="Process singleton reads"
+    )
 
+    # Optional arguments with improved formatting
     optional.add_argument(
         "--split_window",
         nargs="?",
         default="auto",
-        help="""dictates how to split input bam files into subfiles (for avoiding memory overflow). Options are:
-- auto: calcluate the recommended subfile size (in basepairs along genome) based on input file size. If 'input' is a directory, this will be calculated for each file within the directory.
-- integer from 1-500: split input files by fixed window size. If 'input' is a directory, this will be applied to each file within the directory.
-- none (default): process the input bam files as one file. If your system has ~16GB of ram, this is suitable for bams containing up to ~15 million reads. Using this option with larger bams without additional RAM may result in memory overuse.
-
-""",
+        help="BAM file splitting strategy: \n"
+             "- 'auto (Default)': Recommended subfile size based on input\n"
+             "- Integer (1-500): Fixed window size\n"
+             "- 'none': Process entire file. May incur heavy memory usage.\n"
+             "If you find an option to use too much memory, try increasing the split_window size.",
     )
 
-    optional.add_argument("--threads", action="store", type=str)
-    optional.add_argument("--outdir", action="store", type=str, default="rumina_output")
+    optional.add_argument(
+        "--threads", 
+        action="store", 
+        type=str, 
+        help="Number of threads to use"
+    )
+    
+    optional.add_argument(
+        "--outdir", 
+        action="store", 
+        type=str, 
+        default="rumina_output",
+        help="Output directory"
+    )
 
     args = parser.parse_args()
 
@@ -132,7 +151,7 @@ Options are:
         - 'auto': Calculate a recommended window size, based on the size of the input bam file\n
         - any positive integer: a window size of your choosing\n
 
-        If you don't want to split your input, don't use this argument.
+        If you don't want to split your input (which may incur more memory usage), use this argument with 0.
         """)
 
     if args.merge_pairs:
