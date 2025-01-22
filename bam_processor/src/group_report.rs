@@ -1,6 +1,5 @@
 use arrayvec::ArrayVec;
 use colored::Colorize;
-use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -16,7 +15,6 @@ pub type StaticUMI = ArrayVec<u8, MAX_UMI_LENGTH>;
 
 // This report contains details like UMIs in/out, reads in/out, and other details, and is updated
 // after the deduplication of each batch.
-#[derive(Debug, Serialize, Deserialize)]
 pub struct GroupReport {
     pub min_reads_per_group: i64,
     pub max_reads_per_group: i64,
@@ -120,6 +118,35 @@ impl GroupReport {
 }
 
 // printed after file completion
+impl fmt::Debug for GroupReport {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}: {}\n\
+            {}: {}\n\
+            {}: {}\n\
+            {}: {}\n\
+            {}: {}\n\
+            {}: {}\n\
+            {}: {}",
+            "Minimum reads per group",
+            self.min_reads_per_group.to_formatted_string(&LOCALE),
+            "Maximum reads per group",
+            self.max_reads_per_group.to_formatted_string(&LOCALE),
+            "Total UMI groups",
+            self.num_groups.to_formatted_string(&LOCALE),
+            "Groups passing singleton filtering",
+            self.num_passing_groups.to_formatted_string(&LOCALE),
+            "Total UMIs considered",
+            self.num_umis.to_formatted_string(&LOCALE),
+            "Input reads (mapped)",
+            self.num_reads_input_file.to_formatted_string(&LOCALE),
+            "Output reads",
+            self.num_reads_output_file.to_formatted_string(&LOCALE)
+        )
+    }
+}
+
 impl fmt::Display for GroupReport {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(

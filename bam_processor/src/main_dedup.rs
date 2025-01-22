@@ -6,6 +6,7 @@ use crate::GroupReport;
 use crate::GroupingMethod;
 use indexmap::IndexMap;
 use indicatif::MultiProgress;
+use log::info;
 use parking_lot::Mutex;
 use rust_htslib::bam::ext::BamRecordExtensions;
 use rust_htslib::bam::{IndexedReader, Read, Writer};
@@ -82,6 +83,8 @@ pub fn process_chunks(
                 let start = window[0];
                 let end = window[1];
 
+                info!("Ref: {}, Start: {}, End: {}", tid, start, end);
+
                 reader
                     .fetch((tid, window[0], window[1]))
                     .expect("Error: invalid window value supplied!");
@@ -105,7 +108,9 @@ pub fn process_chunks(
                     }
                 }
             }
+            info!("{} reads pulled from window", window_reads);
             window_bar.set_message(format!("{window_reads} reads in window"));
+
             let outreads = ChunkProcessor::group_reads(
                 chunk_processor,
                 &mut bottomhash,
@@ -115,6 +120,8 @@ pub fn process_chunks(
             bottomhash.read_dict.clear();
             chunk_processor.write_reads(outreads, &mut bam_writer);
             window_bar.inc(WINDOW_CHUNK_SIZE as u64);
+
+            info!("Processed {} total reads...", chunk_processor.read_counter);
             read_bar.set_message(format!(
                 "Processed {} total reads...",
                 chunk_processor.read_counter

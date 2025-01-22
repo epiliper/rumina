@@ -9,6 +9,7 @@ use indexmap::IndexMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 use clap::{Parser, Subcommand, ValueEnum};
+use log::{info, LevelFilter};
 use rayon::ThreadPoolBuilder;
 
 use parking_lot::Mutex;
@@ -106,6 +107,9 @@ fn main() {
                 .build_global()
                 .expect("ERROR: Invalid number of threads specified!");
 
+            simple_logging::log_to_file("rumina_group.log", LevelFilter::Info)
+                .expect("Failed to create log for grouping command!");
+
             // create tag seed based on input file name
             let mut hasher = DefaultHasher::new();
             input_file.hash(&mut hasher);
@@ -127,6 +131,8 @@ fn main() {
                 min_maxes.clone(),
                 seed,
             );
+
+            info!("{:?}", read_handler);
 
             // holds filtered reads awaiting writing to output bam file
             // do grouping and processing
@@ -153,6 +159,9 @@ fn main() {
             ref_fasta,
             min_overlap_bp,
         } => {
+            simple_logging::log_to_file("rumina_merge.log", LevelFilter::Info)
+                .expect("Failed to create log for merge command!");
+
             let mut merger = PairMerger {
                 ref_fasta,
                 min_overlap_bp,
@@ -161,6 +170,8 @@ fn main() {
                 outfile: output_file.to_string(),
                 split_window: args.split_window,
             };
+
+            info!("{:?}", merger);
 
             let merge_report = merger.merge_windows();
             print!("{merge_report}");

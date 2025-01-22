@@ -7,12 +7,14 @@ use crate::utils::get_umi;
 use crate::GroupReport;
 use crate::GroupingMethod;
 use indicatif::MultiProgress;
+use log::info;
 use parking_lot::Mutex;
 use rayon::prelude::*;
 use rust_htslib::bam::{Record, Writer};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+#[derive(Debug)]
 pub struct ChunkProcessor {
     pub read_counter: i64,
     pub min_max: Arc<Mutex<GroupReport>>,
@@ -101,6 +103,9 @@ impl ChunkProcessor {
         });
 
         coord_bar.finish_and_clear();
+        info!("Outputting final reads for writing...");
+        info!("\n{:?}", self.min_max);
+
         Arc::try_unwrap(outreads)
             .expect("Unable to dereference tagged reads!")
             .into_inner()
@@ -125,8 +130,12 @@ impl ChunkProcessor {
     }
 
     pub fn write_reads(&mut self, mut outreads: Vec<Record>, bam_writer: &mut Writer) {
-        outreads
-            .drain(..)
-            .for_each(|read| bam_writer.write(&read).unwrap());
+        let mut count = 0;
+        outreads.drain(..).for_each(|read| {
+            count += 1;
+            bam_writer.write(&read).unwrap()
+        });
+
+        info!("Written {count} reads!")
     }
 }

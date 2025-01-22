@@ -6,6 +6,7 @@ use crate::realign::init_remapper;
 use crate::utils::{get_windows, make_bam_reader, make_bam_writer};
 use crossbeam::channel::{bounded, Receiver, Sender};
 use indexmap::IndexMap;
+use log::{info, warn};
 use rust_htslib::bam::{record::Aux, Read};
 use std::thread;
 
@@ -28,6 +29,7 @@ impl PairBundles {
     }
 }
 
+#[derive(Debug)]
 pub struct PairMerger {
     pub ref_fasta: String,
     pub min_overlap_bp: usize,
@@ -99,6 +101,7 @@ impl PairMerger {
                             let umi = if let Ok(Aux::String(bx_i)) = read.aux(UMI_TAG) {
                                 bx_i
                             } else {
+                                warn!("Cannot find UMI for read: {:?}", read);
                                 "NULL"
                             };
 
@@ -125,6 +128,7 @@ impl PairMerger {
         let num_writes = writer_handle.join().expect("Writer thread panicked!");
         merge_report.num_inreads = read_count;
         merge_report.num_outreads = num_writes;
+        info!("{:?}", merge_report);
 
         merge_report
     }

@@ -1,4 +1,5 @@
 use indexmap::IndexMap;
+use log::{info, warn};
 use parking_lot::Mutex;
 use rayon::prelude::*;
 use rust_htslib::bam::{ext::BamRecordExtensions, Record};
@@ -29,6 +30,7 @@ pub fn handle_dupes(
                     reads.drain(..).for_each(|read| sender.send(read).unwrap());
                 }
                 _ => {
+                    info!("MERGING: number of reads with same umi: {}", reads.len());
                     // let mut outreads: Vec<Record> = Vec::with_capacity(100);
                     let mut merge_results: Vec<MergeResult> = Vec::with_capacity(50);
 
@@ -178,7 +180,7 @@ pub fn attempt_merge(read_a: &Record, read_b: &Record, min_overlap_bp: usize) ->
     for (gpos, nuc) in ra {
         if let Some(other_nuc) = rb.get(&gpos) {
             if *other_nuc != nuc {
-                print!(
+                warn!(
                     "\rDiscordant read detected! base a: {}, base b: {}",
                     str::from_utf8(&[nuc]).unwrap(),
                     str::from_utf8(&[*other_nuc]).unwrap(),

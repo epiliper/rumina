@@ -1,5 +1,6 @@
 use crate::GroupingMethod;
 use indexmap::{IndexMap, IndexSet};
+use log::{debug, warn};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -230,6 +231,7 @@ impl<'b> Grouper<'b> {
 
             Some(components)
         } else {
+            warn!("Empty adjacency list");
             None
         }
     }
@@ -271,6 +273,10 @@ impl<'b> Grouper<'b> {
         let substring_map = self.get_substring_map();
         let umis_to_compare = self.iter_substring_neighbors(substring_map);
         let adj_list = clusterer(self, &counts, umis_to_compare, 1);
+        debug!(
+            "Generated adjacency list with {} entries...",
+            adj_list.len()
+        );
 
         if !adj_list.is_empty() {
             let clusters = self.get_connected_components(adj_list).unwrap();
