@@ -1,7 +1,17 @@
 [package]
-name = "bam_processor"
-version = "0.1.0"
+name = "RUMINA"
+description = "High-throughput UMI-aware deduplication of next-generation sequencing data"
+version = "0.9.0"
+authors = ["Eli Piliper <epiliper@outlook.com>"]
 edition = "2021"
+repository = "https://github.com/epiliper/rumina"
+homepage = "https://github.com/epiliper/rumina"
+readme = "README.md"
+keywords = ["bioinformatics", "barcodes", "sequencing", "bam", "deduplication"]
+categories = ["science", "command-line-utilities"]
+
+[badges]
+maintenance = { status = "actively_developed" }
 
 [dependencies]
 rand = "0.8.5"

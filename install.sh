@@ -3,17 +3,14 @@ export RUSTFLAGS="-C target-cpu=native"
 GREEN=$'\e[0;32m'
 NC=$'\e[0m'
 
-cd bam_processor
+cd rumina
 cargo build --release 
-
-cd ../pair_merger
-cargo build --release
 
 cd ..
 python3 -m venv python_env
 
 source python_env/bin/activate 
-python3.12 -m pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 
 deactivate
 
@@ -26,7 +23,7 @@ fi
 
 echo "#!/usr/bin/env bash" > "$install_dir"/rumina
 echo "source $home_dir/python_env/bin/activate" >> "$install_dir"/rumina
-echo "python3.12 $home_dir/main.py \"\$@\"" >> "$install_dir"/rumina
+echo "python3 $home_dir/main.py \"\$@\"" >> "$install_dir"/rumina
 echo "deactivate" >> "$install_dir"/rumina
 chmod +x "$install_dir"/rumina
 echo "-------------------------"
