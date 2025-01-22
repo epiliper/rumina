@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main  # Trigger on pushes to main
+
+env:
+  CICD_INTERMEDIATES_DIR: "_release-intermediates"
+
+jobs:
+  auto-tag:
+    name: Create Tag from VERSION
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Extract VERSION and check for existing tag
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(cat VERSION)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+            echo "Tag v${VERSION} already exists. Skipping tag creation."
+            exit 0
+          fi
+
+      - name: Create and push tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a "v${{ env.VERSION }}" -m "Release version ${{ env.VERSION }}"
+          git push origin "v${{ env.VERSION }}"
+
+  cross-compile:
+    name: Cross-Compile and Package
+    needs: auto-tag
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu }
+          - { os: macos-latest, target: x86_64-apple-darwin }
+          - { os: macos-latest, target: aarch64-apple-darwin }
+          - { os: ubuntu-latest, target: x86_64-pc-windows-gnu }
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.job.target }}
+
+      - name: Install cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Cross-compile the Rust project
+        shell: bash
+        run: |
+          cd rumina
+          cross build --release --target=${{ matrix.job.target }}
+
+      - name: Package the project into a zip file
+        id: package
+        shell: bash
+        run: |
+          PKG_SUFFIX=".zip"
+          PKG_BASENAME="rumina-${{ env.VERSION }}-${{ matrix.job.target }}"
+          PKG_NAME="${PKG_BASENAME}${PKG_SUFFIX}"
+          PKG_STAGING="${{ env.CICD_INTERMEDIATES_DIR }}/package"
+          ARCHIVE_DIR="${PKG_STAGING}/${PKG_BASENAME}/"
+
+          mkdir -p "${ARCHIVE_DIR}"
+
+          # Copy entire project structure into the archive directory
+          rsync -a --exclude="${PKG_STAGING}" --exclude=".git" ./ "${ARCHIVE_DIR}"
+
+          # Create a zip archive of the package
+          pushd "${PKG_STAGING}" >/dev/null
+          zip -r "${PKG_NAME}" "${PKG_BASENAME}"
+          popd >/dev/null
+
+          # Let subsequent steps know where to find the zip archive
+          echo "PKG_PATH=${PKG_STAGING}/${PKG_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Upload the zip package as an artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ steps.package.outputs.PKG_NAME }}
+          path: ${{ steps.package.outputs.PKG_PATH }}
+
+  create-release:
+    name: Create GitHub Release
+    needs: [auto-tag, cross-compile]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create a GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v${{ env.VERSION }}"
+          release_name: "Release v${{ env.VERSION }}"
+          body: |
+            ## Changes
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.package.outputs.PKG_PATH }}
+          asset_name: ${{ steps.package.outputs.PKG_NAME }}
+          asset_content_type: application/zip

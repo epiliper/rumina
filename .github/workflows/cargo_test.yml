@@ -25,6 +25,6 @@ jobs:
         
     - name: build and test bam_processor
       run: |
-        cd bam_processor
+        cd rumina
         cargo build --verbose
         cargo test --verbose
