@@ -25,7 +25,7 @@ This pipeline is tested for processing ~600 million reads in ~5 hours, at a rate
 - :crab: cargo (rust) ≥ 1.77.0
 
 
-### Installation:
+### Installation: compile (RECOMMENDED)
 
 ```bash
 git clone https://github.com/epiliper/rumina.git -b main; \
@@ -34,6 +34,8 @@ sh install.sh;
 ```
 
 This will compile the rust components of the pipeline, set up a python virtual environment with the necessary packages, and create a script named `rumina` to enable running RUMINA from any directory. This script will be located in `$HOME/.cargo/bin/`
+
+RECOMMENDED: Using this option may yield performance gains, as several of the optimization steps during compilation are too machine-specific to be used in release binaries.
 
 
 ### Usage: 
@@ -52,14 +54,10 @@ The `input` to `rumina` can be a file or a directory; if a directory, all BAM fi
 ##### `input` :small_blue_diamond:
 The input file or directory. If a file, it must be: 
 
-- in ~~SAM~~ or BAM format
+- in BAM format
     - The UMI should be in the read QNAME field (see image under `--separator`). Illumina data base-called by [BCL Convert](https://www.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/bcl-convert.html) should be formatted this way by default.
-    - sorted with `samtools sort` beforehand. This isn't required, but is generally recommended to ensure reproducible results.
+    - sorted and indexed with `samtools sort` and `samtools index` beforehand.
 
-> [!Note]
-> This pipeline processes BAM files only, ~~but will automatically convert SAM file inputs into temporary BAM files for compatibility. Inputs are referred to as "BAM files" hereon.~~
-
-Indexes or any files associated with reference genomes are not required.
 
 If the input is a directory, all BAM files within (excluding pipeline products) will be processed per the other arguments specified. 
 
@@ -80,26 +78,24 @@ Specifies the character in the read QNAME delimiting the UMI barcode from the re
 
 
 ##### `--split_window` (default = auto)
-dictates how to split input BAM files into subfiles (for avoiding memory overflow). <br><br> This is usually necessary for BAM files containing above ~15 million reads, assuming 16GB of total system memory, and has been used to process BAM files containing up to 110 million reads. <br> 
+dictates how to split input BAM files into subfiles (for avoiding memory overflow). <br><br> This is usually necessary for BAM files with high sequencing depth that would otherwise cause the program to overuse available memory.For this reason, this value is calculated by default unless otherwise specified.
 
-Splitting happens along coordinates of the reference genome in the specified BAM file; If `--split_window 100` was used, reads for every 100bp stretch of the reference would be stored in a separate subfile. These subfiles would be processed individually and merged together into the final output file. Once the final file has been created, the subfiles are deleted.
+Splitting happens along coordinates of the reference genome in the specified BAM file; If `--split_window 100` was used, reads for every 100bp stretch of the reference would be processed in separate batches, prior to being written to output. This applies to every reference genome present in the input alignment.
 
 Options are: 
-* **auto**: calculate the recommended subfile size (in basepairs along genome) based on input file size. If `input` is a directory, this will be applied independently to each file within the directory
-* **positive integer from 1 - 500**: split input files by a fixed window size. If `input` is a directory, this will be applied to each file within the directory. 
-* **none** (default): process the input as one file without splitting into subfiles. If your system has ~16GB of RAM, this is suitable for BAMs containing up to ~15 million reads. Using this option with larger BAMs may result in memory overuse.
+* **auto**: calculate the recommended split size (in basepairs along genome) based on input file size. If `input` is a directory, this will be applied independently to each file within the directory
+* **positive integer**: split input files by a fixed window size. If `input` is a directory, this will be applied to each file within the directory. This has been tested with values ranging from 50 - 500.
+* **none** (default): process the input as one file without splitting by coordinate window. Using this option with larger BAMs may result in memory overuse.
 
-##### `--no_report` (optional)
+##### `--cov_depth_report` (optional)
 
-if used, disables depth, coverage, and clustering reporting on output files. This can save up to several minutes per file when working with large BAM files.
-
-reports describe coverage and depth of output files using `bedtools genomecov` via `pybedtools`. UMI groups with the least and most reads, respectively, as well as the number of UMI groups present before and after clustering, are also recorded. 
+If used, generates a coverage and depth report for all output files using pysam. While multithreaded, this can increase program runtime by several minutes for larger alignment files.
 
 ##### `--threads` (default = all) 
 
-Specifies the number of number of threads RUMINA is allowed to use. Threads are spread across reference coordinates, as well as more expensive intra-coordinate calculations for grouping reads. 
+Specifies the number of threads RUMINA is allowed to use. Threads are used to parallelize processing of individual reference coordinates, and for I/O operations. 
 
-By default, RUMINA will attempt to use all available threads (logical CPUs). 
+By default, RUMINA will attempt to use all available threads.
 
 ##### `--length` (optional)
 if used, groups reads by length as well as coordinate. This is recommended for metagenomics data with high read depth, as this will group reads more stringently and likely produce more singleton groups. 
@@ -107,7 +103,24 @@ if used, groups reads by length as well as coordinate. This is recommended for m
 ##### `--only-group` (optional)
 if used, reads will be grouped (assigned a group-specific "UG" tag), but not deduplicated or error-corrected. This is useful if you want to manually check how grouping works with a given file.
 
-#### Todo
+##### `--sort_outbam` (optional)
+If used, sorts and indexes the output alignment file.
 
-- establish UMI clustering methods for shotgun sequencing methods
+##### `--outdir` (default = rumina_output)
+The output directory, relative to the parent directory of the input files/directory, in which RUMINA's output will be stored.
 
+#### Arguments for paired-end input
+
+using either of these arguments will automatically treat the input as paired-end.
+
+##### `--halve_pairs` (optional)
+
+Use only R1 for deduplication, discarding R2. This is similar to UMI-tools, in that R2 reads are not part of UMI clusters.
+
+##### `--merge_pairs` (REF_FASTA, :small_blue_diamond:)
+Use both R1 and R2 for deduplication, and merge overlapping forward/reverse reads with the same barcode after initial deduplication. Merged reads are then realigned to the reference genome, which should be supplied in FASTA format. This is untested with segmented genomes or eukaryotic genomes, and is under active development.
+
+Forward/reverse pairs are merged only if they contain a minimum number of overlapping bases, which is controlled by the `--min_overlap_bp` argument. Forward/reverse pairs identified to have discordant sequences are discarded, and reads unable to be merged for other reasons are still written to output.
+
+##### `--min_overlap_bp` (default = 3)
+The minimum number of bases shared by two reads at the same reference coordinates for merging to occur in `-merge_pairs`. Reads not discordant in sequence but not meeting this threshold will not be merged, and instead both written to the output file.
