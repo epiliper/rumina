@@ -1,0 +1,58 @@
+on: [push, pull_request]
+
+name: Rust CI
+
+env:
+  CARGO_TERM_COLOR: always
+  WORKING_DIR: ./rumina  # where to find the rust crate
+
+jobs:
+  test:
+    name: Test Rust version ${{ matrix.rust }} on OS ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        rust:
+          - stable
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rumina/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rumina/Cargo.lock') }}
+
+      - name: Run cargo test
+        working-directory: ${{ env.WORKING_DIR }}
+        run: cargo test -v --all-targets --no-fail-fast
+
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt
+
+      - name: Run cargo fmt
+        working-directory: ${{ env.WORKING_DIR }}
+        run: cargo fmt --all -- --check

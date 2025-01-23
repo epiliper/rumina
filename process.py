@@ -83,7 +83,7 @@ def merge_fr(tagged_file_name, ref_fasta, split_window):
     outfile = tagged_file_name.split(".bam")[0] + "_merged.bam"
 
     tag_cmd = [
-        os.path.join(exec_path, "rumina/target/release/rumina"),
+        os.path.join(exec_path, "bin/RUMINA"),
         tagged_file_name,
         outfile,
         args.threads,
@@ -124,7 +124,7 @@ def group_bam(input_file, split_window):
     if args.only_group:
         tagged_file_name = tagged_file_name.split(".bam")[0] + "_GROUP_ONLY.bam"
 
-    tag_cmd = os.path.join(exec_path, "rumina/target/release/rumina")
+    tag_cmd = os.path.join(exec_path, "bin/RUMINA")
     tag_cmd = [
         tag_cmd,
         input_file,
