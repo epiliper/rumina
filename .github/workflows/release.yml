@@ -43,6 +43,7 @@ jobs:
       - name: Build with cargo
         shell: bash
         run: |
+          sed -i.bak 's/0.0.0/'$VERSION'/g' Cargo.toml && rm Cargo.toml.bak
           cargo build --release --target=${{ matrix.job.target }}
 
       - name: Package the project into a zip file
@@ -53,10 +54,9 @@ jobs:
           PKG_NAME="${PKG_BASENAME}.zip"
 
           mkdir -p "${PKG_BASENAME}"
+
           mv README.md cov_reporter.py "${PKG_BASENAME}"
           mv target/${{ matrix.job.target }}/release/rumina "${PKG_BASENAME}/"
-
-          sed -i "s/0.0.0/$VERSION/g" Cargo.toml
 
           zip -r "${PKG_NAME}" "${PKG_BASENAME}"
 
