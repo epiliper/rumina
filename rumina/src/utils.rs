@@ -3,6 +3,7 @@ use crate::readkey::ReadKey;
 use rust_htslib::bam::ext::BamRecordExtensions;
 use rust_htslib::bam::index::{build, Type};
 use rust_htslib::bam::{Header, IndexedReader, Read, Record, Writer};
+use std::fs::DirEntry;
 use std::path::Path;
 
 pub fn get_umi<'b>(record: &'b Record, separator: &String) -> &'b str {
@@ -14,10 +15,31 @@ pub fn get_umi<'b>(record: &'b Record, separator: &String) -> &'b str {
     }
 }
 
+pub fn get_file_ext(file: &DirEntry) -> String {
+    file.file_name()
+        .to_str()
+        .and_then(|s| s.rsplit_once('.'))
+        .map(|(_, ext)| ext.to_string())
+        .unwrap_or_default()
+}
+
 pub fn get_umi_static<'c>(raw_umi: &'c str) -> StaticUMI {
     let mut umi = StaticUMI::new();
     umi.extend(raw_umi.as_bytes().into_iter().map(|b| *b));
     umi
+}
+
+pub fn gen_outfile_name(outdir: Option<&String>, suffix: &str, fname: &str) -> String {
+    let outf = fname.rsplit_once(".bam").unwrap().0.to_string() + &format!("_{suffix}.bam");
+    if let Some(outdir) = outdir {
+        Path::new(outdir)
+            .join(Path::new(&outf))
+            .to_str()
+            .unwrap()
+            .to_string()
+    } else {
+        Path::new(&outf).to_str().unwrap().to_string()
+    }
 }
 
 pub fn get_windows(
@@ -26,6 +48,10 @@ pub fn get_windows(
     reference_id: u32,
 ) -> Vec<[i64; 2]> {
     if let Some(window_size) = window_size {
+        if window_size == 0 {
+            return vec![[0, i64::MAX]];
+        }
+
         let max_pos = bam
             .header()
             .target_len(reference_id)
@@ -78,9 +104,9 @@ pub fn get_read_pos_key(group_by_length: bool, read: &Record) -> (i64, ReadKey) 
     }
 }
 
-pub fn make_bam_writer(output_file: &String, header: Header, num_threads: usize) -> Writer {
+pub fn make_bam_writer(file_name: &String, header: Header, num_threads: usize) -> Writer {
     let mut bam_writer =
-        Writer::from_path(output_file, &header, rust_htslib::bam::Format::Bam).unwrap();
+        Writer::from_path(file_name, &header, rust_htslib::bam::Format::Bam).unwrap();
     bam_writer.set_threads(num_threads).unwrap();
     bam_writer
 }

@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, ValueEnum};
 
 #[derive(ValueEnum, Debug, Clone)]
 pub enum GroupingMethod {
@@ -10,51 +10,60 @@ pub enum GroupingMethod {
 #[derive(Parser, Debug)]
 #[command(term_width = 0)]
 pub struct Args {
-    #[command(subcommand)]
-    pub command: Command,
-
-    #[arg(long = "in", index = 1)]
+    #[arg(short = 'i', index = 1)]
+    /// a BAM file or directory of BAM files to be processed.
+    /// BAM files must have UMIs in the read QNAME, and be sorted and indexed.
     pub input: String,
 
-    #[arg(long = "out", index = 2)]
-    pub output: String,
+    #[arg(short = 'g')]
+    /// specifies UMI merging method for UMI error correction
+    /// acyclic: Same as directional, but networks are limited to depth of one
+    /// raw: Treat each raw UMI as genuine; no merging
+    pub grouping_method: GroupingMethod,
 
-    #[arg(long = "threads", index = 3)]
+    #[arg(short = 's')]
+    /// character in read QNAME delimiting UMI barcode. Usually '_' or '.'
+    pub separator: String,
+
+    #[arg(long = "outdir")]
+    /// directory (relative to parent dir of input file) in which to store output files. Will be created if it doesn't exist
+    pub outdir: String,
+
+    #[arg(long = "threads", default_value_t = num_cpus::get())]
+    /// number of threads to use. Will default to use all if not specified.
     pub threads: usize,
 
-    #[arg(long = "split_window")]
+    #[arg(value_parser = clap::value_parser!(i64).range(1..), long = "split_window")]
+    /// BAM file splitting strategy. Not using this arg or passing in 0 will have all BAM
+    /// coordinates processed at once, which may be faster but also incur significant memory usage
+    /// with larger alignments.
     pub split_window: Option<i64>,
-}
 
-#[derive(Subcommand, Debug)]
-pub enum Command {
-    Merge {
-        #[arg(long = "merge_pairs")]
-        ref_fasta: String,
+    #[arg(long = "merge_pairs", conflicts_with = "halve_pairs")]
+    /// merge overlapping forwared/reverse read pairs with the same UMI. Requires reference genome
+    /// FASTA for realignment.
+    pub merge_pairs: Option<String>,
 
-        #[arg(long = "min_overlap_bp")]
-        min_overlap_bp: usize,
-    },
+    #[arg(long = "min_overlap_bp", default_value = "3", value_parser = clap::value_parser!(i64).range(1..))]
+    /// minimum bases for read overlap. See "--merge_pairs"
+    pub min_overlap_bp: i64,
 
-    Group {
-        #[arg(short = 's')]
-        separator: String,
+    #[arg(long = "length")]
+    /// group reads by length in addition to reference coordinate
+    pub length: bool,
 
-        #[arg(short = 'g')]
-        grouping_method: GroupingMethod,
+    #[arg(long = "only-group")]
+    /// only group reads; do not deduplicate
+    pub only_group: bool,
 
-        #[arg(long = "length")]
-        length: bool,
+    #[arg(long = "singletons")]
+    /// if used, singleton groups (1-2 read UMI clusters) will be procssed like other groups,
+    /// instead of discarded.
+    pub singletons: bool,
 
-        #[arg(long = "only-group")]
-        only_group: bool,
-
-        #[arg(long = "singletons")]
-        singletons: bool,
-
-        #[arg(long = "r1-only")]
-        r1_only: bool,
-    },
+    #[arg(long = "halve_pairs", conflicts_with = "merge_pairs")]
+    /// Use only R1 for deduplication, discard R1, similar to UMI-tools
+    pub r1_only: bool,
 }
 
 pub fn parse_args() -> Args {

@@ -72,10 +72,7 @@ impl GroupReport {
     // once.
     pub fn write_to_report_file(&mut self, output_file: &String) {
         let outname = output_file.split_once(".").unwrap().0;
-        let report_file = Path::new(&output_file)
-            .parent()
-            .unwrap()
-            .join(format!("{}_rumina_report.tsv", outname));
+        let report_file = format!("{}_rumina_report.tsv", outname);
 
         let _ = File::create(&report_file);
 

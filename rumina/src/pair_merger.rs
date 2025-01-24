@@ -32,7 +32,7 @@ impl PairBundles {
 #[derive(Debug)]
 pub struct PairMerger {
     pub ref_fasta: String,
-    pub min_overlap_bp: usize,
+    pub min_overlap_bp: i64,
     pub threads: usize,
     pub infile: String,
     pub outfile: String,
@@ -114,7 +114,7 @@ impl PairMerger {
                     &mut bundles.read_dict,
                     mapper.clone(),
                     &ref_fasta,
-                    self.min_overlap_bp,
+                    self.min_overlap_bp as usize,
                     s.clone(),
                 );
 
