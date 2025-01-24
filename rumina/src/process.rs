@@ -1,15 +1,55 @@
 use crate::args::Args;
 use crate::main_dedup::{init_processor, process_chunks};
 use crate::pair_merger::PairMerger;
-use crate::utils::gen_outfile_name;
 use crate::utils::index_bam;
+use crate::utils::{gen_outfile_name, get_file_ext};
 use crate::GroupReport;
 use colored::Colorize;
-use log::info;
+use log::{error, info};
 use parking_lot::Mutex;
-use std::fs::remove_file;
+use std::collections::HashMap;
+use std::fs::{read_dir, remove_file};
 use std::hash::{DefaultHasher, Hash, Hasher};
+use std::path::Path;
 use std::sync::Arc;
+
+pub fn gather_files(input_file: &str) -> HashMap<String, String> {
+    let inpath = Path::new(input_file);
+
+    if inpath.is_dir() {
+        read_dir(inpath)
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| {
+                let entry = match entry {
+                    Ok(e) => e,
+                    Err(e) => {
+                        error!("Unable to read file: {}. Won't be used in processing.", e);
+                        return None;
+                    }
+                };
+                let path = entry.path();
+                if !path.is_dir() && get_file_ext(&path) == Some("bam") {
+                    Some((
+                        path.to_string_lossy().into_owned(),
+                        entry.file_name().to_string_lossy().into_owned(),
+                    ))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    } else {
+        std::iter::once((
+            inpath.to_string_lossy().into_owned(),
+            inpath
+                .file_name()
+                .map(|f| f.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+        ))
+        .collect()
+    }
+}
 
 pub fn process(input_file: (String, String), args: &Args) {
     let output_file = gen_outfile_name(Some(&args.outdir), "RUMINA", &input_file.1);

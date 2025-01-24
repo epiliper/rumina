@@ -15,18 +15,22 @@ pub fn get_umi<'b>(record: &'b Record, separator: &String) -> &'b str {
     }
 }
 
-pub fn get_file_ext(file: &DirEntry) -> String {
-    file.file_name()
-        .to_str()
-        .and_then(|s| s.rsplit_once('.'))
-        .map(|(_, ext)| ext.to_string())
-        .unwrap_or_default()
-}
+// pub fn get_file_ext(file: &DirEntry) -> String {
+//     file.file_name()
+//         .to_str()
+//         .and_then(|s| s.rsplit_once('.'))
+//         .map(|(_, ext)| ext.to_string())
+//         .unwrap_or_default()
+// }
 
 pub fn get_umi_static<'c>(raw_umi: &'c str) -> StaticUMI {
     let mut umi = StaticUMI::new();
     umi.extend(raw_umi.as_bytes().into_iter().map(|b| *b));
     umi
+}
+
+pub fn get_file_ext(path: &Path) -> Option<&str> {
+    path.extension().and_then(|ext| ext.to_str())
 }
 
 pub fn gen_outfile_name(outdir: Option<&String>, suffix: &str, fname: &str) -> String {

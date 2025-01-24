@@ -3,16 +3,13 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 use crate::args::{parse_args, GroupingMethod};
 use crate::group_report::GroupReport;
-use crate::process::process;
+use crate::process::{gather_files, process};
 use indexmap::IndexMap;
-use std::fs::{create_dir, read_dir};
+use std::fs::create_dir;
 use std::path::Path;
-use utils::get_file_ext;
 
-use log::{error, LevelFilter};
+use log::LevelFilter;
 use rayon::ThreadPoolBuilder;
-
-use std::collections::HashMap;
 
 mod args;
 mod bottomhash;
@@ -48,35 +45,11 @@ fn main() {
             .expect("Failed to create log for merge command!");
     }
 
-    let mut infiles: HashMap<String, String> = HashMap::new();
-    let inpath = Path::new(&input_file);
-    if inpath.is_dir() {
-        for file in read_dir(inpath)
-            .unwrap()
-            .filter_map(|f| match f {
-                Err(e) => {
-                    error!("Unable to read file: {e}. Won't be used in processing.");
-                    None
-                }
-                Ok(f) => Some(f),
-            })
-            .filter(|f| !f.path().is_dir() && get_file_ext(f) == "bam")
-        {
-            infiles.insert(
-                file.path().to_str().unwrap().to_string(),
-                file.file_name().to_str().unwrap().to_string(),
-            );
-        }
-    } else {
-        infiles.insert(
-            inpath.to_str().unwrap().to_string(),
-            inpath.file_name().unwrap().to_str().unwrap().to_string(),
-        );
-    }
-
     if !Path::exists(Path::new(&args.outdir)) {
         create_dir(&args.outdir).unwrap();
     }
+
+    let infiles = gather_files(input_file);
 
     for file in infiles {
         process(file, &args);
