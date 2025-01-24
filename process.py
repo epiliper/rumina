@@ -2,7 +2,7 @@ import pysam
 import subprocess
 import os
 from logo import print_file_end
-from cov_reporter import generate_cov_depth_report, sort_and_index
+from cov_reporter import generate_cov_depth_report
 
 from args import init_args
 
@@ -160,7 +160,6 @@ def group_bam(input_file, split_window):
     subprocess.run(tag_cmd)
 
     if args.merge_pairs:
-        sort_and_index(tagged_file_name)
         merge_file = merge_fr(tagged_file_name, args.merge_pairs, split_window)
         tagged_file_name = merge_file
 

@@ -131,6 +131,8 @@ impl ChunkProcessor {
 
     pub fn write_reads(&mut self, mut outreads: Vec<Record>, bam_writer: &mut Writer) {
         let mut count = 0;
+        outreads
+            .par_sort_unstable_by(|ra, rb| ra.tid().cmp(&rb.tid()).then(ra.pos().cmp(&rb.pos())));
         outreads.drain(..).for_each(|read| {
             count += 1;
             bam_writer.write(&read).unwrap()

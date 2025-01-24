@@ -4,6 +4,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 use crate::group_report::GroupReport;
 use crate::main_dedup::{init_processor, process_chunks};
 use crate::pair_merger::PairMerger;
+use crate::utils::index_bam;
 use colored::Colorize;
 use indexmap::IndexMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -153,6 +154,8 @@ fn main() {
                 group_report.write_to_report_file(&output_file);
                 println!("{}", group_report);
             }
+
+            index_bam(output_file, args.threads).unwrap();
         }
 
         Command::Merge {

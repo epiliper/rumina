@@ -39,13 +39,3 @@ def generate_cov_depth_report(original_file, final_file):
     save_dir = os.path.dirname(final_file)
     cov_tsv = os.path.join(save_dir, final_file.split(".bam")[0] + "_coverage.tsv")
     cov_report.to_csv(cov_tsv, sep="\t", index=None)
-
-
-def sort_and_index(output_file):
-    temp_file = output_file.split(".bam")[0] + "_s.bam"
-    os.rename(output_file, temp_file)
-
-    pysam.sort(f"-@ {args.threads}", temp_file, "-o", output_file)
-    os.remove(temp_file)
-
-    pysam.index(f"-@ {args.threads}", output_file)

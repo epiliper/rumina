@@ -36,11 +36,11 @@ pub fn handle_dupes(
 
                     // sort the read list by reads likely to overlap
                     reads.sort_by(|ra, rb| {
-                        ra.pos()
-                            .cmp(&rb.pos())
+                        ra.tid()
+                            .cmp(&rb.tid())
                             .then_with(|| ra.qname().cmp(&rb.qname()))
                             .then_with(|| ra.is_reverse().cmp(&!rb.is_reverse()))
-                            .then_with(|| ra.tid().cmp(&rb.tid()))
+                            .then_with(|| ra.pos().cmp(&rb.pos()))
                     });
 
                     while !reads.is_empty() {

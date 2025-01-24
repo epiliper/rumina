@@ -1,7 +1,9 @@
 use crate::group_report::StaticUMI;
 use crate::readkey::ReadKey;
 use rust_htslib::bam::ext::BamRecordExtensions;
+use rust_htslib::bam::index::{build, Type};
 use rust_htslib::bam::{Header, IndexedReader, Read, Record, Writer};
+use std::path::Path;
 
 pub fn get_umi<'b>(record: &'b Record, separator: &String) -> &'b str {
     unsafe {
@@ -89,4 +91,13 @@ pub fn make_bam_reader(input_file: &String, num_threads: usize) -> (Header, Inde
     let header = Header::from_template(bam_reader.header());
 
     (header, bam_reader)
+}
+
+pub fn index_bam(bam_name: &String, num_threads: usize) -> Result<(), rust_htslib::errors::Error> {
+    build(
+        Path::new(bam_name),
+        None,
+        Type::Bai,
+        num_threads.try_into().unwrap(),
+    )
 }
