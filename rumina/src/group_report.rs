@@ -3,7 +3,6 @@ use colored::Colorize;
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-use std::path::Path;
 
 use num_format::{Locale, ToFormattedString};
 
