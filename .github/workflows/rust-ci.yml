@@ -4,7 +4,6 @@ name: Rust CI
 
 env:
   CARGO_TERM_COLOR: always
-  WORKING_DIR: ./rumina  # where to find the rust crate
 
 jobs:
   test:
@@ -29,11 +28,10 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            rumina/target
+            target
           key: ${{ runner.os }}-cargo-${{ hashFiles('rumina/Cargo.lock') }}
 
       - name: Run cargo test
-        working-directory: ${{ env.WORKING_DIR }}
         run: cargo test -v --all-targets --no-fail-fast
 
   fmt:
@@ -54,5 +52,4 @@ jobs:
           components: rustfmt
 
       - name: Run cargo fmt
-        working-directory: ${{ env.WORKING_DIR }}
         run: cargo fmt --all -- --check

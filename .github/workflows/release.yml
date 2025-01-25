@@ -43,7 +43,6 @@ jobs:
       - name: Build with cargo
         shell: bash
         run: |
-          cd rumina
           cargo build --release --target=${{ matrix.job.target }}
 
       - name: Package the project into a zip file
@@ -54,26 +53,10 @@ jobs:
           PKG_NAME="${PKG_BASENAME}.zip"
 
           mkdir -p "${PKG_BASENAME}"
-          find . -maxdepth 1 -type f -exec cp {} "${PKG_BASENAME}"/ \;
+          mv README.md cov_reporter.py "${PKG_BASENAME}"
+          mv target/${{ matrix.job.target }}/release/rumina "${PKG_BASENAME}/"
 
-          cd "${PKG_BASENAME}"
-          python3 -m venv python_env
-          source python_env/bin/activate
-
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          deactivate
-
-          echo "#!/usr/bin/env/bash" > rumina
-          echo "source python_env/bin/activate" >> rumina
-          echo "python3 main.py \"\$@\"" >> rumina
-          echo "deactivate" >> rumina
-          chmod +x rumina
-
-          cd ..
-
-          mkdir -p "${PKG_BASENAME}/bin"
-          mv rumina/target/${{ matrix.job.target }}/release/RUMINA "${PKG_BASENAME}/bin/"
+          sed -i "s/0.0.0/$VERSION/g" Cargo.toml
 
           zip -r "${PKG_NAME}" "${PKG_BASENAME}"
 
