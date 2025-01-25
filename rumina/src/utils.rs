@@ -3,7 +3,6 @@ use crate::readkey::ReadKey;
 use rust_htslib::bam::ext::BamRecordExtensions;
 use rust_htslib::bam::index::{build, Type};
 use rust_htslib::bam::{Header, IndexedReader, Read, Record, Writer};
-use std::fs::DirEntry;
 use std::path::Path;
 
 pub fn get_umi<'b>(record: &'b Record, separator: &String) -> &'b str {

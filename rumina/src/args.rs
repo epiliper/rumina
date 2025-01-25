@@ -1,4 +1,5 @@
 use clap::{Parser, ValueEnum};
+use colored::Colorize;
 
 #[derive(ValueEnum, Debug, Clone)]
 pub enum GroupingMethod {
@@ -6,7 +7,6 @@ pub enum GroupingMethod {
     Directional,
     Raw,
 }
-
 #[derive(Parser, Debug)]
 #[command(term_width = 0)]
 pub struct Args {
@@ -64,6 +64,52 @@ pub struct Args {
     #[arg(long = "halve_pairs", conflicts_with = "merge_pairs")]
     /// Use only R1 for deduplication, discard R1, similar to UMI-tools
     pub r1_only: bool,
+}
+
+impl std::fmt::Display for Args {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}: {}\n\
+            {}: {:?}\n\
+            {}: {}\n\
+            {}: {}\n\
+            {}: {}\n\
+            {}: {:?}\n\
+            {}: {:?}\n\
+            {}: {}\n\
+            {}: {}\n\
+            {}: {}\n\
+            {}: {}\n\
+            {}: {}\n",
+            "Input".purple(),
+            self.input,
+            "Grouping method".purple(),
+            self.grouping_method,
+            "Separator".purple(),
+            self.separator,
+            "Outdir".purple(),
+            self.outdir,
+            "Threads".purple(),
+            self.threads,
+            "Split window".purple(),
+            self.split_window,
+            "Merge pairs".purple(),
+            self.merge_pairs,
+            "Min overlap BP".purple(),
+            self.min_overlap_bp,
+            "Length".purple(),
+            self.length,
+            "Group only".purple(),
+            self.only_group,
+            "Singletons".purple(),
+            self.singletons,
+            "Halve pairs".purple(),
+            self.r1_only
+        )?;
+
+        Ok(())
+    }
 }
 
 pub fn parse_args() -> Args {
