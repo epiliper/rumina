@@ -8,7 +8,6 @@ use indexmap::IndexMap;
 use indicatif::MultiProgress;
 use log::info;
 use parking_lot::Mutex;
-use rust_htslib::bam::ext::BamRecordExtensions;
 use rust_htslib::bam::{IndexedReader, Read, Writer};
 use std::sync::Arc;
 
@@ -93,15 +92,7 @@ pub fn process_chunks(
                     if !read.is_last_in_template() && chunk_processor.r1_only {
                         continue;
                     }
-                    if read.is_reverse() {
-                        // reverse-mapping reads
-                        if read.reference_end() <= end && read.reference_end() >= start {
-                            (pos, key) = get_read_pos_key(chunk_processor.group_by_length, &read);
-                            chunk_processor.pull_read(read, pos, key, &mut bottomhash, &separator);
-                            window_reads += 1;
-                        }
-                        // forward-mapping reads
-                    } else if read.reference_start() < end && read.reference_start() >= start {
+                    if read.pos() < end && read.pos() >= start {
                         (pos, key) = get_read_pos_key(chunk_processor.group_by_length, &read);
                         chunk_processor.pull_read(read, pos, key, &mut bottomhash, &separator);
                         window_reads += 1;
