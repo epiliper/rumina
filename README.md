@@ -20,32 +20,38 @@ This pipeline is tested for processing ~600 million reads in ~5 hours, at a rate
 </p>
 
 
-### Dependencies: 
-- :snake: python ≥ 3.12
-- :crab: cargo (rust) ≥ 1.77.0
+### Installation: 
 
+#### Release binaries
 
-### Installation: compile (RECOMMENDED)
+Navigate to releases and download the zip for your system's CPU architecture. Unzip and `cd` into the directory, and run `./rumina -h` to ensure it's working.   
+It's recommended to move the binary to someplace in your `$PATH` for convenience.
+
+#### Compiling from source
+dependencies: 
+- [cargo](https://www.rust-lang.org/tools/install) v1.77.0+
 
 ```bash
-git clone https://github.com/epiliper/rumina.git -b main; \
-cd rumina; \
-sh install.sh; 
+export RUSTFLAGS="-C target-cpu=native" 
+
+git clone https://github.com/epiliper/rumina.git
+cd rumina
+cargo build --release 
+mv target/release/rumina .
 ```
 
-This will compile the rust components of the pipeline, set up a python virtual environment with the necessary packages, and create a script named `rumina` to enable running RUMINA from any directory. This script will be located in `$HOME/.cargo/bin/`
-
-RECOMMENDED: Using this option may yield performance gains, as several of the optimization steps during compilation are too machine-specific to be used in release binaries.
+The binary will be located at `./rumina/rumina`.  
+NOTE: Using this option may yield performance gains, as the `target-cpu=native` flag is not used when making the release binaries.
 
 
 ### Usage: 
 ```rumina <input (file or directory)> -g <grouping_method> -s <separator> <optional args>```
 
 an example command:<br>
-```rumina example.bam -g directional --s : -x 100 -t 8``` 
+```rumina example.bam -g directional -s : -x 100 -t 8``` 
 
 ---
-The `input` to `rumina` can be a file or a directory; if a directory, all BAM files within (exlcuding pipeline products) are processed.
+The `input` to `rumina` can be a file or a directory; if a directory, all BAM files within (excluding pipeline products) are processed.
 
 
 ###  Arguments 
