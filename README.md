@@ -39,10 +39,10 @@ RECOMMENDED: Using this option may yield performance gains, as several of the op
 
 
 ### Usage: 
-```rumina <input (file or directory)> --grouping_method <grouping_method> --separator <separator> <optional args>```
+```rumina <input (file or directory)> -g <grouping_method> -s <separator> <optional args>```
 
 an example command:<br>
-```rumina example.bam --grouping_method directional --separator : --split_window 100 --threads 8``` 
+```rumina example.bam -g directional --s : -x 100 -t 8``` 
 
 ---
 The `input` to `rumina` can be a file or a directory; if a directory, all BAM files within (exlcuding pipeline products) are processed.
@@ -61,14 +61,14 @@ The input file or directory. If a file, it must be:
 
 If the input is a directory, all BAM files within (excluding pipeline products) will be processed per the other arguments specified. 
 
-##### `--grouping_method` :small_blue_diamond:
+##### `-g, --grouping_method` :small_blue_diamond:
 
 Specifies how/if to merge UMIs based on edit distance, to account for PCR mutations and NGS errors in UMI sequence. Options are: 
 * **directional**: Merge UMIs via directional clustering. See *Amplicon* section for more details. This is the best option for amplicon sequencing data.
 * **acyclic**: Same as directional clustering, except UMI networks are limited to a depth of 1, i.e. UMIs that are predicted children cannot have UMIs as child nodes.
 * **raw**: Treat each UMI as genuine; UMIs are not merged. This is the best option for metagenomics/shotgun sequencing data.
 
-##### `--separator` :small_blue_diamond:
+##### `-s, --separator` :small_blue_diamond:
 Specifies the character in the read QNAME delimiting the UMI barcode from the rest of the string. This is usually `_` or `:`.<br>
 
 <p align="center">
@@ -77,7 +77,7 @@ Specifies the character in the read QNAME delimiting the UMI barcode from the re
 </p>
 
 
-##### `--split_window` (default = auto)
+##### `-x, --split_window` (default = auto)
 dictates how to split input BAM files into subfiles (for avoiding memory overflow). <br><br> This is usually necessary for BAM files with high sequencing depth that would otherwise cause the program to overuse available memory.For this reason, this value is calculated by default unless otherwise specified.
 
 Splitting happens along coordinates of the reference genome in the specified BAM file; If `--split_window 100` was used, reads for every 100bp stretch of the reference would be processed in separate batches, prior to being written to output. This applies to every reference genome present in the input alignment.
@@ -87,24 +87,17 @@ Options are:
 * **positive integer**: split input files by a fixed window size. If `input` is a directory, this will be applied to each file within the directory. This has been tested with values ranging from 50 - 500.
 * **none** (default): process the input as one file without splitting by coordinate window. Using this option with larger BAMs may result in memory overuse.
 
-##### `--cov_depth_report` (optional)
-
-If used, generates a coverage and depth report for all output files using pysam. While multithreaded, this can increase program runtime by several minutes for larger alignment files.
-
-##### `--threads` (default = all) 
+##### `-t, --threads` (default = all) 
 
 Specifies the number of threads RUMINA is allowed to use. Threads are used to parallelize processing of individual reference coordinates, and for I/O operations. 
 
 By default, RUMINA will attempt to use all available threads.
 
-##### `--length` (optional)
+##### `-l, --length` (optional)
 if used, groups reads by length as well as coordinate. This is recommended for metagenomics data with high read depth, as this will group reads more stringently and likely produce more singleton groups. 
 
 ##### `--only-group` (optional)
 if used, reads will be grouped (assigned a group-specific "UG" tag), but not deduplicated or error-corrected. This is useful if you want to manually check how grouping works with a given file.
-
-##### `--sort_outbam` (optional)
-If used, sorts and indexes the output alignment file.
 
 ##### `--outdir` (default = rumina_output)
 The output directory, relative to the parent directory of the input files/directory, in which RUMINA's output will be stored.

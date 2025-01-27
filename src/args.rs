@@ -15,32 +15,32 @@ pub struct Args {
     /// BAM files must have UMIs in the read QNAME, and be sorted and indexed.
     pub input: String,
 
-    #[arg(short = 'g')]
+    #[arg(short = 'g', long = "grouping_method")]
     /// specifies UMI merging method for UMI error correction
     /// acyclic: Same as directional, but networks are limited to depth of one
     /// raw: Treat each raw UMI as genuine; no merging
     pub grouping_method: GroupingMethod,
 
-    #[arg(short = 's')]
+    #[arg(short = 's', long = "separator")]
     /// character in read QNAME delimiting UMI barcode. Usually '_' or '.'
     pub separator: String,
 
-    #[arg(long = "outdir")]
+    #[arg(long = "outdir", default_value = "rumina_output")]
     /// directory (relative to parent dir of input file) in which to store output files. Will be created if it doesn't exist
     pub outdir: String,
 
-    #[arg(long = "threads", default_value_t = num_cpus::get())]
+    #[arg(short = 't', long = "threads", default_value_t = num_cpus::get())]
     /// number of threads to use. Will default to use all if not specified.
     pub threads: usize,
 
-    #[arg(value_parser = clap::value_parser!(i64).range(1..), long = "split_window")]
+    #[arg(value_parser = clap::value_parser!(i64).range(1..), short = 'x', long = "split_window")]
     /// BAM file splitting strategy. Not using this arg or passing in 0 will have all BAM
     /// coordinates processed at once, which may be faster but also incur significant memory usage
     /// with larger alignments.
     pub split_window: Option<i64>,
 
     #[arg(long = "merge_pairs", conflicts_with = "halve_pairs")]
-    /// merge overlapping forwared/reverse read pairs with the same UMI. Requires reference genome
+    /// merge overlapping forward/reverse read pairs with the same UMI. Requires reference genome
     /// FASTA for realignment.
     pub merge_pairs: Option<String>,
 
@@ -48,7 +48,7 @@ pub struct Args {
     /// minimum bases for read overlap. See "--merge_pairs"
     pub min_overlap_bp: i64,
 
-    #[arg(long = "length")]
+    #[arg(short = 'l', long = "length")]
     /// group reads by length in addition to reference coordinate
     pub length: bool,
 
@@ -57,7 +57,7 @@ pub struct Args {
     pub only_group: bool,
 
     #[arg(long = "singletons")]
-    /// if used, singleton groups (1-2 read UMI clusters) will be procssed like other groups,
+    /// if used, singleton groups (1-2 read UMI clusters) will be processed like other groups,
     /// instead of discarded.
     pub singletons: bool,
 
