@@ -1,5 +1,5 @@
 use indexmap::IndexMap;
-use log::{info, warn};
+use log::{debug, info, warn};
 use parking_lot::Mutex;
 use rayon::prelude::*;
 use rust_htslib::bam::{ext::BamRecordExtensions, Record};
@@ -30,7 +30,7 @@ pub fn handle_dupes(
                     reads.drain(..).for_each(|read| sender.send(read).unwrap());
                 }
                 _ => {
-                    info!("MERGING: number of reads with same umi: {}", reads.len());
+                    debug!("MERGING: number of reads with same umi: {}", reads.len());
                     // let mut outreads: Vec<Record> = Vec::with_capacity(100);
                     let mut merge_results: Vec<MergeResult> = Vec::with_capacity(50);
 
