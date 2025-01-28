@@ -34,6 +34,14 @@ impl BottomHashMap {
             })
             .up(read)
     }
+
+    // pub fn get_drain_end(&self, pos: i64) -> usize {
+    //     let res = self.read_dict.get_index_of(&pos);
+    //     match res {
+    //         Some(pos) => return pos,
+    //         None => self.get_drain_end(pos - 1),
+    //     }
+    // }
 }
 
 pub type PositionKey = IndexMap<i64, KeyUMI>; //every position has a key

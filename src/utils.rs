@@ -1,5 +1,6 @@
 use crate::group_report::StaticUMI;
 use crate::readkey::ReadKey;
+use indexmap::IndexMap;
 use rust_htslib::bam::ext::BamRecordExtensions;
 use rust_htslib::bam::index::{build, Type};
 use rust_htslib::bam::{Header, IndexedReader, Read, Record, Writer};
@@ -77,6 +78,17 @@ pub fn get_windows(
         return ranges;
     } else {
         return vec![[0, i64::MAX]];
+    }
+}
+
+pub fn get_drain_end<K>(index_map: &IndexMap<i64, K>, pos: i64) -> usize {
+    if pos < 0 {
+        0
+    } else {
+        match index_map.get_index_of(&pos) {
+            Some(idx) => idx,
+            None => get_drain_end(index_map, pos - 1),
+        }
     }
 }
 

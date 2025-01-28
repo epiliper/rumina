@@ -1,5 +1,5 @@
 use crate::args::Args;
-use crate::main_dedup::{init_processor, process_chunks};
+use crate::main_dedup::{init_processor, process_chunks, process_chunks_no_window};
 use crate::pair_merger::PairMerger;
 use crate::utils::index_bam;
 use crate::utils::{gen_outfile_name, get_file_ext};
@@ -7,6 +7,7 @@ use crate::GroupReport;
 use colored::Colorize;
 use log::{error, info};
 use parking_lot::Mutex;
+use rust_htslib::bam::Read;
 use std::collections::HashMap;
 use std::fs::{read_dir, remove_file};
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -79,7 +80,7 @@ pub fn process(input_file: (String, String), args: &Args) {
 
     // holds filtered reads awaiting writing to output bam file
     // do grouping and processing
-    process_chunks(&mut read_handler, bam_reader, &args.separator, bam_writer);
+    process_chunks_no_window(&mut read_handler, bam_reader, &args.separator, bam_writer);
     let num_reads_in = read_handler.read_counter;
 
     drop(read_handler);

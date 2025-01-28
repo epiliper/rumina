@@ -24,6 +24,7 @@ mod merge_report;
 mod pair_merger;
 mod process;
 mod progbars;
+mod read_channel;
 mod read_picker;
 mod readkey;
 mod realign;

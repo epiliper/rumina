@@ -1,5 +1,6 @@
 use crate::bottomhash;
 use crate::progbars::*;
+use crate::read_channel::*;
 use crate::utils::{get_read_pos_key, get_windows, make_bam_reader, make_bam_writer};
 use crate::window_processor::*;
 use crate::GroupReport;
@@ -45,6 +46,59 @@ pub fn init_processor(
     };
 
     (bam_reader, bam_writer, read_handler)
+}
+
+pub fn process_chunks_no_window(
+    chunk_processor: &mut ChunkProcessor,
+    mut reader: IndexedReader,
+    separator: &String,
+    mut bam_writer: Writer,
+) {
+    let ref_count = reader.header().clone().target_count();
+
+    let mut pos;
+    let mut key;
+
+    let multiprog = MultiProgress::new();
+    let mut bottomhash = bottomhash::BottomHashMap {
+        read_dict: IndexMap::with_capacity(500),
+    };
+
+    let mut read_channel = ReadChannel::new(bam_writer);
+
+    for tid in 0..ref_count {
+        reader.fetch((tid, 0, u32::MAX)).unwrap();
+
+        let mut rec_iter = reader.records().flatten().peekable();
+        let mut cur_pos = 0;
+        let mut last_pos = cur_pos;
+
+        for read in rec_iter {
+            if !read.is_last_in_template() && chunk_processor.r1_only {
+                continue;
+            }
+            (pos, key) = get_read_pos_key(chunk_processor.group_by_length, &read);
+            // cur_pos = pos;
+            cur_pos = read.pos();
+            chunk_processor.pull_read(read, pos, key, &mut bottomhash, &separator);
+
+            if cur_pos - last_pos > 500 {
+                let outreads = chunk_processor.group_reads_alt(
+                    Some(cur_pos - 500),
+                    &mut bottomhash,
+                    &multiprog,
+                    separator,
+                );
+                // chunk_processor.write_reads(outreads, &mut bam_writer);
+                read_channel.intake(outreads, false);
+                last_pos = cur_pos;
+            }
+        }
+        let outreads =
+            chunk_processor.group_reads_alt(None, &mut bottomhash, &multiprog, separator);
+        read_channel.intake(outreads, true);
+        // chunk_processor.write_reads(outreads, &mut bam_writer);
+    }
 }
 
 // for every position, group, and process UMIs. output remaining UMIs to write list

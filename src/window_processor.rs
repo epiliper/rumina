@@ -3,7 +3,7 @@ use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::progbars::*;
 use crate::readkey::ReadKey;
-use crate::utils::get_umi;
+use crate::utils::{get_drain_end, get_umi};
 use crate::GroupReport;
 use crate::GroupingMethod;
 use indicatif::MultiProgress;
@@ -101,6 +101,97 @@ impl ChunkProcessor {
 
             coord_bar.inc(1);
         });
+
+        coord_bar.finish_and_clear();
+        info!("Outputting final reads for writing...");
+        info!("\n{:?}", self.min_max);
+
+        Arc::try_unwrap(outreads)
+            .expect("Unable to dereference tagged reads!")
+            .into_inner()
+    }
+
+    pub fn group_reads_alt(
+        &mut self,
+        to_key: Option<i64>,
+        bottomhash: &mut BottomHashMap,
+        multiprog: &MultiProgress,
+        separator: &String,
+    ) -> Vec<Record> {
+        let grouping_method = Arc::new(&self.grouping_method);
+
+        let mut coord_bar = make_coordbar(bottomhash.read_dict.len() as u64);
+        coord_bar = multiprog.add(coord_bar);
+
+        coord_bar.set_prefix("REFERENCE COORDINATE");
+        bottomhash.read_dict.par_sort_keys();
+
+        let end_idx = match to_key {
+            Some(pos) => get_drain_end(&bottomhash.read_dict, pos),
+            None => bottomhash.read_dict.len(),
+        };
+
+        let outreads = Arc::new(Mutex::new(Vec::new()));
+
+        bottomhash
+            .read_dict
+            .par_drain(..end_idx)
+            .for_each(|position| {
+                for umi in position.1 {
+                    let mut umis_reads = umi.1;
+
+                    // sort UMIs by read count
+                    // note that this is an unstable sort, so we need to identify read-tied groups
+                    umis_reads.par_sort_by(|_umi1, count1, _umi2, count2| {
+                        count2.count.cmp(&count1.count)
+                    });
+
+                    let umis = umis_reads
+                        .keys()
+                        .map(|x| x.to_string())
+                        .collect::<Vec<String>>();
+
+                    let grouper = Grouper { umis: &umis };
+                    let mut counts: HashMap<&str, i32> = HashMap::with_capacity(umis_reads.len());
+
+                    // get number of reads for each raw UMI
+                    let mut num_umis = 0;
+
+                    for umi in &umis {
+                        counts.entry(umi.as_str()).or_insert(umis_reads[umi].count);
+                        num_umis += 1;
+                    }
+
+                    let mut group_handler = GroupHandler {
+                        seed: self.seed + position.0 as u64, // make seed unique per position
+                        group_only: self.only_group,
+                        singletons: self.singletons,
+                        separator: &separator,
+                    };
+
+                    // perform UMI clustering per the method specified
+                    let groupies = grouper.cluster(counts, Arc::clone(&grouping_method));
+
+                    let tagged_reads = group_handler.tag_records(groupies, umis_reads);
+
+                    drop(grouper);
+
+                    // update grouping report
+                    if let Some(tagged_reads) = tagged_reads {
+                        let mut out = outreads.lock();
+                        out.extend(tagged_reads.1);
+                        drop(out);
+
+                        if let Some(group_report) = tagged_reads.0 {
+                            let mut min_max = self.min_max.lock();
+                            min_max.update(group_report, num_umis);
+                            drop(min_max)
+                        }
+                    }
+                }
+
+                coord_bar.inc(1);
+            });
 
         coord_bar.finish_and_clear();
         info!("Outputting final reads for writing...");
