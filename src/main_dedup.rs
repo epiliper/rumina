@@ -8,7 +8,9 @@ use indexmap::IndexMap;
 use indicatif::MultiProgress;
 use log::info;
 use parking_lot::Mutex;
+use rust_htslib::bam::Record;
 use rust_htslib::bam::{IndexedReader, Read, Writer};
+use std::iter;
 use std::sync::Arc;
 
 pub const WINDOW_CHUNK_SIZE: usize = 3; // number of coord windows processed at once
@@ -63,6 +65,7 @@ pub fn process_chunks(
 
     for tid in 0..ref_count {
         let windows = get_windows(chunk_processor.split_window, &reader, tid);
+        reader.fetch((tid, 0, u32::MAX)).unwrap();
 
         let multiprog = MultiProgress::new();
         read_bar = multiprog.add(read_bar);
@@ -71,6 +74,7 @@ pub fn process_chunks(
         window_bar = multiprog.add(window_bar);
 
         window_bar.set_prefix("WINDOW");
+        let mut next_window_reads: Vec<Record> = Vec::new();
 
         for window_chunk in windows.chunks(WINDOW_CHUNK_SIZE) {
             let mut bottomhash = bottomhash::BottomHashMap {
@@ -78,17 +82,28 @@ pub fn process_chunks(
             };
 
             let mut window_reads = 0;
+
             for window in window_chunk {
                 let start = window[0];
                 let end = window[1];
 
                 info!("Ref: {}, Start: {}, End: {}", tid, start, end);
 
-                reader
-                    .fetch((tid, window[0], window[1]))
-                    .expect("Error: invalid window value supplied!");
+                next_window_reads.drain(..).for_each(|read| {
+                    let (pos, key) = get_read_pos_key(chunk_processor.group_by_length, &read);
+                    chunk_processor.pull_read(read, pos, key, &mut bottomhash, &separator);
+                });
 
-                for read in reader.records().map(|read| read.unwrap()) {
+                for read in reader.records().flatten() {
+                    // if the record is outside the current window, break
+                    // and process. Append this record to the next window's bundle iterator
+                    // to avoid it getting lost
+                    if read.pos() >= end {
+                        next_window_reads.push(read);
+
+                        break;
+                    }
+
                     if !read.is_last_in_template() && chunk_processor.r1_only {
                         continue;
                     }
@@ -99,6 +114,7 @@ pub fn process_chunks(
                     }
                 }
             }
+
             info!("{} reads pulled from window", window_reads);
             window_bar.set_message(format!("{window_reads} reads in window"));
 
