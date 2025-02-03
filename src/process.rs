@@ -61,7 +61,7 @@ pub fn process(input_file: (String, String), args: &Args) {
     // create deduplication report
     let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(GroupReport::new()));
 
-    let (bam_reader, bam_writer, mut read_handler) = init_processor(
+    let (bam_reader, pair_reader, bam_writer, mut read_handler) = init_processor(
         input_file.0.clone(),
         output_file.to_string(),
         args.grouping_method.clone(),
@@ -79,7 +79,13 @@ pub fn process(input_file: (String, String), args: &Args) {
 
     // holds filtered reads awaiting writing to output bam file
     // do grouping and processing
-    process_chunks(&mut read_handler, bam_reader, &args.separator, bam_writer);
+    process_chunks(
+        &mut read_handler,
+        bam_reader,
+        pair_reader,
+        &args.separator,
+        bam_writer,
+    );
     let num_reads_in = read_handler.read_counter;
 
     drop(read_handler);

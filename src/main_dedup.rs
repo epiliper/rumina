@@ -10,7 +10,6 @@ use log::info;
 use parking_lot::Mutex;
 use rust_htslib::bam::Record;
 use rust_htslib::bam::{IndexedReader, Read, Writer};
-use std::iter;
 use std::sync::Arc;
 
 pub const WINDOW_CHUNK_SIZE: usize = 3; // number of coord windows processed at once
@@ -30,7 +29,7 @@ pub fn init_processor(
     r1_only: bool,
     min_maxes: Arc<Mutex<GroupReport>>,
     seed: u64,
-) -> (IndexedReader, Writer, ChunkProcessor) {
+) -> (IndexedReader, Option<IndexedReader>, Writer, ChunkProcessor) {
     let (header, bam_reader) = make_bam_reader(&input_file, threads);
     let bam_writer = make_bam_writer(&output_file, header, threads);
 
@@ -46,13 +45,19 @@ pub fn init_processor(
         r1_only,
     };
 
-    (bam_reader, bam_writer, read_handler)
+    let mate_reader = match r1_only {
+        true => Some(make_bam_reader(&input_file, threads).1),
+        false => None,
+    };
+
+    (bam_reader, mate_reader, bam_writer, read_handler)
 }
 
 // for every position, group, and process UMIs. output remaining UMIs to write list
 pub fn process_chunks(
     chunk_processor: &mut ChunkProcessor,
     mut reader: IndexedReader,
+    mut other_reader: Option<IndexedReader>,
     separator: &String,
     mut bam_writer: Writer,
 ) {
@@ -62,6 +67,7 @@ pub fn process_chunks(
     let ref_count = reader.header().clone().target_count();
 
     let mut read_bar = make_readbar();
+    let mut outreads: Vec<Record> = Vec::with_capacity(1_000_000);
 
     for tid in 0..ref_count {
         let windows = get_windows(chunk_processor.split_window, &reader, tid);
@@ -106,8 +112,7 @@ pub fn process_chunks(
 
                     if !read.is_last_in_template() && chunk_processor.r1_only {
                         continue;
-                    }
-                    if read.pos() < end && read.pos() >= start {
+                    } else if read.pos() < end && read.pos() >= start {
                         (pos, key) = get_read_pos_key(chunk_processor.group_by_length, &read);
                         chunk_processor.pull_read(read, pos, key, &mut bottomhash, &separator);
                         window_reads += 1;
@@ -118,14 +123,21 @@ pub fn process_chunks(
             info!("{} reads pulled from window", window_reads);
             window_bar.set_message(format!("{window_reads} reads in window"));
 
-            let outreads = ChunkProcessor::group_reads(
+            outreads.extend(ChunkProcessor::group_reads(
                 chunk_processor,
                 &mut bottomhash,
                 &multiprog,
                 separator,
+            ));
+
+            chunk_processor.write_reads(
+                &mut outreads,
+                &mut bam_writer,
+                &mut other_reader,
+                tid,
+                window_chunk,
             );
-            bottomhash.read_dict.clear();
-            chunk_processor.write_reads(outreads, &mut bam_writer);
+
             window_bar.inc(WINDOW_CHUNK_SIZE as u64);
 
             info!("Processed {} total reads...", chunk_processor.read_counter);

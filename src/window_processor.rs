@@ -6,11 +6,12 @@ use crate::readkey::ReadKey;
 use crate::utils::get_umi;
 use crate::GroupReport;
 use crate::GroupingMethod;
+use indexmap::IndexSet;
 use indicatif::MultiProgress;
 use log::info;
 use parking_lot::Mutex;
 use rayon::prelude::*;
-use rust_htslib::bam::{Record, Writer};
+use rust_htslib::bam::{IndexedReader, Read, Record, Writer};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -111,6 +112,25 @@ impl ChunkProcessor {
             .into_inner()
     }
 
+    pub fn retrieve_r2s(
+        tid: u32,
+        chunk_start: i64,
+        chunk_end: i64,
+        reader: &mut IndexedReader,
+        ids: IndexSet<&[u8]>,
+    ) -> Vec<Record> {
+        reader.fetch((tid, chunk_start, chunk_end)).unwrap();
+        let mut mates: Vec<Record> = Vec::with_capacity(ids.len());
+
+        for read in reader.records().flatten() {
+            if ids.contains(read.qname()) && read.is_last_in_template() {
+                mates.push(read);
+            }
+        }
+
+        mates
+    }
+
     // organize reads in bottomhash based on position
     pub fn pull_read(
         &mut self,
@@ -129,13 +149,47 @@ impl ChunkProcessor {
         self.read_counter += 1;
     }
 
-    pub fn write_reads(&mut self, mut outreads: Vec<Record>, bam_writer: &mut Writer) {
+    pub fn write_reads(
+        &mut self,
+        outreads: &mut Vec<Record>,
+        bam_writer: &mut Writer,
+        bam_reader: &mut Option<IndexedReader>,
+        tid: u32,
+        window: &[[i64; 2]],
+    ) {
         let mut count = 0;
-        outreads.par_sort_by(|ra, rb| ra.pos().cmp(&rb.pos()));
-        outreads.drain(..).for_each(|read| {
-            count += 1;
-            bam_writer.write(&read).unwrap()
-        });
+        let mut mates: Option<Vec<Record>> = None;
+
+        if !outreads.is_empty() {
+            if let Some(ref mut bam_reader) = bam_reader {
+                let chunk_start = window[0][0];
+                let chunk_end = window[1][1];
+
+                let mut ids_to_pair = IndexSet::with_capacity(outreads.len());
+
+                outreads.iter().for_each(|read| {
+                    ids_to_pair.insert(read.qname());
+                });
+
+                mates = Some(Self::retrieve_r2s(
+                    tid,
+                    chunk_start,
+                    chunk_end,
+                    bam_reader,
+                    ids_to_pair,
+                ));
+            }
+
+            if let Some(mates) = mates {
+                outreads.extend(mates);
+            }
+
+            outreads.par_sort_by(|ra, rb| ra.pos().cmp(&rb.pos()));
+            outreads.drain(..).for_each(|read| {
+                bam_writer.write(&read).unwrap();
+                count += 1;
+            });
+        }
 
         info!("Written {count} reads!")
     }
