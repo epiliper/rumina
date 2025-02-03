@@ -119,11 +119,12 @@ impl ChunkProcessor {
         reader: &mut IndexedReader,
         ids: IndexSet<&[u8]>,
     ) -> Vec<Record> {
-        reader.fetch((tid, chunk_start, chunk_end)).unwrap();
+        reader.fetch((tid, chunk_start, chunk_end + 15)).unwrap();
         let mut mates: Vec<Record> = Vec::with_capacity(ids.len());
 
         for read in reader.records().flatten() {
-            if ids.contains(read.qname()) && read.is_last_in_template() {
+            if ids.contains(read.qname()) && read.is_last_in_template() && read.pos() >= chunk_start
+            {
                 mates.push(read);
             }
         }
