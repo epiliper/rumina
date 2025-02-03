@@ -66,6 +66,7 @@ pub fn process(input_file: (String, String), args: &Args) {
         output_file.to_string(),
         args.grouping_method.clone(),
         args.threads,
+        args.strict_threads,
         args.split_window,
         args.length,
         args.only_group,

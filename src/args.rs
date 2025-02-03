@@ -29,10 +29,6 @@ pub struct Args {
     /// directory (relative to parent dir of input file) in which to store output files. Will be created if it doesn't exist
     pub outdir: String,
 
-    #[arg(short = 't', long = "threads", default_value_t = num_cpus::get())]
-    /// number of threads to use. Will default to use all if not specified.
-    pub threads: usize,
-
     #[arg(value_parser = clap::value_parser!(i64).range(1..), short = 'x', long = "split_window")]
     /// BAM file splitting strategy. Not using this arg or passing in 0 will have all BAM
     /// coordinates processed at once, which may be faster but also incur significant memory usage
@@ -64,6 +60,16 @@ pub struct Args {
     #[arg(long = "halve_pairs", conflicts_with = "merge_pairs")]
     /// Use only R1 for deduplication, discard R1, similar to UMI-tools
     pub r1_only: bool,
+
+    #[arg(short = 't', long = "threads", default_value_t = num_cpus::get())]
+    /// number of threads to use. Will default to use all if not specified.
+    pub threads: usize,
+
+    #[arg(long = "strict_threads", default_value_t = false)]
+    /// Also constrain SAM read/write operations to use the number of threads specified in
+    /// --threads. Choose this option to make CPU usage more predictable, but expect runtime to
+    /// increase when using fewer than all available threads.
+    pub strict_threads: bool,
 }
 
 impl std::fmt::Display for Args {

@@ -14,14 +14,6 @@ pub fn get_umi<'b>(record: &'b Record, separator: &String) -> &'b str {
     }
 }
 
-// pub fn get_file_ext(file: &DirEntry) -> String {
-//     file.file_name()
-//         .to_str()
-//         .and_then(|s| s.rsplit_once('.'))
-//         .map(|(_, ext)| ext.to_string())
-//         .unwrap_or_default()
-// }
-
 pub fn get_umi_static<'c>(raw_umi: &'c str) -> StaticUMI {
     let mut umi = StaticUMI::new();
     umi.extend(raw_umi.as_bytes().into_iter().map(|b| *b));
@@ -123,6 +115,7 @@ pub fn make_bam_reader(input_file: &String, num_threads: usize) -> (Header, Inde
 }
 
 pub fn index_bam(bam_name: &String, num_threads: usize) -> Result<(), rust_htslib::errors::Error> {
+    // this function will return an error if the input bam is not sorted.
     build(
         Path::new(bam_name),
         None,

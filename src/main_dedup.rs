@@ -22,6 +22,7 @@ pub fn init_processor(
     output_file: String,
     grouping_method: GroupingMethod,
     threads: usize,
+    strict_threads: bool,
     split_window: Option<i64>,
     group_by_length: bool,
     only_group: bool,
@@ -30,8 +31,13 @@ pub fn init_processor(
     min_maxes: Arc<Mutex<GroupReport>>,
     seed: u64,
 ) -> (IndexedReader, Option<IndexedReader>, Writer, ChunkProcessor) {
-    let (header, bam_reader) = make_bam_reader(&input_file, threads);
-    let bam_writer = make_bam_writer(&output_file, header, threads);
+    let io_threads = match strict_threads {
+        true => threads,
+        false => num_cpus::get(),
+    };
+
+    let (header, bam_reader) = make_bam_reader(&input_file, io_threads);
+    let bam_writer = make_bam_writer(&output_file, header, io_threads);
 
     let read_handler = ChunkProcessor {
         min_max: Arc::clone(&min_maxes),
@@ -46,7 +52,7 @@ pub fn init_processor(
     };
 
     let mate_reader = match r1_only {
-        true => Some(make_bam_reader(&input_file, threads).1),
+        true => Some(make_bam_reader(&input_file, io_threads).1),
         false => None,
     };
 
