@@ -8,7 +8,7 @@ pub enum GroupingMethod {
     Raw,
 }
 #[derive(Parser, Debug)]
-#[command(term_width = 0)]
+#[command(version, about, term_width = 0)]
 pub struct Args {
     #[arg(short = 'i', index = 1)]
     /// a BAM file or directory of BAM files to be processed.
