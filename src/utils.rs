@@ -1,8 +1,7 @@
 use crate::group_report::StaticUMI;
 use crate::readkey::ReadKey;
 use rust_htslib::bam::ext::BamRecordExtensions;
-use rust_htslib::bam::index::{build, Type};
-use rust_htslib::bam::{Header, IndexedReader, Read, Record, Writer};
+use rust_htslib::bam::{index, Header, IndexedReader, Read, Record, Writer};
 use std::path::Path;
 
 pub fn get_umi<'b>(record: &'b Record, separator: &String) -> &'b str {
@@ -114,12 +113,21 @@ pub fn make_bam_reader(input_file: &String, num_threads: usize) -> (Header, Inde
     (header, bam_reader)
 }
 
-pub fn index_bam(bam_name: &String, num_threads: usize) -> Result<(), rust_htslib::errors::Error> {
+pub fn index_bam(
+    bam_name: &String,
+    num_threads: usize,
+) -> Result<String, rust_htslib::errors::Error> {
     // this function will return an error if the input bam is not sorted.
-    build(
+    let idx_name = format!("{bam_name}.bai");
+    let res = index::build(
         Path::new(bam_name),
-        None,
-        Type::Bai,
+        Some(Path::new(&idx_name)),
+        index::Type::Bai,
         num_threads.try_into().unwrap(),
-    )
+    );
+
+    match res {
+        Ok(_) => return Ok(idx_name),
+        Err(e) => return Err(e),
+    }
 }

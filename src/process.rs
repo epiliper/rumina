@@ -104,7 +104,7 @@ pub fn process(input_file: (String, String), args: &Args) {
         println!("{}", group_report);
     }
 
-    index_bam(&output_file, args.threads).unwrap();
+    let idx = index_bam(&output_file, args.threads).expect("Failed to index bam");
 
     if let Some(ref ref_fasta) = args.merge_pairs {
         let mut merger = PairMerger {
@@ -119,7 +119,8 @@ pub fn process(input_file: (String, String), args: &Args) {
         info!("{:?}", merger);
 
         let merge_report = merger.merge_windows();
-        remove_file(output_file).unwrap();
+        remove_file(output_file).ok();
+        remove_file(idx).ok();
         index_bam(&merger.outfile, args.threads).unwrap();
         print!("{merge_report}");
     }
