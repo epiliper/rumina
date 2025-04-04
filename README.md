@@ -22,12 +22,7 @@ This pipeline is tested for processing ~600 million reads in ~5 hours, at a rate
 
 ### Installation: 
 
-#### Release binaries
-
-Navigate to releases and download the zip for your system's CPU architecture. Unzip and `cd` into the directory, and run `./rumina -h` to ensure it's working.   
-It's recommended to move the binary to someplace in your `$PATH` for convenience.
-
-#### Compiling from source
+#### option 1: compiling from source
 dependencies: 
 - [cargo](https://www.rust-lang.org/tools/install) v1.77.0+
 
@@ -40,8 +35,13 @@ cargo build --release
 mv target/release/rumina .
 ```
 
-The binary will be located at `./rumina/rumina`.  
+The binary will be located at `./rumina`. It's recommended that you move it somewhere to your `$PATH`, so you can run it from anywhere.  
 NOTE: Using this option may yield performance gains, as the `target-cpu=native` flag is not used when making the release binaries.
+
+#### option 2: release binaries
+
+Navigate to releases and download the zip for your system's CPU architecture. Unzip and `cd` into the directory, and run `./rumina -h` to ensure it's working.   
+It's recommended to move the binary to someplace in your `$PATH` for convenience.
 
 
 ### Usage: 
