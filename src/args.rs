@@ -8,7 +8,7 @@ pub enum GroupingMethod {
     Raw,
 }
 #[derive(Parser, Debug)]
-#[command(version, about, term_width = 0)]
+#[command(version, about)]
 pub struct Args {
     #[arg(index = 1)]
     /// a BAM file or directory of BAM files to be processed.
@@ -109,7 +109,7 @@ impl std::fmt::Display for Args {
             self.length,
             "Group only".purple(),
             self.only_group,
-            "Singletons".purple(),
+            "Keep singletons".purple(),
             self.singletons,
             "Halve pairs".purple(),
             self.r1_only
