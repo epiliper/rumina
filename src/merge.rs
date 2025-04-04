@@ -81,7 +81,7 @@ pub fn handle_dupes(
 }
 
 pub fn is_opp_orientation(read_a: &Record, read_b: &Record) -> bool {
-    (read_a.is_reverse() && !read_b.is_reverse()) | (!read_a.is_reverse() && read_b.is_reverse())
+    read_a.is_reverse() | read_b.is_reverse()
 }
 
 pub fn is_overlap(read_a: &Record, read_b: &Record) -> bool {

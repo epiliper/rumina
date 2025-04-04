@@ -120,6 +120,7 @@ pub fn process(input_file: (String, String), args: &Args) {
 
         let merge_report = merger.merge_windows();
         remove_file(output_file).unwrap();
+        index_bam(&merger.outfile, args.threads).unwrap();
         print!("{merge_report}");
     }
 }
