@@ -1,5 +1,5 @@
 use indexmap::IndexMap;
-use log::{debug, info, warn};
+use log::{debug, warn};
 use parking_lot::Mutex;
 use rayon::prelude::*;
 use rust_htslib::bam::{ext::BamRecordExtensions, Record};

@@ -10,19 +10,20 @@ pub enum GroupingMethod {
 #[derive(Parser, Debug)]
 #[command(version, about, term_width = 0)]
 pub struct Args {
-    #[arg(short = 'i', index = 1)]
+    #[arg(index = 1)]
     /// a BAM file or directory of BAM files to be processed.
     /// BAM files must have UMIs in the read QNAME, and be sorted and indexed.
     pub input: String,
 
     #[arg(short = 'g', long = "grouping_method")]
     /// specifies UMI merging method for UMI error correction
+    /// directional (standard): predict mutant UMIs based on hamming distance from other UMIs
     /// acyclic: Same as directional, but networks are limited to depth of one
     /// raw: Treat each raw UMI as genuine; no merging
     pub grouping_method: GroupingMethod,
 
     #[arg(short = 's', long = "separator")]
-    /// character in read QNAME delimiting UMI barcode. Usually '_' or '.'
+    /// character in read QNAME delimiting UMI barcode. Usually '_' or ':'
     pub separator: String,
 
     #[arg(long = "outdir", default_value = "rumina_output")]
@@ -58,7 +59,7 @@ pub struct Args {
     pub singletons: bool,
 
     #[arg(long = "halve_pairs", conflicts_with = "merge_pairs")]
-    /// Use only R1 for deduplication, discard R1, similar to UMI-tools
+    /// Use only R1 for deduplication, discard R2, similar to UMI-tools
     pub r1_only: bool,
 
     #[arg(short = 't', long = "threads", default_value_t = num_cpus::get())]
