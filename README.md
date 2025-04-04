@@ -22,9 +22,15 @@ This pipeline is tested for processing ~600 million reads in ~5 hours, at a rate
 
 ### Installation: 
 
-#### option 1: compiling from source
 dependencies: 
-- [cargo](https://www.rust-lang.org/tools/install) v1.77.0+
+- [cargo](https://www.rust-lang.org/tools/install) v1.86.0+
+#### option 1: install with cargo
+
+```bash
+cargo install rumina
+```
+
+#### option 2: compile from source
 
 ```bash
 export RUSTFLAGS="-C target-cpu=native" 
@@ -38,7 +44,7 @@ mv target/release/rumina .
 The binary will be located at `./rumina`. It's recommended that you move it somewhere to your `$PATH`, so you can run it from anywhere.  
 NOTE: Using this option may yield performance gains, as the `target-cpu=native` flag is not used when making the release binaries.
 
-#### option 2: release binaries
+#### option 3: release binaries
 
 Navigate to releases and download the zip for your system's CPU architecture. Unzip and `cd` into the directory, and run `./rumina -h` to ensure it's working.   
 It's recommended to move the binary to someplace in your `$PATH` for convenience.
@@ -53,6 +59,7 @@ an example command:<br>
 ---
 The `input` to `rumina` can be a file or a directory; if a directory, all BAM files within (excluding pipeline products) are processed.
 
+RUMINA will write output BAM files and reports to an output directory (`rumina_output` by default), which can be specified with `--outdir`. Output BAM files will be sorted and indexed.
 
 ###  Arguments 
 :small_blue_diamond: = mandatory, no default
@@ -83,13 +90,12 @@ Specifies the character in the read QNAME delimiting the UMI barcode from the re
 </p>
 
 
-##### `-x, --split_window` (default = auto)
-dictates how to split input BAM files into subfiles (for avoiding memory overflow). <br><br> This is usually necessary for BAM files with high sequencing depth that would otherwise cause the program to overuse available memory.For this reason, this value is calculated by default unless otherwise specified.
+##### `-x, --split_window` (default = None)
+dictates how to split input BAM files into subfiles (for avoiding memory overflow). <br><br> This is usually necessary for BAM files with high sequencing depth that would otherwise cause the program to overuse available memory.
 
 Splitting happens along coordinates of the reference genome in the specified BAM file; If `--split_window 100` was used, reads for every 100bp stretch of the reference would be processed in separate batches, prior to being written to output. This applies to every reference genome present in the input alignment.
 
 Options are: 
-* **auto**: calculate the recommended split size (in basepairs along genome) based on input file size. If `input` is a directory, this will be applied independently to each file within the directory
 * **positive integer**: split input files by a fixed window size. If `input` is a directory, this will be applied to each file within the directory. This has been tested with values ranging from 50 - 500.
 * **none** (default): process the input as one file without splitting by coordinate window. Using this option with larger BAMs may result in memory overuse.
 
@@ -114,7 +120,7 @@ using either of these arguments will automatically treat the input as paired-end
 
 ##### `--halve_pairs` (optional)
 
-Use only R1 for deduplication, discarding R2. This is similar to UMI-tools, in that R2 reads are not part of UMI clusters.
+Use only R1 for deduplication, pairing deduplicated R1s with their associated R2s. This is similar to UMI-tools, in that R2 reads are not part of UMI clusters.
 
 ##### `--merge_pairs` (REF_FASTA, :small_blue_diamond:)
 Use both R1 and R2 for deduplication, and merge overlapping forward/reverse reads with the same barcode after initial deduplication. Merged reads are then realigned to the reference genome, which should be supplied in FASTA format. This is untested with segmented genomes or eukaryotic genomes, and is under active development.
@@ -122,4 +128,4 @@ Use both R1 and R2 for deduplication, and merge overlapping forward/reverse read
 Forward/reverse pairs are merged only if they contain a minimum number of overlapping bases, which is controlled by the `--min_overlap_bp` argument. Forward/reverse pairs identified to have discordant sequences are discarded, and reads unable to be merged for other reasons are still written to output.
 
 ##### `--min_overlap_bp` (default = 3)
-The minimum number of bases shared by two reads at the same reference coordinates for merging to occur in `-merge_pairs`. Reads not discordant in sequence but not meeting this threshold will not be merged, and instead both written to the output file.
+The minimum number of bases shared by two reads at the same reference coordinates for merging to occur in `--merge_pairs`. Reads not discordant in sequence but not meeting this threshold will not be merged, and instead both be written to the output file.
