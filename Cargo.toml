@@ -5,6 +5,7 @@ version = "0.0.0"
 authors = ["Eli Piliper <epiliper@outlook.com>"]
 edition = "2021"
 repository = "https://github.com/epiliper/rumina"
+license-file = "LICENSE"
 homepage = "https://github.com/epiliper/rumina"
 readme = "README.md"
 keywords = ["bioinformatics", "barcodes", "sequencing", "bam", "deduplication"]
