@@ -80,7 +80,8 @@ impl PairMerger {
         let ref_count = reader.header().clone().target_count();
         let mut read_count = 0;
         for tid in 0..ref_count {
-            let windows = get_windows(self.split_window, &reader, tid);
+            let max_pos = reader.header().target_len(tid).unwrap() as i64;
+            let windows = get_windows(self.split_window, max_pos);
             reader.fetch((tid, 0, u32::MAX)).unwrap();
             let mut next_window_reads: Vec<Record> = Vec::with_capacity(100);
 
@@ -94,8 +95,8 @@ impl PairMerger {
                 let writer_handle = spawn_writer_thread(writer, r);
 
                 for window in window_chunk {
-                    let start = window[0];
-                    let end = window[1];
+                    let start = window.start;
+                    let end = window.end;
 
                     info!("Ref: {}, Start: {}, End: {}", tid, start, end);
 

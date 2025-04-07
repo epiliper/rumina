@@ -36,22 +36,22 @@ pub fn gen_outfile_name(outdir: Option<&String>, suffix: &str, fname: &str) -> S
     }
 }
 
-pub fn get_windows(
-    window_size: Option<i64>,
-    bam: &IndexedReader,
-    reference_id: u32,
-) -> Vec<[i64; 2]> {
+#[derive(Clone, Debug)]
+pub struct Window {
+    pub start: i64,
+    pub end: i64,
+}
+
+pub fn get_windows(window_size: Option<i64>, max_pos: i64) -> Vec<Window> {
     if let Some(window_size) = window_size {
         if window_size == 0 {
-            return vec![[0, i64::MAX]];
+            return vec![Window {
+                start: 0,
+                end: i64::MAX,
+            }];
         }
 
-        let max_pos = bam
-            .header()
-            .target_len(reference_id)
-            .expect("Invalid reference") as i64;
-
-        let mut ranges: Vec<[i64; 2]> = Vec::new();
+        let mut ranges: Vec<Window> = Vec::new();
 
         let mut j;
         let mut i = 0;
@@ -60,14 +60,23 @@ pub fn get_windows(
             j = i;
             i = j + window_size;
 
-            ranges.push([j, i]);
+            // ranges.push([j, i]);
+            ranges.push(Window { start: j, end: i });
         }
 
-        ranges.push([i, max_pos + 1]);
+        // ranges.push([i, max_pos + 1]);
+        ranges.push(Window {
+            start: i,
+            end: max_pos + 1,
+        });
 
         return ranges;
     } else {
-        return vec![[0, i64::MAX]];
+        // return vec![[0, i64::MAX]];
+        return vec![Window {
+            start: 0,
+            end: i64::MAX,
+        }];
     }
 }
 

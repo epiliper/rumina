@@ -3,7 +3,7 @@ use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::progbars::*;
 use crate::readkey::ReadKey;
-use crate::utils::get_umi;
+use crate::utils::{get_umi, Window};
 use crate::GroupReport;
 use crate::GroupingMethod;
 use indexmap::IndexSet;
@@ -156,15 +156,15 @@ impl ChunkProcessor {
         bam_writer: &mut Writer,
         bam_reader: &mut Option<IndexedReader>,
         tid: u32,
-        window: &[[i64; 2]],
+        window: &Window,
     ) {
         let mut count = 0;
         let mut mates: Option<Vec<Record>> = None;
 
         if !outreads.is_empty() {
             if let Some(ref mut bam_reader) = bam_reader {
-                let chunk_start = window[0][0];
-                let chunk_end = window[1][1];
+                let chunk_start = window.start;
+                let chunk_end = window.end;
 
                 let mut ids_to_pair = IndexSet::with_capacity(outreads.len());
 

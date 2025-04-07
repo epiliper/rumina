@@ -13,6 +13,7 @@ use log::LevelFilter;
 use rayon::ThreadPoolBuilder;
 
 mod args;
+mod bam_io;
 mod bottomhash;
 mod cli;
 mod deduplicator;
