@@ -1,6 +1,6 @@
 use crate::bottomhash::ReadsAndCount;
-use crate::group_report::GroupReport;
-use crate::grouper::GroupIterator;
+use crate::cluster::graph_based::GroupIterator;
+use crate::cluster::group_report::GroupReport;
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
 use crate::utils::{get_umi, get_umi_static};
 use crate::IndexMap;

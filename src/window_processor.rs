@@ -1,6 +1,6 @@
 use crate::bottomhash::BottomHashMap;
-use crate::deduplicator::GroupHandler;
-use crate::grouper::Grouper;
+use crate::cluster::graph_based::Grouper;
+use crate::group_handler::group_handler::GroupHandler;
 use crate::progbars::*;
 use crate::readkey::ReadKey;
 use crate::utils::{get_umi, Window};
@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct ChunkProcessor {
+pub struct Clusterer {
     pub read_counter: i64,
     pub min_max: Arc<Mutex<GroupReport>>,
     pub grouping_method: GroupingMethod,
@@ -28,7 +28,7 @@ pub struct ChunkProcessor {
     pub r1_only: bool,
 }
 
-impl ChunkProcessor {
+impl Clusterer {
     // run grouping on pulled reads
     // add tags to Records
     // output them to list for writing to bam

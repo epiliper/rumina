@@ -1,6 +1,6 @@
-use crate::args::Args;
+use crate::cli::args::Args;
 use crate::main_dedup::{init_processor, process_chunks};
-use crate::pair_merger::PairMerger;
+use crate::pair_merge::pair_merger::PairMerger;
 use crate::utils::index_bam;
 use crate::utils::{gen_outfile_name, get_file_ext};
 use crate::GroupReport;

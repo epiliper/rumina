@@ -1,7 +1,7 @@
 use crate::bottomhash::ReadsAndCount;
 use crate::main_dedup::WINDOW_CHUNK_SIZE;
-use crate::merge::handle_dupes;
-use crate::merge_report::MergeReport;
+use crate::pair_merge::merge::handle_dupes;
+use crate::pair_merge::merge_report::MergeReport;
 use crate::realign::init_remapper;
 use crate::utils::{get_windows, make_bam_reader, make_bam_writer};
 use crossbeam::channel::{unbounded, Receiver, Sender};

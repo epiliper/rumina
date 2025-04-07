@@ -31,12 +31,7 @@ pub fn init_processor(
     r1_only: bool,
     min_maxes: Arc<Mutex<GroupReport>>,
     seed: u64,
-) -> (
-    WindowedBamReader,
-    Option<IndexedReader>,
-    Writer,
-    ChunkProcessor,
-) {
+) -> (WindowedBamReader, Option<IndexedReader>, Writer, Clusterer) {
     let io_threads = match strict_threads {
         true => threads,
         false => num_cpus::get(),
@@ -46,7 +41,7 @@ pub fn init_processor(
     let bam_reader = WindowedBamReader::new(&input_file, io_threads, split_window);
     let bam_writer = make_bam_writer(&output_file, bam_reader.raw_header.clone(), io_threads);
 
-    let read_handler = ChunkProcessor {
+    let read_handler = Clusterer {
         min_max: Arc::clone(&min_maxes),
         grouping_method,
         group_by_length,
@@ -68,7 +63,7 @@ pub fn init_processor(
 
 // for every position, group, and process UMIs. output remaining UMIs to write list
 pub fn process_chunks(
-    chunk_processor: &mut ChunkProcessor,
+    chunk_processor: &mut Clusterer,
     mut reader: WindowedBamReader,
     mut other_reader: Option<IndexedReader>,
     separator: &String,
@@ -105,7 +100,7 @@ pub fn process_chunks(
             window_bar.set_message(format!("{window_records} reads in window"));
             window_bar.inc(1);
 
-            outreads.extend(ChunkProcessor::group_reads(
+            outreads.extend(Clusterer::group_reads(
                 chunk_processor,
                 &mut bottomhash,
                 &multiprog,

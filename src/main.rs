@@ -1,9 +1,8 @@
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-use crate::args::{parse_args, GroupingMethod};
-use crate::cli::*;
-use crate::group_report::GroupReport;
+use crate::cli::args::{parse_args, GroupingMethod};
+use crate::cluster::group_report::GroupReport;
 use crate::process::{gather_files, process};
 use indexmap::IndexMap;
 use std::fs::create_dir;
@@ -12,17 +11,13 @@ use std::path::Path;
 use log::LevelFilter;
 use rayon::ThreadPoolBuilder;
 
-mod args;
 mod bam_io;
 mod bottomhash;
 mod cli;
-mod deduplicator;
-mod group_report;
-mod grouper;
+mod cluster;
+mod group_handler;
 mod main_dedup;
-mod merge;
-mod merge_report;
-mod pair_merger;
+mod pair_merge;
 mod process;
 mod progbars;
 mod read_picker;
@@ -35,8 +30,8 @@ fn main() {
     let args = parse_args();
     let input_file = &args.input;
 
-    print_logo();
-    print_init(&args);
+    cli::info::print_logo();
+    cli::info::print_init(&args);
 
     ThreadPoolBuilder::new()
         .num_threads(args.threads)
@@ -59,7 +54,7 @@ fn main() {
 
     let num_files = infiles.len();
     for (i, file) in infiles.into_iter().enumerate() {
-        print_file_info(&file.0, i + 1, num_files);
+        cli::info::print_file_info(&file.0, i + 1, num_files);
         process(file, &args);
     }
 }

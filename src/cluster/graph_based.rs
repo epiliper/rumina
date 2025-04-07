@@ -125,7 +125,7 @@ impl<'b> Grouper<'b> {
     pub fn iter_substring_neighbors<'c>(
         &'c self,
         substring_map: IndexMap<(usize, usize), IndexMap<&'c str, Vec<&'c str>>>,
-    ) -> impl Iterator<Item = (&str, IndexSet<&str>)> {
+    ) -> impl Iterator<Item = (&'c str, IndexSet<&'c str>)> {
         self.umis.iter().map(move |u| {
             let mut neighbors: IndexSet<&str> = IndexSet::new();
             for (slice, substrings) in &substring_map {
@@ -216,7 +216,7 @@ impl<'b> Grouper<'b> {
     pub fn get_connected_components<'e>(
         &'e self,
         adj_list: IndexMap<&'e str, Vec<&'e str>>,
-    ) -> Option<Vec<HashSet<&str>>> {
+    ) -> Option<Vec<HashSet<&'e str>>> {
         let mut components: Vec<HashSet<&str>> = Vec::new();
         let mut found: HashSet<&str> = HashSet::new();
 

@@ -1,4 +1,4 @@
-use crate::args::Args;
+use crate::cli::args::Args;
 use colored::Colorize;
 
 const LOGO: &str = r#"
