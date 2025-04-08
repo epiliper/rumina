@@ -94,7 +94,7 @@ impl<'b> Grouper<'b> {
         let mut ngram_maker = ngram::NgramMaker::new(2, umi_length);
         let mut ngram_vec: Vec<ngram::Ngram> = vec!["NILL"; ngram_maker.num_chunks];
         for umi in self.umis.iter() {
-            ngram_maker.ngrams_vec(umi, &mut ngram_vec);
+            ngram_maker.ngrams_to_vec(umi, &mut ngram_vec);
             for slice in &ngram_vec {
                 substring_map.entry(&slice).or_insert(Vec::new()).push(umi);
             }
@@ -102,7 +102,7 @@ impl<'b> Grouper<'b> {
 
         self.umis.iter().map(move |u| {
             let mut neighbors: IndexSet<&str> = IndexSet::new();
-            ngram_maker.ngrams_vec(u, &mut ngram_vec);
+            ngram_maker.ngrams_to_vec(u, &mut ngram_vec);
             for slice in &ngram_vec {
                 neighbors.extend(substring_map.get(slice).unwrap())
             }

@@ -23,9 +23,9 @@ impl<'a> NgramMaker {
         }
     }
 
-    pub fn ngrams_vec(&mut self, string: &'a str, out_vec: &mut Vec<&'a str>) {
+    pub fn ngrams_to_vec(&mut self, string: &'a str, out_vec: &mut Vec<&'a str>) {
         // the output vector needs to have placeholders
-        // TODO: this is still slower than the old method for some reason, find out why.
+        // TODO: this is still slightly slower than the old method for some reason, find out why.
         let mut start = 0;
 
         let mut cur_idx = 0;
@@ -45,7 +45,7 @@ fn test_split1() {
     let mut ngrams = vec!["NILL"; ngram_maker.num_chunks];
     // 15 / 2 = 7
     // 7 + 1 = 8
-    ngram_maker.ngrams_vec(s, &mut ngrams);
+    ngram_maker.ngrams_to_vec(s, &mut ngrams);
     println!("{:?}", &ngrams);
     assert!(ngrams == vec!["AGCTCTAG".to_string(), "CTACGAG".to_string()])
 }
@@ -57,7 +57,7 @@ fn test_split2() {
     let mut ngrams = vec!["NILL"; ngram_maker.num_chunks];
     // 25 / 3 = 8
     // 8 + 1 = 9
-    ngram_maker.ngrams_vec(s, &mut ngrams);
+    ngram_maker.ngrams_to_vec(s, &mut ngrams);
     println!("{:?}", ngrams);
     assert!(
         ngrams
@@ -75,7 +75,7 @@ fn test_split3() {
     let mut ngram_maker = NgramMaker::new(2, s.len());
     let mut ngrams = vec!["NULL"; ngram_maker.num_chunks];
     // 6 / 2 = 3
-    ngram_maker.ngrams_vec(s, &mut ngrams);
+    ngram_maker.ngrams_to_vec(s, &mut ngrams);
     println!("{:?}", ngrams);
     assert!(*ngrams == vec!["GTC".to_string(), "TAC".to_string()])
 }
