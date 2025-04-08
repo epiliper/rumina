@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use crate::bottomhash::ReadsAndCount;
 use crate::pair_merge::merge_report::*;
-use crate::realign::{align_to_ref, ReMapper};
+use crate::pair_merge::realign::{align_to_ref, ReMapper};
 
 pub fn handle_dupes(
     umis_reads: &mut IndexMap<String, ReadsAndCount>,

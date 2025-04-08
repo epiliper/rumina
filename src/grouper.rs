@@ -1,7 +1,7 @@
 use crate::bottomhash::BottomHashMap;
-use crate::cli::progbars::*;
-use crate::cluster::graph_based::Grouper;
-use crate::group_handler::GroupHandler;
+use crate::group::graph_based::Grouper;
+use crate::group_handler::group_handler::GroupHandler;
+use crate::progbars::*;
 use crate::readkey::ReadKey;
 use crate::utils::{get_umi, Window};
 use crate::GroupReport;
@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct Clusterer {
+pub struct GrouperProcessor {
     pub read_counter: i64,
     pub min_max: Arc<Mutex<GroupReport>>,
     pub grouping_method: GroupingMethod,
@@ -28,7 +28,7 @@ pub struct Clusterer {
     pub r1_only: bool,
 }
 
-impl Clusterer {
+impl GrouperProcessor {
     // run grouping on pulled reads
     // add tags to Records
     // output them to list for writing to bam

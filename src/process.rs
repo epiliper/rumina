@@ -1,5 +1,6 @@
 use crate::cli::args::Args;
-use crate::main_dedup::{init_processor, process_chunks};
+use crate::main_dedup::BamGroupProcessor;
+use crate::main_dedup::BamProcessor;
 use crate::pair_merge::pair_merger::PairMerger;
 use crate::utils::index_bam;
 use crate::utils::{gen_outfile_name, get_file_ext};
@@ -61,7 +62,7 @@ pub fn process(input_file: (String, String), args: &Args) {
     // create deduplication report
     let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(GroupReport::new()));
 
-    let (bam_reader, pair_reader, bam_writer, mut read_handler) = init_processor(
+    let mut group_proc = BamGroupProcessor::new(
         input_file.0.clone(),
         output_file.to_string(),
         args.grouping_method.clone(),
@@ -71,25 +72,20 @@ pub fn process(input_file: (String, String), args: &Args) {
         args.length,
         args.only_group,
         args.singletons,
+        args.separator.clone(),
         args.r1_only,
         min_maxes.clone(),
         seed,
     );
 
-    info!("{:?}", read_handler);
+    info!("{:?}", group_proc.clusterer);
 
     // holds filtered reads awaiting writing to output bam file
     // do grouping and processing
-    process_chunks(
-        &mut read_handler,
-        bam_reader,
-        pair_reader,
-        &args.separator,
-        bam_writer,
-    );
-    let num_reads_in = read_handler.read_counter;
+    group_proc.process_bam();
+    let num_reads_in = group_proc.clusterer.read_counter;
 
-    drop(read_handler);
+    drop(group_proc.clusterer);
 
     // do final report
     let mut group_report = Arc::try_unwrap(min_maxes).unwrap().into_inner();

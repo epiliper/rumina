@@ -19,10 +19,8 @@ mod group_handler;
 mod main_dedup;
 mod pair_merge;
 mod process;
-mod progbars;
 mod read_picker;
 mod readkey;
-mod realign;
 mod utils;
 mod window_processor;
 
