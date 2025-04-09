@@ -367,7 +367,6 @@ fn test_get_umi_groups() {
     let groups = groups.into_iter().collect::<Vec<_>>();
 
     // Check if UMI groups are correctly generated
-    println!("{:?}", groups);
     assert!(!groups.is_empty());
     assert_eq!(groups.len(), 2);
     for group in &groups {
@@ -393,7 +392,6 @@ fn test_cluster_directional() {
     let grouping_method = Arc::new(&GroupingMethod::Directional);
     let (_counts, groups) = grouper.cluster(counts, grouping_method);
     let groups = groups.unwrap().into_iter().collect::<Vec<_>>();
-    println!("{:?}", groups);
 
     // Check if clustering is correctly performed
     let groups = groups;

@@ -2,6 +2,7 @@ pub type Ngram<'a> = &'a str;
 
 // for repeatedly processing UMIs of the same length, we can store the chunk size to avoid
 // calculating it each time.
+#[derive(Debug)]
 pub struct NgramMaker {
     chunk_size: usize,
     pub num_chunks: usize,
