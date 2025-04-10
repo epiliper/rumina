@@ -2,6 +2,7 @@ use crate::ngram::ngram;
 use crate::GroupingMethod;
 use indexmap::{IndexMap, IndexSet};
 use log::{debug, warn};
+use std::cell::Ref;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -22,7 +23,7 @@ pub fn levenshtein(ua: &str, ub: &str) -> usize {
 
 #[derive(Debug)]
 pub struct GroupIterator<'b> {
-    pub clusters: IntoIter<HashSet<&'b str>>,
+    clusters: IntoIter<HashSet<&'b str>>,
     observed: HashSet<&'b str>,
 }
 
@@ -60,9 +61,27 @@ impl<'b> Iterator for GroupIterator<'b> {
 // this phase of the pipeline is driven by the cluster() and no_cluster() functions.
 pub struct Grouper<'a> {
     pub umis: &'a Vec<String>,
+    pub max_edit: usize,
+    pub umi_len: usize,
+    pub ngram_maker: ngram::NgramMaker<'a>,
 }
 
 impl<'b> Grouper<'b> {
+    pub fn new(umis: &'b Vec<String>, max_edit: usize, umi_len: usize) -> Self {
+        let ngram_maker = ngram::NgramMaker::new(max_edit + 1, umi_len);
+
+        Self {
+            umis,
+            max_edit,
+            umi_len,
+            ngram_maker,
+        }
+    }
+
+    pub fn ngrams(&self, umi: &'b str) -> Ref<Vec<&'b str>> {
+        self.ngram_maker.ngrams(umi)
+    }
+
     // gets the group neighbors of all group neighbors of a given UMI.
     pub fn breadth_first_search(
         mut node: &'b str,
@@ -90,26 +109,20 @@ impl<'b> Grouper<'b> {
 
     // groups UMIs with substring neighbors to reduce number of comparisons.
     // pub fn get_substring_map(&self) -> IndexMap<&str, Vec<&str>> {
-    pub fn get_substring_map(&self) -> impl Iterator<Item = (&str, IndexSet<&str>)> {
-        let umi_length = self.umis.first().unwrap().len();
-
+    pub fn get_substring_map(&self) -> impl Iterator<Item = (&str, IndexSet<&str>)> + use<'_, 'b> {
         let mut substring_map: IndexMap<&str, Vec<&str>> = IndexMap::new();
 
-        let mut ngram_maker = ngram::NgramMaker::new(2, umi_length);
-        let mut ngram_vec: Vec<ngram::Ngram> = vec!["NILL"; ngram_maker.num_chunks];
         for umi in self.umis.iter() {
-            ngram_maker.ngrams_to_vec(umi, &mut ngram_vec);
-            for slice in &ngram_vec {
+            self.ngrams(umi).iter().for_each(|slice| {
                 substring_map.entry(&slice).or_insert(Vec::new()).push(umi);
-            }
+            })
         }
 
         self.umis.iter().map(move |u| {
             let mut neighbors: IndexSet<&str> = IndexSet::new();
-            ngram_maker.ngrams_to_vec(u, &mut ngram_vec);
-            for slice in &ngram_vec {
-                neighbors.extend(substring_map.get(slice).unwrap())
-            }
+            self.ngrams(u)
+                .iter()
+                .for_each(|slice| neighbors.extend(substring_map.get(slice).unwrap()));
 
             (u.as_str(), neighbors)
         })
@@ -294,7 +307,13 @@ mod tests {
 #[test]
 fn test_get_substring_map() {
     let umis = vec!["ATCG".to_string(), "ATGG".to_string(), "ACGG".to_string()];
-    let grouper = Grouper { umis: &umis };
+    // let grouper = Grouper {
+    //     umis: &umis,
+    //     umi_len: umis.first().unwrap().len(),
+    //     max_edit: 1,
+    // };
+    //
+    let grouper = Grouper::new(&umis, 1, umis.first().unwrap().len());
     let substring_map = grouper.get_substring_map();
 
     // Check if the substring map is correctly generated
@@ -314,7 +333,7 @@ fn test_get_substring_map() {
 #[test]
 fn test_add_edge_directional() {
     let umis = vec!["ATCG".to_string(), "ATGG".to_string(), "ACGG".to_string()];
-    let grouper = Grouper { umis: &umis };
+    let grouper = Grouper::new(&umis, 1, umis.first().unwrap().len());
     let mut counts = HashMap::new();
     counts.insert("ATCG", 10);
     counts.insert("ATGG", 5);
@@ -328,7 +347,7 @@ fn test_add_edge_directional() {
 #[test]
 fn test_get_adj_list_directional() {
     let umis = vec!["ATCG".to_string(), "ATGG".to_string(), "ACGG".to_string()];
-    let grouper = Grouper { umis: &umis };
+    let grouper = Grouper::new(&umis, 1, umis.first().unwrap().len());
     let mut counts = HashMap::new();
     counts.insert("ATCG", 10);
     counts.insert("ATGG", 5);
@@ -351,7 +370,7 @@ fn test_get_umi_groups() {
         "ACGG".to_string(),
         "GATT".to_string(),
     ];
-    let grouper = Grouper { umis: &umis };
+    let grouper = Grouper::new(&umis, 1, umis.first().unwrap().len());
     let mut counts = HashMap::new();
     counts.insert("ATCG", 10);
     counts.insert("ATGG", 5);
@@ -386,7 +405,7 @@ fn test_cluster_directional() {
         "ACGG".to_string(),
         "GATT".to_string(),
     ];
-    let grouper = Grouper { umis: &umis };
+    let grouper = Grouper::new(&umis, 1, umis.first().unwrap().len());
     let mut counts = HashMap::new();
     counts.insert("ATCG", 10);
     counts.insert("ATGG", 5);
@@ -405,7 +424,7 @@ fn test_cluster_directional() {
 #[test]
 fn test_no_clustering() {
     let umis = vec!["ATCG".to_string(), "ATGG".to_string(), "ACGG".to_string()];
-    let grouper = Grouper { umis: &umis };
+    let grouper = Grouper::new(&umis, 1, umis.first().unwrap().len());
     let mut counts = HashMap::new();
     counts.insert("ATCG", 10);
     counts.insert("ATGG", 5);

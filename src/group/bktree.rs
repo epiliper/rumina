@@ -16,11 +16,11 @@ use std::rc::Rc;
 #[derive(Debug)]
 pub struct Node {
     umi: String,
-    children: HashMap<i16, Rc<RefCell<Node>>>,
-    k: u32,
+    children: HashMap<i8, Rc<RefCell<Node>>>,
+    k: i8,
     subtree_exists: bool,
-    count: i16,
-    min_count: i16,
+    count: i32,
+    min_count: i32,
 }
 
 impl std::hash::Hash for Node {
@@ -65,21 +65,20 @@ impl Default for Node {
 }
 
 impl Node {
-    pub fn new(umi: &str, count: i16) -> Self {
+    pub fn new(umi: &str, count: i32) -> Self {
         let mut s = Self::default();
         s.umi = umi.to_string();
         s.count = count;
         s
     }
 
-    pub fn has_subtree(&self, k: i16) -> bool {
+    pub fn has_subtree(&self, k: i8) -> bool {
         self.children.contains_key(&k)
     }
 
     /// attempt to add a string as a child to a node, unless a child with the same edit distance exists for
     /// the given node. Return the child if it exists.
-    pub fn append_child(&mut self, k: i16, umi: &str, count: i16) -> Option<Rc<RefCell<Node>>> {
-        // todo: rename
+    pub fn append_child(&mut self, k: i8, umi: &str, count: i32) -> Option<Rc<RefCell<Node>>> {
         if self.children.get(&k).is_none() {
             let c = Rc::new(RefCell::new(Node::new(umi, count)));
 
@@ -102,9 +101,9 @@ impl Node {
 /// Each BK-tree is represented as its root node; see [Node] for more information.
 pub struct NGramBKTree<'a> {
     ngram_tree_map: HashMap<String, Rc<RefCell<Node>>>,
-    count_map: HashMap<&'a str, usize>,
+    pub count_map: HashMap<&'a str, i32>,
     root: Node,
-    ngram_maker: ngram::NgramMaker,
+    ngram_maker: ngram::NgramMaker<'a>,
     capacity: usize,
     ngrams: Vec<ngram::Ngram<'a>>,
     str_len: usize,
@@ -120,12 +119,12 @@ impl std::fmt::Display for NGramBKTree<'_> {
 }
 
 impl<'a> NGramBKTree<'a> {
-    pub fn init_empty(cap: Option<usize>, str_len: usize) -> Self {
+    pub fn init_empty(cap: Option<usize>, max_edit: usize, str_len: usize) -> Self {
         Self {
             ngram_tree_map: HashMap::with_capacity(cap.unwrap_or(100)),
             count_map: HashMap::with_capacity(cap.unwrap_or(100)),
             root: Node::default(),
-            ngram_maker: ngram::NgramMaker::new(4, str_len),
+            ngram_maker: ngram::NgramMaker::new(max_edit + 1, str_len),
             capacity: cap.unwrap_or(100),
             ngrams: vec!["NILL"; 4],
             str_len,
@@ -138,20 +137,20 @@ impl<'a> NGramBKTree<'a> {
 
     /// Traverses a B-tree node-by-node until finding a node without a child at the given edit
     /// distance. Creates child node from query string and count once found.
-    pub fn insert_raw_string(&mut self, node: Rc<RefCell<Node>>, umi: &str, count: i16) {
-        let mut k: i16;
+    pub fn insert_raw_string(&mut self, node: Rc<RefCell<Node>>, umi: &str, count: i32) {
+        let mut k;
         let mut curr = node.borrow_mut();
 
-        k = levenshtein(&umi, &curr.umi) as i16;
+        k = levenshtein(&umi, &curr.umi) as i8;
         curr.count = cmp::min(curr.min_count, count);
 
         while let Some(child) = curr.append_child(k, umi, count) {
-            k = levenshtein(&child.borrow().umi, umi) as i16;
+            k = levenshtein(&child.borrow().umi, umi) as i8;
             // update count
         }
     }
 
-    pub fn remove_near(&mut self, umi: &str, k: i16, max_count: i16) -> IndexSet<String> {
+    pub fn remove_near(&mut self, umi: &'a str, k: i8, max_count: i32) -> IndexSet<String> {
         let mut ngrams = std::mem::take(&mut self.ngrams);
         let mut found: IndexSet<String> = IndexSet::new();
         self.ngram_maker.ngrams_to_vec(umi, &mut ngrams);
@@ -169,8 +168,8 @@ impl<'a> NGramBKTree<'a> {
         &self,
         node: Rc<RefCell<Node>>,
         umi: &str,
-        k: i16,
-        max_count: i16,
+        k: i8,
+        max_count: i32,
         output: &mut IndexSet<String>,
     ) {
         let mut visited: VecDeque<Rc<RefCell<Node>>> = VecDeque::from([node.clone()]);
@@ -179,7 +178,7 @@ impl<'a> NGramBKTree<'a> {
             let node_ref = visited.pop_front().unwrap();
             let node = node_ref.borrow_mut();
 
-            let dist = levenshtein(&node.umi, umi) as i16;
+            let dist = levenshtein(&node.umi, umi) as i8;
             let exists = self.count_map.contains_key(node.umi.as_str());
 
             if dist <= k && exists && node.count <= max_count {
@@ -188,7 +187,7 @@ impl<'a> NGramBKTree<'a> {
 
             if node.subtree_exists {
                 let low = cmp::max(dist - k, 0);
-                let length = self.str_len as i16;
+                let length = self.str_len as i8;
                 let high = cmp::min(dist + k, length - 1);
 
                 for i in low..=high {
@@ -217,7 +216,7 @@ impl<'a> NGramBKTree<'a> {
                     ngram.to_string(),
                     Rc::new(RefCell::new(Node::new(
                         &first_umi,
-                        *self.count_map.get(first_umi).unwrap() as i16,
+                        *self.count_map.get(first_umi).unwrap(),
                     ))),
                 );
             }
@@ -225,8 +224,8 @@ impl<'a> NGramBKTree<'a> {
             let mut en = ngram_tree_map.get_mut(ngram).unwrap().borrow_mut();
 
             for n in neighbors {
-                k = levenshtein(&en.umi, &n);
-                en.append_child(k as i16, &n, *self.count_map.get(&n).unwrap() as i16);
+                k = levenshtein(&en.umi, &n) as i8;
+                en.append_child(k, &n, *self.count_map.get(&n).unwrap() as i32);
             }
         }
 
@@ -239,7 +238,7 @@ use std::iter;
 #[test]
 fn init_test() {
     let cap = 42069;
-    let ngram_bk = NGramBKTree::init_empty(Some(cap), 12);
+    let ngram_bk = NGramBKTree::init_empty(Some(cap), 12, 1);
     assert!(ngram_bk.count_map.capacity() >= cap);
     assert!(ngram_bk.ngram_tree_map.capacity() >= cap);
 }
@@ -258,7 +257,7 @@ fn populate_from_umis() {
         .chain(iter::repeat(umi_d).take(1))
         .collect::<Vec<&str>>();
 
-    let mut counts: HashMap<&str, usize> = HashMap::new();
+    let mut counts: HashMap<&str, i32> = HashMap::new();
     let mut ngram_map: IndexMap<ngram::Ngram, IndexSet<&str>> = IndexMap::new();
     let mut ngram_maker = ngram::NgramMaker::new(2, umi_a.len());
     let mut ngram_vec = vec!["NULL"; ngram_maker.num_chunks];
@@ -271,7 +270,7 @@ fn populate_from_umis() {
         }
     }
 
-    let mut bktree = NGramBKTree::init_empty(None, umi_a.len());
+    let mut bktree = NGramBKTree::init_empty(None, 1, umi_a.len());
     bktree.count_map = counts;
     bktree.ngrams = ngram_vec.clone();
     bktree.ngram_maker = ngram_maker;

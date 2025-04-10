@@ -1,15 +1,20 @@
 pub type Ngram<'a> = &'a str;
+use std::cell::{Ref, RefCell, RefMut};
 
-// for repeatedly processing UMIs of the same length, we can store the chunk size to avoid
-// calculating it each time.
 #[derive(Debug)]
-pub struct NgramMaker {
+/// A utility struct to generate ngrams for a given string of a given, fixed length. It maintains an internal, fixed-length
+/// vector for holding generated ngrams, avoiding excessive allocations.
+///
+/// To use it to generate ngrams for connecting strings K edits apart, it should be initialized with
+/// num_chunks = K + 1.
+pub struct NgramMaker<'a> {
     chunk_size: usize,
     pub num_chunks: usize,
     string_len: usize,
+    out_vec: RefCell<Vec<Ngram<'a>>>,
 }
 
-impl<'a> NgramMaker {
+impl<'a> NgramMaker<'a> {
     pub fn new(num_chunks: usize, string_len: usize) -> Self {
         let mut chunk_size = string_len / num_chunks;
 
@@ -17,10 +22,13 @@ impl<'a> NgramMaker {
             chunk_size += 1;
         }
 
+        let out_vec = RefCell::new(vec!["NILL"; num_chunks]);
+
         Self {
             chunk_size,
             num_chunks,
             string_len,
+            out_vec,
         }
     }
 
@@ -37,31 +45,46 @@ impl<'a> NgramMaker {
             cur_idx += 1;
         }
     }
+
+    pub fn ngrams(&self, s: &'a str) -> Ref<Vec<&'a str>> {
+        self.ngrams_to_ref(s, self.out_vec.borrow_mut());
+        self.out_vec.borrow()
+    }
+
+    fn ngrams_to_ref(&self, string: &'a str, mut out_vec: RefMut<Vec<&'a str>>) {
+        let mut start = 0;
+
+        let mut cur_idx = 0;
+        while start < self.string_len {
+            let end = (start + self.chunk_size).min(self.string_len);
+            out_vec[cur_idx] = &string[start..end];
+            start = end;
+            cur_idx += 1;
+        }
+    }
 }
 
 #[test]
 fn test_split1() {
     let s = "AGCTCTAGCTACGAG";
-    let mut ngram_maker = NgramMaker::new(2, s.len());
-    let mut ngrams = vec!["NILL"; ngram_maker.num_chunks];
+    let ngram_maker = NgramMaker::new(2, s.len());
     // 15 / 2 = 7
     // 7 + 1 = 8
-    ngram_maker.ngrams_to_vec(s, &mut ngrams);
+    let ngrams = ngram_maker.ngrams(s);
     println!("{:?}", &ngrams);
-    assert!(ngrams == vec!["AGCTCTAG".to_string(), "CTACGAG".to_string()])
+    assert!(*ngrams == vec!["AGCTCTAG", "CTACGAG"])
 }
 
 #[test]
 fn test_split2() {
     let s = "GGGGGGGCCCCCCGGGGGGCCCCCC";
-    let mut ngram_maker = NgramMaker::new(3, s.len());
-    let mut ngrams = vec!["NILL"; ngram_maker.num_chunks];
+    let ngram_maker = NgramMaker::new(3, s.len());
     // 25 / 3 = 8
     // 8 + 1 = 9
-    ngram_maker.ngrams_to_vec(s, &mut ngrams);
+    let ngrams = ngram_maker.ngrams(s);
     println!("{:?}", ngrams);
     assert!(
-        ngrams
+        *ngrams
             == vec![
                 "GGGGGGGCC".to_string(),
                 "CCCCGGGGG".to_string(),
@@ -73,10 +96,9 @@ fn test_split2() {
 #[test]
 fn test_split3() {
     let s = "GTCTAC";
-    let mut ngram_maker = NgramMaker::new(2, s.len());
-    let mut ngrams = vec!["NULL"; ngram_maker.num_chunks];
+    let ngram_maker = NgramMaker::new(2, s.len());
     // 6 / 2 = 3
-    ngram_maker.ngrams_to_vec(s, &mut ngrams);
+    let ngrams = ngram_maker.ngrams(s);
     println!("{:?}", ngrams);
     assert!(*ngrams == vec!["GTC".to_string(), "TAC".to_string()])
 }

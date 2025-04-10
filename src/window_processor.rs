@@ -91,7 +91,9 @@ impl ChunkProcessor {
                     .map(|x| x.to_string())
                     .collect::<Vec<String>>();
 
-                let grouper = Grouper { umis: &umis };
+                let umi_len = umis.get(0).unwrap().len();
+
+                let grouper = Grouper::new(&umis, 1, umi_len);
                 let mut counts: HashMap<&str, i32> = HashMap::with_capacity(umis_reads.len());
 
                 // get number of reads for each raw UMI

@@ -5,7 +5,7 @@ use crate::realign::init_remapper;
 use crate::utils::{get_windows, make_bam_reader, make_bam_writer};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use indexmap::IndexMap;
-use log::{info, warn};
+use log::info;
 use rust_htslib::bam::{Read, Writer};
 use std::{thread, thread::JoinHandle};
 
