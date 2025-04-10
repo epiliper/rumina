@@ -14,7 +14,6 @@ use rayon::ThreadPoolBuilder;
 
 mod args;
 mod bam_io;
-mod bottomhash;
 mod cli;
 mod deduplicator;
 mod group;
@@ -28,6 +27,7 @@ mod pair_merger;
 mod process;
 mod progbars;
 mod read_picker;
+mod read_store;
 mod readkey;
 mod realign;
 mod utils;

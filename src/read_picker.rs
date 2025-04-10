@@ -8,7 +8,7 @@
 * 4. Output one read from the group
 */
 
-use crate::bottomhash::ReadsAndCount;
+use crate::read_store::read_store::ReadsAndCount;
 use crate::IndexMap;
 use rust_htslib::bam::Record;
 use std::borrow::Cow;
@@ -126,7 +126,7 @@ pub fn get_best_phred(mut clusters: Vec<Vec<Record>>) -> Record {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bottomhash::ReadsAndCount;
+    use crate::read_store::read_store::ReadsAndCount;
     use rust_htslib::bam::Record;
     use std::collections::HashMap;
 

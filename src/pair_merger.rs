@@ -1,39 +1,15 @@
-use crate::bottomhash::ReadsAndCount;
 use crate::merge::handle_dupes;
 use crate::merge_report::MergeReport;
+use crate::read_store::pair_bundles::*;
 use crate::realign::init_remapper;
 use crate::utils::{get_windows, make_bam_reader, make_bam_writer};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use indexmap::IndexMap;
 use log::{info, warn};
-use rust_htslib::bam::{record::Aux, Read, Writer};
+use rust_htslib::bam::{Read, Writer};
 use std::{thread, thread::JoinHandle};
 
 use rust_htslib::bam::Record;
-pub struct PairBundles {
-    read_dict: IndexMap<String, ReadsAndCount>,
-}
-
-const UMI_TAG: &[u8; 2] = b"BX";
-
-impl PairBundles {
-    pub fn update_dict(&mut self, read: Record) {
-        let umi = if let Ok(Aux::String(bx_i)) = read.aux(UMI_TAG) {
-            bx_i
-        } else {
-            warn!("Cannot find UMI for read: {:?}", read);
-            "NULL"
-        };
-
-        self.read_dict
-            .entry(umi.to_string())
-            .or_insert_with(|| ReadsAndCount {
-                reads: Vec::new(),
-                count: 0,
-            })
-            .up(read)
-    }
-}
 
 pub fn spawn_writer_thread(mut bam_writer: Writer, r: Receiver<Record>) -> JoinHandle<i32> {
     thread::spawn(move || {

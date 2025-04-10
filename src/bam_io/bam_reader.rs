@@ -6,7 +6,7 @@ const UNINIT_U32: u32 = u32::MAX - 1;
 const UNINIT_USIZE: usize = usize::MAX - 1;
 const UNINIT_I64: i64 = i64::MAX - 1;
 
-/// A wrapper around [rust_htslib::bam::IndexedReader] that aims to yield bam records in a memory
+/// A wrapper around [rust_htslib::bam::IndexedReader] that aims to yield coordinates of bam records in a memory
 /// efficient manner. For every reference in a supplied bam file, the reader iteratively yields all reads
 /// mapped to a range of reference coordinates, until all coordinates of all references have been
 /// traversed.

@@ -1,6 +1,6 @@
 use crate::bam_io::bam_reader::WindowedBamReader;
-use crate::bottomhash;
 use crate::progbars::make_windowbar;
+use crate::read_store::bottomhash::BottomHashMap;
 use crate::readkey::ReadKey;
 use crate::utils::get_read_pos_key;
 use crate::window_processor::*;
@@ -28,7 +28,7 @@ pub fn process_chunks(
         window_bar = multiprog.add(window_bar);
 
         while reader.next_window() {
-            let mut bottomhash = bottomhash::BottomHashMap {
+            let mut bottomhash = BottomHashMap {
                 read_dict: IndexMap::with_capacity(500),
             };
 

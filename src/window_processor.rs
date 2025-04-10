@@ -1,8 +1,8 @@
 use crate::args::Args;
-use crate::bottomhash::BottomHashMap;
 use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::progbars::*;
+use crate::read_store::bottomhash::BottomHashMap;
 use crate::readkey::ReadKey;
 use crate::utils::{get_umi, Window};
 use crate::GroupReport;

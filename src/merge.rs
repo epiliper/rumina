@@ -6,8 +6,8 @@ use rust_htslib::bam::{ext::BamRecordExtensions, Record};
 use std::str;
 use std::sync::Arc;
 
-use crate::bottomhash::ReadsAndCount;
 use crate::merge_report::*;
+use crate::read_store::read_store::ReadsAndCount;
 use crate::realign::{align_to_ref, ReMapper};
 
 pub fn handle_dupes(
