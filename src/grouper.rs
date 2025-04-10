@@ -9,11 +9,15 @@ use std::sync::Arc;
 use std::vec::IntoIter;
 
 use std::str;
-use strsim::hamming;
+use strsim;
 
 // gets edit distance (hamming distance) between two umis
 pub fn edit_distance(ua: &str, ub: &str) -> usize {
-    hamming(ua, ub).unwrap()
+    strsim::hamming(ua, ub).unwrap()
+}
+
+pub fn levenshtein(ua: &str, ub: &str) -> usize {
+    strsim::levenshtein(ua, ub)
 }
 
 #[derive(Debug)]

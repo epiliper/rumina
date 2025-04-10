@@ -2,69 +2,12 @@ use crate::bam_io::bam_reader::WindowedBamReader;
 use crate::bottomhash;
 use crate::progbars::make_windowbar;
 use crate::readkey::ReadKey;
-use crate::utils::{get_read_pos_key, make_bam_reader, make_bam_writer};
+use crate::utils::get_read_pos_key;
 use crate::window_processor::*;
-use crate::GroupReport;
-use crate::GroupingMethod;
 use indexmap::IndexMap;
 use indicatif::MultiProgress;
 use log::info;
-use parking_lot::Mutex;
 use rust_htslib::bam::{IndexedReader, Record, Writer};
-use std::sync::Arc;
-
-pub const WINDOW_CHUNK_SIZE: usize = 3; // number of coord windows processed at once
-
-// this struct serves to retrieve reads from either indexed or unindexed BAM files, batch them, and
-// organize them in the bottomhash data structure for downtream UMI-based operations.
-//
-pub fn init_processor(
-    input_file: String,
-    output_file: String,
-    grouping_method: GroupingMethod,
-    threads: usize,
-    strict_threads: bool,
-    split_window: Option<i64>,
-    group_by_length: bool,
-    only_group: bool,
-    singletons: bool,
-    r1_only: bool,
-    min_maxes: Arc<Mutex<GroupReport>>,
-    seed: u64,
-) -> (
-    WindowedBamReader,
-    Option<IndexedReader>,
-    Writer,
-    ChunkProcessor,
-) {
-    let io_threads = match strict_threads {
-        true => threads,
-        false => num_cpus::get(),
-    };
-
-    // let (header, bam_reader) = make_bam_reader(&input_file, io_threads);
-    let bam_reader = WindowedBamReader::new(&input_file, io_threads, split_window);
-    let bam_writer = make_bam_writer(&output_file, bam_reader.raw_header.clone(), io_threads);
-
-    let read_handler = ChunkProcessor {
-        min_max: Arc::clone(&min_maxes),
-        grouping_method,
-        group_by_length,
-        seed,
-        split_window,
-        only_group,
-        singletons,
-        read_counter: 0,
-        r1_only,
-    };
-
-    let mate_reader = match r1_only {
-        true => Some(make_bam_reader(&input_file, io_threads).1),
-        false => None,
-    };
-
-    (bam_reader, mate_reader, bam_writer, read_handler)
-}
 
 // for every position, group, and process UMIs. output remaining UMIs to write list
 pub fn process_chunks(

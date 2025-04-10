@@ -6,6 +6,10 @@ const UNINIT_U32: u32 = u32::MAX - 1;
 const UNINIT_USIZE: usize = usize::MAX - 1;
 const UNINIT_I64: i64 = i64::MAX - 1;
 
+/// A wrapper around [rust_htslib::bam::IndexedReader] that aims to yield bam records in a memory
+/// efficient manner. For every reference in a supplied bam file, the reader iteratively yields all reads
+/// mapped to a range of reference coordinates, until all coordinates of all references have been
+/// traversed.
 pub struct WindowedBamReader {
     reader: IndexedReader,
     window_size: Option<i64>,
@@ -38,12 +42,15 @@ impl WindowedBamReader {
         }
     }
 
+    /// Yield all records in the given coordinate window.
     pub fn window_records(&mut self) -> impl Iterator<Item = Record> + '_ {
         self.reader.records().flatten().take_while(|record| {
             record.pos() >= self.cur_window.start && record.pos() < self.cur_window.end
         })
     }
 
+    /// Set the inner reader to fetch records from the next reference if it exists, and
+    /// generate a new set of coordinate windows for read yielding.
     pub fn next_reference(&mut self) -> bool {
         self.cur_ref = match self.cur_ref {
             UNINIT_U32 => 0,
@@ -69,6 +76,9 @@ impl WindowedBamReader {
         }
     }
 
+    /// Advance to the next coordinate window for the given reference. If windows are set to be
+    /// processed in chunks, set the current window used for read iteration to span the entire
+    /// chunk.
     pub fn next_window(&mut self) -> bool {
         self.cur_window_idx = match self.cur_window_idx {
             UNINIT_USIZE => 0,

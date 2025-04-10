@@ -1,5 +1,4 @@
 use crate::bottomhash::ReadsAndCount;
-use crate::main_dedup::WINDOW_CHUNK_SIZE;
 use crate::merge::handle_dupes;
 use crate::merge_report::MergeReport;
 use crate::realign::init_remapper;
@@ -85,7 +84,7 @@ impl PairMerger {
             reader.fetch((tid, 0, u32::MAX)).unwrap();
             let mut next_window_reads: Vec<Record> = Vec::with_capacity(100);
 
-            for window_chunk in windows.chunks(WINDOW_CHUNK_SIZE) {
+            for window_chunk in windows.chunks(3) {
                 let mut bundles = PairBundles {
                     read_dict: IndexMap::new(),
                 };

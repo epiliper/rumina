@@ -1,12 +1,12 @@
 use crate::args::Args;
-use crate::main_dedup::{init_processor, process_chunks};
+use crate::bam_io::bam_io::BamIO;
+use crate::main_dedup::process_chunks;
 use crate::pair_merger::PairMerger;
 use crate::utils::index_bam;
 use crate::utils::{gen_outfile_name, get_file_ext};
-use crate::GroupReport;
+use crate::window_processor::ChunkProcessor;
 use colored::Colorize;
 use log::{error, info};
-use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::fs::{read_dir, remove_file};
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -51,6 +51,24 @@ pub fn gather_files(input_file: &str) -> HashMap<String, String> {
     }
 }
 
+pub struct BamFileProcess {
+    bam_io: BamIO,
+    chunk_processor: ChunkProcessor,
+    // pair_merger: Option<PairMerger>,
+}
+
+impl BamFileProcess {
+    pub fn init_from_args(args: &Args, outfile: &String, seed: u64) -> Self {
+        let bam_io = BamIO::init_from_args(args, outfile);
+        let chunk_processor = ChunkProcessor::init_from_args(args, seed);
+
+        Self {
+            bam_io,
+            chunk_processor,
+        }
+    }
+}
+
 pub fn process(input_file: (String, String), args: &Args) {
     let output_file = gen_outfile_name(Some(&args.outdir), "RUMINA", &input_file.1);
 
@@ -58,38 +76,22 @@ pub fn process(input_file: (String, String), args: &Args) {
     input_file.hash(&mut hasher);
     let seed = hasher.finish();
 
-    // create deduplication report
-    let min_maxes: Arc<Mutex<GroupReport>> = Arc::new(Mutex::new(GroupReport::new()));
+    let mut file_process = BamFileProcess::init_from_args(args, &output_file, seed);
 
-    let (bam_reader, pair_reader, bam_writer, mut read_handler) = init_processor(
-        input_file.0.clone(),
-        output_file.to_string(),
-        args.grouping_method.clone(),
-        args.threads,
-        args.strict_threads,
-        args.split_window,
-        args.length,
-        args.only_group,
-        args.singletons,
-        args.r1_only,
-        min_maxes.clone(),
-        seed,
-    );
+    info!("{:?}", file_process.chunk_processor);
 
-    info!("{:?}", read_handler);
-
-    // holds filtered reads awaiting writing to output bam file
-    // do grouping and processing
     process_chunks(
-        &mut read_handler,
-        bam_reader,
-        pair_reader,
+        &mut file_process.chunk_processor,
+        file_process.bam_io.windowed_reader,
+        file_process.bam_io.mate_reader,
         &args.separator,
-        bam_writer,
+        file_process.bam_io.writer,
     );
-    let num_reads_in = read_handler.read_counter;
 
-    drop(read_handler);
+    let num_reads_in = file_process.chunk_processor.read_counter;
+    let min_maxes = file_process.chunk_processor.min_max.clone();
+
+    drop(file_process.chunk_processor);
 
     // do final report
     let mut group_report = Arc::try_unwrap(min_maxes).unwrap().into_inner();

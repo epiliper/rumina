@@ -1,3 +1,4 @@
+use crate::args::Args;
 use crate::bottomhash::BottomHashMap;
 use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
@@ -22,13 +23,42 @@ pub struct ChunkProcessor {
     pub grouping_method: GroupingMethod,
     pub group_by_length: bool,
     pub seed: u64,
-    pub split_window: Option<i64>,
     pub only_group: bool,
     pub singletons: bool,
     pub r1_only: bool,
 }
 
 impl ChunkProcessor {
+    pub fn new(
+        grouping_method: &GroupingMethod,
+        group_by_length: bool,
+        seed: u64,
+        only_group: bool,
+        singletons: bool,
+        r1_only: bool,
+    ) -> Self {
+        ChunkProcessor {
+            read_counter: 0,
+            min_max: Arc::new(Mutex::new(GroupReport::new())),
+            grouping_method: grouping_method.clone(),
+            group_by_length,
+            seed,
+            only_group,
+            singletons,
+            r1_only,
+        }
+    }
+
+    pub fn init_from_args(args: &Args, seed: u64) -> Self {
+        Self::new(
+            &args.grouping_method,
+            args.length,
+            seed,
+            args.only_group,
+            args.singletons,
+            args.r1_only,
+        )
+    }
     // run grouping on pulled reads
     // add tags to Records
     // output them to list for writing to bam

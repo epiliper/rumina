@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::grouper::edit_distance;
+use crate::grouper::levenshtein;
 use crate::ngram::ngram;
 use indexmap::{IndexMap, IndexSet};
 use std::cell::RefCell;
@@ -142,11 +142,11 @@ impl<'a> NGramBKTree<'a> {
         let mut k: i16;
         let mut curr = node.borrow_mut();
 
-        k = edit_distance(&umi, &curr.umi) as i16;
+        k = levenshtein(&umi, &curr.umi) as i16;
         curr.count = cmp::min(curr.min_count, count);
 
         while let Some(child) = curr.append_child(k, umi, count) {
-            k = edit_distance(&child.borrow().umi, umi) as i16;
+            k = levenshtein(&child.borrow().umi, umi) as i16;
             // update count
         }
     }
@@ -158,7 +158,6 @@ impl<'a> NGramBKTree<'a> {
 
         for ngram in ngrams {
             if let Some(node) = self.ngram_tree_map.get(ngram) {
-                println! {"NGRAM FOR SEARCH = {ngram}"}
                 self.remove_near_stack(node.clone(), umi, k, max_count, &mut found);
             }
         }
@@ -180,9 +179,8 @@ impl<'a> NGramBKTree<'a> {
             let node_ref = visited.pop_front().unwrap();
             let node = node_ref.borrow_mut();
 
-            let dist = edit_distance(&node.umi, umi) as i16;
+            let dist = levenshtein(&node.umi, umi) as i16;
             let exists = self.count_map.contains_key(node.umi.as_str());
-            println! {"{} {exists} {dist}", node.umi}
 
             if dist <= k && exists && node.count <= max_count {
                 output.insert(node.umi.clone());
@@ -192,7 +190,6 @@ impl<'a> NGramBKTree<'a> {
                 let low = cmp::max(dist - k, 0);
                 let length = self.str_len as i16;
                 let high = cmp::min(dist + k, length - 1);
-                println! {"{low}..={high}"}
 
                 for i in low..=high {
                     if let Some(child) = node.children.get(&i) {
@@ -228,7 +225,7 @@ impl<'a> NGramBKTree<'a> {
             let mut en = ngram_tree_map.get_mut(ngram).unwrap().borrow_mut();
 
             for n in neighbors {
-                k = edit_distance(&en.umi, &n);
+                k = levenshtein(&en.umi, &n);
                 en.append_child(k as i16, &n, *self.count_map.get(&n).unwrap() as i16);
             }
         }
@@ -280,11 +277,11 @@ fn populate_from_umis() {
     bktree.ngram_maker = ngram_maker;
 
     bktree.populate_from_ngram_map(ngram_map);
-    let res = bktree.remove_near(umi_a, 2, 5);
+    let res = bktree.remove_near(umi_a, 1, 5);
     println! {"found for {umi_a}: {:?}", res};
 
     bktree.ngrams = ngram_vec;
 
-    let res = bktree.remove_near(umi_b, 2, 5);
+    let res = bktree.remove_near(umi_b, 1, 5);
     println! {"found for {umi_b}: {:?}", res};
 }
