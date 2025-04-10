@@ -10,6 +10,7 @@
 
 use crate::read_store::read_store::ReadsAndCount;
 use crate::IndexMap;
+use indexmap::IndexSet;
 use rust_htslib::bam::Record;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -74,7 +75,7 @@ pub fn push_all_reads(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
 
 // get the number of reads across all UMIs within a group
 // this is useful for setting a threshold for reads observed per UMI group
-pub fn get_counts(top_umi: &Vec<&str>, counts: &HashMap<&str, i32>) -> i64 {
+pub fn get_counts(top_umi: &IndexSet<&str>, counts: &HashMap<&str, i32>) -> i64 {
     let mut read_count = 0;
     for umi in top_umi {
         read_count += counts.get(umi).unwrap();
@@ -174,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_get_counts() {
-        let top_umi = vec!["UMI1", "UMI2"];
+        let top_umi = IndexSet::from(["UMI1", "UMI2"]);
         let counts = HashMap::from([("UMI1", 10), ("UMI2", 5)]);
         let result = get_counts(&top_umi, &counts);
         assert_eq!(result, 15);

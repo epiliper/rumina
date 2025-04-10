@@ -1,4 +1,5 @@
 use crate::ngram::ngram;
+use crate::group::bktree::NGramBKTree;
 use crate::GroupingMethod;
 use indexmap::{IndexMap, IndexSet};
 use log::{debug, warn};
@@ -28,7 +29,7 @@ pub struct GroupIterator<'b> {
 }
 
 impl<'b> Iterator for GroupIterator<'b> {
-    type Item = Vec<&'b str>;
+    type Item = IndexSet<&'b str>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.clusters.next();
@@ -38,14 +39,14 @@ impl<'b> Iterator for GroupIterator<'b> {
             if cluster.len() == 1 {
                 let node = cluster.iter().next().unwrap();
                 self.observed.insert(node);
-                return Some(vec![node]);
+                return Some(IndexSet::from([*node]));
             }
 
-            let mut temp_cluster: Vec<&str> = Vec::new();
+            let mut temp_cluster: IndexSet<&str> = IndexSet::new();
 
             for node in cluster {
                 if !self.observed.contains(&node) {
-                    temp_cluster.push(node);
+                    temp_cluster.insert(node);
                     self.observed.insert(node);
                 }
             }
@@ -151,6 +152,7 @@ impl<'b> Grouper<'b> {
     ) -> IndexMap<&'d str, Vec<&'d str>> {
         let mut adj_list: IndexMap<&'d str, Vec<&'d str>> = IndexMap::new();
 
+        // self.cluster_bktree(&mut substring_neighbors, counts);
         substring_neighbors.for_each(|x| {
             let umi = x.0;
             let neighbors = x.1;
@@ -181,6 +183,7 @@ impl<'b> Grouper<'b> {
 
         // if a barcode is already part of a tree, don't group it again
         let mut found: HashSet<&str> = HashSet::new();
+
 
         substring_neighbors.for_each(|x| {
             let umi = x.0;

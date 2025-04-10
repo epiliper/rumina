@@ -1,11 +1,11 @@
 pub type Ngram<'a> = &'a str;
 use std::cell::{Ref, RefCell, RefMut};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 /// A utility struct to generate ngrams for a given string of a given, fixed length. It maintains an internal, fixed-length
 /// vector for holding generated ngrams, avoiding excessive allocations.
 ///
-/// To use it to generate ngrams for connecting strings K edits apart, it should be initialized with
+/// To use it to generate ngrams for connecting strings >= K edits apart, it should be initialized with
 /// num_chunks = K + 1.
 pub struct NgramMaker<'a> {
     chunk_size: usize,
@@ -29,20 +29,6 @@ impl<'a> NgramMaker<'a> {
             num_chunks,
             string_len,
             out_vec,
-        }
-    }
-
-    pub fn ngrams_to_vec(&mut self, string: &'a str, out_vec: &mut Vec<&'a str>) {
-        // the output vector needs to have placeholders
-        // TODO: this is still slightly slower than the old method for some reason, find out why.
-        let mut start = 0;
-
-        let mut cur_idx = 0;
-        while start < self.string_len {
-            let end = (start + self.chunk_size).min(self.string_len);
-            out_vec[cur_idx] = &string[start..end];
-            start = end;
-            cur_idx += 1;
         }
     }
 
