@@ -112,11 +112,8 @@ impl ChunkProcessor {
                 };
 
                 // perform UMI clustering per the method specified
-                let groupies = grouper.cluster(counts, Arc::clone(&grouping_method));
-
-                let tagged_reads = group_handler.tag_records(groupies, umis_reads);
-
-                drop(grouper);
+                let groupies = grouper.cluster(counts.clone(), Arc::clone(&grouping_method));
+                let tagged_reads = group_handler.tag_records(counts, groupies, umis_reads);
 
                 // update grouping report
                 if let Some(tagged_reads) = tagged_reads {

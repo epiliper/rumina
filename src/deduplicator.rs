@@ -1,9 +1,10 @@
 use crate::group_report::GroupReport;
-use crate::grouper::GroupIterator;
+// use crate::grouper::GroupIterator;
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
 use crate::read_store::read_store::ReadsAndCount;
 use crate::utils::{get_umi, get_umi_static};
 use crate::IndexMap;
+use indexmap::IndexSet;
 use rust_htslib::bam::record::Aux;
 use rust_htslib::bam::Record;
 
@@ -61,12 +62,13 @@ impl<'a> GroupHandler<'a> {
     // driver function of grouping
     pub fn tag_records(
         &mut self,
-        grouping_output: (HashMap<&str, i32>, Option<GroupIterator>),
+        counts: HashMap<&str, i32>,
+        grouping_output: Option<Vec<IndexSet<String>>>,
         mut umis_records: IndexMap<String, ReadsAndCount>,
     ) -> Option<(Option<GroupReport>, Vec<Record>)> {
-        match grouping_output.1 {
+        match grouping_output {
             Some(groups) => {
-                let reads = self.tag_groups(groups, &mut umis_records, grouping_output.0);
+                let reads = self.tag_groups(groups, &mut umis_records, counts);
                 Some(reads)
             }
             None => None,
@@ -75,7 +77,7 @@ impl<'a> GroupHandler<'a> {
     pub fn tag_groups(
         &mut self,
         // mut final_umis: Vec<Vec<&str>>,
-        final_umis: GroupIterator,
+        final_umis: Vec<IndexSet<String>>,
         umis_records: &mut IndexMap<String, ReadsAndCount>,
         counts: HashMap<&str, i32>,
     ) -> (Option<GroupReport>, Vec<Record>) {
@@ -123,7 +125,7 @@ impl<'a> GroupHandler<'a> {
 
                 // get all the reads across all the umis in the group
                 for group in &top_umi {
-                    cluster_list.push(umis_records.swap_remove(*group).unwrap());
+                    cluster_list.push(umis_records.swap_remove(group).unwrap());
                 }
 
                 // tag final reads and send for writing to output bam

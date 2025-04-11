@@ -75,10 +75,10 @@ pub fn push_all_reads(clusters: &mut Vec<ReadsAndCount>) -> Vec<Record> {
 
 // get the number of reads across all UMIs within a group
 // this is useful for setting a threshold for reads observed per UMI group
-pub fn get_counts(top_umi: &IndexSet<&str>, counts: &HashMap<&str, i32>) -> i64 {
+pub fn get_counts(top_umi: &IndexSet<String>, counts: &HashMap<&str, i32>) -> i64 {
     let mut read_count = 0;
     for umi in top_umi {
-        read_count += counts.get(umi).unwrap();
+        read_count += counts.get(umi.as_str()).unwrap();
     }
     read_count as i64
 }
@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_get_counts() {
-        let top_umi = IndexSet::from(["UMI1", "UMI2"]);
+        let top_umi = IndexSet::from(["UMI1".to_string(), "UMI2".to_string()]);
         let counts = HashMap::from([("UMI1", 10), ("UMI2", 5)]);
         let result = get_counts(&top_umi, &counts);
         assert_eq!(result, 15);

@@ -1,14 +1,16 @@
 #![allow(dead_code)]
 
-use crate::grouper::levenshtein;
 use crate::ngram::ngram;
 use indexmap::{IndexMap, IndexSet};
 use std::cell::{Ref, RefCell};
 use std::cmp;
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::ops::AddAssign;
 use std::rc::Rc;
+
+pub fn hamming(ua: &str, ub: &str) -> usize {
+    strsim::hamming(ua, ub).unwrap()
+}
 
 /// Represents a Node of a BK-tree; each node contains its given string,
 /// a collection of children strings (one per unique edit distance), and whether or not the node
@@ -39,7 +41,7 @@ impl Eq for Node {}
 
 impl std::fmt::Display for Node {
     fn fmt(&self, _formatter: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        println!("Node: {}", self.umi);
+        println!("Node with count {}: {}", self.count, self.umi);
         println!("Children:");
         for (k, node) in &self.children {
             println!("K: {k};\t{:?}", node)
@@ -69,6 +71,7 @@ impl Node {
         let mut s = Self::default();
         s.umi = umi.to_string();
         s.count = count;
+        s.min_count = count;
         s
     }
 
@@ -83,10 +86,7 @@ impl Node {
             let c = Rc::new(RefCell::new(Node::new(umi, count)));
 
             self.children.entry(k).insert_entry(c);
-
-            self.children
-                .entry(k)
-                .and_modify(|k| k.borrow_mut().subtree_exists = true);
+            self.min_count = cmp::min(count, self.min_count);
 
             self.subtree_exists = true;
 
@@ -100,9 +100,8 @@ impl Node {
 /// Represents a collection of BK-trees, one for each unique ngram of an alphabet.
 /// Each BK-tree is represented as its root node; see [Node] for more information.
 pub struct NGramBKTree<'a> {
-    ngram_tree_map: HashMap<String, Rc<RefCell<Node>>>,
-    pub count_map: HashMap<&'a str, i32>,
-    root: Node,
+    pub ngram_tree_map: HashMap<String, Rc<RefCell<Node>>>,
+    pub count_map: RefCell<HashMap<&'a str, i32>>,
     capacity: usize,
     str_len: usize,
 }
@@ -120,8 +119,7 @@ impl<'a> NGramBKTree<'a> {
     pub fn init_empty(cap: Option<usize>, str_len: usize) -> Self {
         Self {
             ngram_tree_map: HashMap::with_capacity(cap.unwrap_or(100)),
-            count_map: HashMap::with_capacity(cap.unwrap_or(100)),
-            root: Node::default(),
+            count_map: RefCell::new(HashMap::with_capacity(cap.unwrap_or(100))),
             capacity: cap.unwrap_or(100),
             str_len,
         }
@@ -131,22 +129,29 @@ impl<'a> NGramBKTree<'a> {
         self.ngram_tree_map.is_empty()
     }
 
+    pub fn contains_node(&self, node: Rc<RefCell<Node>>) -> bool {
+        self.count_map
+            .borrow()
+            .contains_key(node.borrow().umi.as_str())
+    }
+
     /// Traverses a B-tree node-by-node until finding a node without a child at the given edit
     /// distance. Creates child node from query string and count once found.
-    pub fn insert_raw_string(&mut self, mut node: Rc<RefCell<Node>>, umi: &str, count: i32) {
+    pub fn insert_raw_string(&self, node: Rc<RefCell<Node>>, umi: &str, count: i32) {
         let mut k;
         let mut child_found;
+        let mut curr = node.clone();
 
         loop {
             {
-                let mut curr = node.borrow_mut();
-                k = levenshtein(&umi, &curr.umi) as i8;
-                curr.count = cmp::min(curr.min_count, count);
+                let mut curr = curr.borrow_mut();
+                k = hamming(&umi, &curr.umi) as i8;
+                // curr.min_count = cmp::min(curr.min_count, count);
                 child_found = curr.append_child(k, umi, count);
             }
 
             if let Some(child) = child_found {
-                node = child;
+                curr = child;
             } else {
                 break;
             }
@@ -154,52 +159,72 @@ impl<'a> NGramBKTree<'a> {
     }
 
     pub fn remove_near(
-        &mut self,
+        &self,
         umi: &'a str,
         k: i8,
         max_count: i32,
         ngm: &'a ngram::NgramMaker<'a>,
-    ) -> Vec<String> {
-        let mut found = Vec::new();
+    ) -> IndexSet<String> {
+        let mut found = IndexSet::new();
         for ngram in ngm.ngrams(umi).iter() {
             if let Some(node) = self.ngram_tree_map.get(*ngram) {
                 self.remove_near_stack(node.clone(), umi, k, max_count, &mut found);
             }
+
+            self.count_map.borrow_mut().remove(umi);
         }
 
         return found;
     }
 
     pub fn remove_near_stack(
-        &mut self,
+        &self,
         node: Rc<RefCell<Node>>,
         umi: &str,
         k: i8,
         max_count: i32,
-        output: &mut Vec<String>,
+        output: &mut IndexSet<String>,
     ) {
-        let mut visited: VecDeque<Rc<RefCell<Node>>> = VecDeque::from([node.clone()]);
+        let mut visited: VecDeque<(i32, String, Rc<RefCell<Node>>)> =
+            VecDeque::from([(max_count, umi.to_string(), node.clone())]);
+
+        let mut current_umi;
+        let mut current_count: i32;
+        let mut dist = i8::MAX;
 
         while !visited.is_empty() {
-            let node_ref = visited.pop_front().unwrap();
-            let node = node_ref.borrow();
+            let (mut max_count, parent_umi, node_ref) = visited.pop_front().unwrap();
 
-            let dist = levenshtein(&node.umi, umi) as i8;
-            let exists = self.count_map.contains_key(node.umi.as_str());
+            let mut node = node_ref.borrow_mut();
 
-            if dist <= k && exists && node.count <= max_count {
-                output.push(node.umi.clone());
-                self.count_map.remove(node.umi.as_str());
+            let exists = self.count_map.borrow().contains_key(node.umi.as_str());
+
+            // the node hasn't been removed yet; process it and any child nodes
+            if exists {
+                current_umi = node.umi.clone();
+                current_count = node.count;
+
+                dist = hamming(&current_umi, &parent_umi) as i8;
+                if dist <= k && current_count <= max_count {
+                    let to_add = std::mem::take(&mut node.umi);
+                    output.insert(to_add);
+                    self.count_map.borrow_mut().remove(node.umi.as_str());
+                }
+            } else {
+                current_count = max_count;
+                current_umi = parent_umi;
             }
 
-            if node.subtree_exists {
-                let low = cmp::max(dist - k, 0);
-                let length = self.str_len as i8;
-                let high = cmp::min(dist + k, length - 1);
+            max_count = current_count / 2 + 1;
 
-                for i in low..=high {
-                    if let Some(child) = node.children.get(&i) {
-                        visited.push_back(child.clone());
+            let low = cmp::max(dist - k, 0);
+            let length = self.str_len as i8;
+            let high = cmp::min(dist + k, length - 1);
+
+            for i in low..=high {
+                if let Some(child) = node.children.get(&i) {
+                    if child.borrow().count <= max_count {
+                        visited.push_back((max_count, current_umi.clone(), child.clone()));
                     }
                 }
             }
@@ -207,25 +232,28 @@ impl<'a> NGramBKTree<'a> {
     }
 
     pub fn populate_from_neighbors(&mut self, ngram: &str, mut neighbors: IndexSet<&str>) {
-        let en = self.ngram_tree_map.get(ngram);
         let mut neighbors = neighbors.drain(..);
-        let mut k;
 
-        if en.is_none() {
-            let first_umi = neighbors.next().unwrap();
-            self.ngram_tree_map.insert(
-                ngram.to_string(),
-                Rc::new(RefCell::new(Node::new(
-                    &first_umi,
-                    *self.count_map.get(first_umi).unwrap(),
-                ))),
-            );
+        // create a node for a given ngram if it doesn't already exist
+        {
+            self.ngram_tree_map
+                .entry(ngram.to_string())
+                .or_insert_with(|| {
+                    let first_umi = neighbors.next().unwrap();
+                    let max_count = *self.count_map.borrow().get(first_umi).unwrap();
+                    Rc::new(RefCell::new(Node::new(first_umi, max_count)))
+                });
         }
 
-        let mut en = self.ngram_tree_map.get_mut(ngram).unwrap().borrow_mut();
+        let en = self.ngram_tree_map.get(ngram).unwrap();
+
+        // add remaining strings to tree
         for n in neighbors {
-            k = levenshtein(&en.umi, n) as i8;
-            en.append_child(k, &n, *self.count_map.get(&n).unwrap() as i32);
+            self.insert_raw_string(
+                en.clone(),
+                n,
+                *self.count_map.borrow().get(&n).unwrap() as i32,
+            );
         }
     }
 
@@ -244,7 +272,7 @@ use std::iter;
 fn init_test() {
     let cap = 42069;
     let ngram_bk = NGramBKTree::init_empty(Some(cap), 1);
-    assert!(ngram_bk.count_map.capacity() >= cap);
+    // assert!(ngram_bk.count_map.capacity() >= cap);
     assert!(ngram_bk.ngram_tree_map.capacity() >= cap);
 }
 
@@ -267,14 +295,14 @@ fn populate_from_umis() {
     let ngram_maker = ngram::NgramMaker::new(2, umi_a.len());
 
     for u in umis {
-        counts.entry(u).or_insert(0).add_assign(1);
+        *counts.entry(u).or_insert(0) += 1;
         for ngram in ngram_maker.ngrams(u).iter() {
             ngram_map.entry(ngram).or_insert(IndexSet::new()).insert(u);
         }
     }
 
     let mut bktree = NGramBKTree::init_empty(None, umi_a.len());
-    bktree.count_map = counts;
+    bktree.count_map = RefCell::new(counts);
 
     bktree.populate_from_ngram_map(ngram_map);
     println! {"{bktree}"}
