@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+// #![allow(dead_code)]
 
 use crate::ngram::ngram;
 use indexmap::{IndexMap, IndexSet};
@@ -75,10 +75,6 @@ impl Node {
         s
     }
 
-    pub fn has_subtree(&self, k: i8) -> bool {
-        self.children.contains_key(&k)
-    }
-
     /// attempt to add a string as a child to a node, unless a child with the same edit distance exists for
     /// the given node. Return the child if it exists.
     pub fn append_child(&mut self, k: i8, umi: &str, count: i32) -> Option<Rc<RefCell<Node>>> {
@@ -86,7 +82,6 @@ impl Node {
             let c = Rc::new(RefCell::new(Node::new(umi, count)));
 
             self.children.entry(k).insert_entry(c);
-            self.min_count = cmp::min(count, self.min_count);
 
             self.subtree_exists = true;
 
@@ -103,6 +98,7 @@ pub struct NGramBKTree<'a> {
     pub ngram_tree_map: HashMap<String, Rc<RefCell<Node>>>,
     pub count_map: RefCell<HashMap<&'a str, i32>>,
     capacity: usize,
+    pub len: usize,
     str_len: usize,
 }
 
@@ -120,19 +116,14 @@ impl<'a> NGramBKTree<'a> {
         Self {
             ngram_tree_map: HashMap::with_capacity(cap.unwrap_or(100)),
             count_map: RefCell::new(HashMap::with_capacity(cap.unwrap_or(100))),
+            len: 0,
             capacity: cap.unwrap_or(100),
             str_len,
         }
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.ngram_tree_map.is_empty()
-    }
-
-    pub fn contains_node(&self, node: Rc<RefCell<Node>>) -> bool {
-        self.count_map
-            .borrow()
-            .contains_key(node.borrow().umi.as_str())
+    pub fn contains(&self, s: &str) -> bool {
+        self.count_map.borrow().contains_key(s)
     }
 
     /// Traverses a B-tree node-by-node until finding a node without a child at the given edit
@@ -146,7 +137,11 @@ impl<'a> NGramBKTree<'a> {
             {
                 let mut curr = curr.borrow_mut();
                 k = hamming(&umi, &curr.umi) as i8;
-                // curr.min_count = cmp::min(curr.min_count, count);
+                if k == 0 {
+                    // umi already in tree
+                    break;
+                }
+                curr.min_count = cmp::min(curr.min_count, count);
                 child_found = curr.append_child(k, umi, count);
             }
 
@@ -170,11 +165,14 @@ impl<'a> NGramBKTree<'a> {
             if let Some(node) = self.ngram_tree_map.get(*ngram) {
                 self.remove_near_stack(node.clone(), umi, k, max_count, &mut found);
             }
-
-            self.count_map.borrow_mut().remove(umi);
         }
 
-        return found;
+        if self.contains(umi) {
+            self.count_map.borrow_mut().remove(umi);
+            found.insert(umi.to_string());
+        }
+
+        found
     }
 
     pub fn remove_near_stack(
@@ -185,48 +183,26 @@ impl<'a> NGramBKTree<'a> {
         max_count: i32,
         output: &mut IndexSet<String>,
     ) {
-        let mut visited: VecDeque<(i32, String, Rc<RefCell<Node>>)> =
-            VecDeque::from([(max_count, umi.to_string(), node.clone())]);
+        let mut visited: VecDeque<Rc<RefCell<Node>>> = VecDeque::from([node.clone()]);
 
-        let mut current_umi;
-        let mut current_count: i32;
-        let mut dist = i8::MAX;
+        while let Some(node_ref) = visited.pop_front() {
+            let node = node_ref.borrow();
 
-        while !visited.is_empty() {
-            let (mut max_count, parent_umi, node_ref) = visited.pop_front().unwrap();
+            let dist = hamming(&node.umi, umi) as i8;
+            let min_dist = dist.saturating_sub(k);
+            let max_dist = dist.saturating_add(k);
 
-            let mut node = node_ref.borrow_mut();
-
-            let exists = self.count_map.borrow().contains_key(node.umi.as_str());
-
-            // the node hasn't been removed yet; process it and any child nodes
-            if exists {
-                current_umi = node.umi.clone();
-                current_count = node.count;
-
-                dist = hamming(&current_umi, &parent_umi) as i8;
-                if dist <= k && current_count <= max_count {
-                    let to_add = std::mem::take(&mut node.umi);
-                    output.insert(to_add);
-                    self.count_map.borrow_mut().remove(node.umi.as_str());
+            // check node children for within k threshold
+            for i in min_dist..=max_dist {
+                if let Some(child) = node.children.get(&i) {
+                    visited.push_back(child.clone());
                 }
-            } else {
-                current_count = max_count;
-                current_umi = parent_umi;
             }
 
-            max_count = current_count / 2 + 1;
-
-            let low = cmp::max(dist - k, 0);
-            let length = self.str_len as i8;
-            let high = cmp::min(dist + k, length - 1);
-
-            for i in low..=high {
-                if let Some(child) = node.children.get(&i) {
-                    if child.borrow().count <= max_count {
-                        visited.push_back((max_count, current_umi.clone(), child.clone()));
-                    }
-                }
+            // also add the current node if it's within k edits
+            if dist <= k && node.count <= max_count && self.contains(node.umi.as_str()) {
+                output.insert(node.umi.clone());
+                self.count_map.borrow_mut().remove(node.umi.as_str());
             }
         }
     }
