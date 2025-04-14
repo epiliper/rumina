@@ -1,5 +1,4 @@
-pub type Ngram<'a> = &'a str;
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{RefCell, RefMut};
 
 #[derive(Debug, Default)]
 /// A utility struct to generate ngrams for a given string of a given, fixed length. It maintains an internal, fixed-length
@@ -9,7 +8,6 @@ use std::cell::{Ref, RefCell, RefMut};
 /// num_chunks = K + 1.
 pub struct NgramMaker {
     chunk_size: usize,
-    pub num_chunks: usize,
     string_len: usize,
     out_vec: RefCell<Vec<String>>,
 }
@@ -26,7 +24,6 @@ impl NgramMaker {
 
         Self {
             chunk_size,
-            num_chunks,
             string_len,
             out_vec,
         }

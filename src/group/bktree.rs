@@ -1,8 +1,8 @@
 // #![allow(dead_code)]
 
 use crate::ngram::ngram;
-use indexmap::{IndexMap, IndexSet};
-use std::cell::{Ref, RefCell};
+use indexmap::IndexSet;
+use std::cell::RefCell;
 use std::cmp;
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -95,9 +95,6 @@ impl Node {
 pub struct NGramBKTree<'a> {
     pub ngram_tree_map: HashMap<String, Rc<RefCell<Node>>>,
     pub count_map: HashMap<&'a str, i32>,
-    capacity: usize,
-    pub len: usize,
-    str_len: usize,
 }
 
 impl std::fmt::Display for NGramBKTree<'_> {
@@ -110,13 +107,10 @@ impl std::fmt::Display for NGramBKTree<'_> {
 }
 
 impl<'a> NGramBKTree<'a> {
-    pub fn init_empty(cap: Option<usize>, str_len: usize) -> Self {
+    pub fn init_empty(cap: Option<usize>) -> Self {
         Self {
             ngram_tree_map: HashMap::with_capacity(cap.unwrap_or(100)),
             count_map: HashMap::with_capacity(cap.unwrap_or(100)),
-            len: 0,
-            capacity: cap.unwrap_or(100),
-            str_len,
         }
     }
 
@@ -207,23 +201,14 @@ impl<'a> NGramBKTree<'a> {
         }
     }
 
-    pub fn populate_from_neighbors(&mut self, ngram: String, neighbors: IndexSet<&str>) {
-        // create a node for a given ngram if it doesn't already exist
-        {
-            self.ngram_tree_map
-                .entry(ngram.to_string())
-                .or_insert_with(|| {
-                    let first_umi = neighbors.first().unwrap();
-                    let max_count = *self.count_map.get(first_umi).unwrap();
-                    Rc::new(RefCell::new(Node::new(first_umi, max_count)))
-                });
-        }
-
-        let en = self.ngram_tree_map.get(&ngram).unwrap();
-
-        // add remaining strings to tree
-        for n in neighbors {
-            self.insert_raw_string(en.clone(), n, *self.count_map.get(&n).unwrap() as i32);
+    pub fn populate_single(&mut self, s: &str, count: i32, ngm: &ngram::NgramMaker) {
+        for n in ngm.ngrams(s).iter() {
+            if let Some(node) = self.ngram_tree_map.get(n) {
+                self.insert_raw_string(node.clone(), s, count);
+            } else {
+                self.ngram_tree_map
+                    .insert(n.to_string(), Rc::new(RefCell::new(Node::new(s, count))));
+            }
         }
     }
 }
@@ -246,7 +231,7 @@ mod tests {
 
         let ngram_maker = ngram::NgramMaker::new(2, umi_a.len());
 
-        let mut bktree = NGramBKTree::init_empty(None, umi_a.len());
+        let mut bktree = NGramBKTree::init_empty(None);
         bktree.count_map = counts.clone();
 
         // Populate BK-tree directly to avoid IndexMap/neighbor issues
@@ -286,7 +271,7 @@ mod tests {
 
         let ngram_maker = ngram::NgramMaker::new(2, umi_a.len());
 
-        let mut bktree = NGramBKTree::init_empty(None, umi_a.len());
+        let mut bktree = NGramBKTree::init_empty(None);
         bktree.count_map = counts.clone();
 
         // Populate BK-tree directly (same as above)

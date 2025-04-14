@@ -63,21 +63,17 @@ impl<'a> GroupHandler<'a> {
     pub fn tag_records(
         &mut self,
         counts: HashMap<&str, i32>,
-        grouping_output: Option<Vec<IndexSet<String>>>,
+        // grouping_output: Option<Vec<IndexSet<String>>>,
+        grouping_output: impl Iterator<Item = IndexSet<String>>,
         mut umis_records: IndexMap<String, ReadsAndCount>,
-    ) -> Option<(Option<GroupReport>, Vec<Record>)> {
-        match grouping_output {
-            Some(groups) => {
-                let reads = self.tag_groups(groups, &mut umis_records, counts);
-                Some(reads)
-            }
-            None => None,
-        }
+    ) -> (Option<GroupReport>, Vec<Record>) {
+        self.tag_groups(grouping_output, &mut umis_records, counts)
     }
     pub fn tag_groups(
         &mut self,
         // mut final_umis: Vec<Vec<&str>>,
-        final_umis: Vec<IndexSet<String>>,
+        // final_umis: Vec<IndexSet<String>>,
+        final_umis: impl Iterator<Item = IndexSet<String>>,
         umis_records: &mut IndexMap<String, ReadsAndCount>,
         counts: HashMap<&str, i32>,
     ) -> (Option<GroupReport>, Vec<Record>) {

@@ -116,16 +116,14 @@ impl ChunkProcessor {
                 let tagged_reads = group_handler.tag_records(counts, groupies, umis_reads);
 
                 // update grouping report
-                if let Some(tagged_reads) = tagged_reads {
-                    let mut out = outreads.lock();
-                    out.extend(tagged_reads.1);
-                    drop(out);
+                let mut out = outreads.lock();
+                out.extend(tagged_reads.1);
+                drop(out);
 
-                    if let Some(group_report) = tagged_reads.0 {
-                        let mut min_max = self.min_max.lock();
-                        min_max.update(group_report, num_umis);
-                        drop(min_max)
-                    }
+                if let Some(group_report) = tagged_reads.0 {
+                    let mut min_max = self.min_max.lock();
+                    min_max.update(group_report, num_umis);
+                    drop(min_max)
                 }
             }
 

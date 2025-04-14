@@ -1,15 +1,12 @@
 use crate::group::bktree::NGramBKTree;
 use crate::ngram::ngram;
 use crate::GroupingMethod;
-use indexmap::{IndexMap, IndexSet};
-use std::cell::{Ref, RefCell, RefMut};
+use indexmap::IndexSet;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
 pub struct Grouper<'a> {
     pub umis: &'a Vec<String>,
-    pub max_edit: usize,
-    pub umi_len: usize,
     pub ngram_maker: ngram::NgramMaker,
 }
 
@@ -19,29 +16,8 @@ impl<'a> Grouper<'a> {
 
         Self {
             umis,
-            max_edit,
-            umi_len,
             ngram_maker,
         }
-    }
-
-    pub fn ngrams(&self, umi: &'a str) -> RefMut<Vec<String>> {
-        self.ngram_maker.ngrams(umi)
-    }
-
-    pub fn get_substring_map(&self) -> IndexMap<String, IndexSet<&str>> {
-        let mut substring_map: IndexMap<String, IndexSet<&str>> = IndexMap::new();
-
-        for umi in self.umis.iter() {
-            self.ngrams(umi).iter().for_each(|slice| {
-                substring_map
-                    .entry(slice.to_string())
-                    .or_insert(IndexSet::new())
-                    .insert(umi);
-            })
-        }
-
-        substring_map
     }
 
     /// for every queried node, cluster its immediate offshoots distant by k edits, then retrieve the
@@ -74,32 +50,21 @@ impl<'a> Grouper<'a> {
         &'a self,
         counts: HashMap<&'a str, i32>,
         grouping_method: Arc<&GroupingMethod>,
-    ) -> Option<Vec<IndexSet<String>>> {
-        let substring_neighbors = self.get_substring_map();
-
-        let mut out = Vec::new();
-
-        let mut bktree = NGramBKTree::init_empty(None, self.umi_len);
+    ) -> impl Iterator<Item = IndexSet<String>> + use <'a> {
+        let mut bktree = NGramBKTree::init_empty(None);
         bktree.count_map = counts.clone();
-        let original_len = substring_neighbors.len();
 
-        for (ng, nei) in substring_neighbors {
-            bktree.populate_from_neighbors(ng, nei);
+        for u in self.umis {
+            bktree.populate_single(u, *counts.get(u.as_str()).unwrap(), &self.ngram_maker);
         }
 
-        assert_eq!(bktree.ngram_tree_map.len(), original_len);
-
-        self.umis.iter().for_each(|u| {
-            let o = self.visit_and_remove_all(u, 1, &counts, &mut bktree);
-            if !o.is_empty() {
-                out.push(o);
-            }
-        });
-
-        if out.is_empty() {
-            None
-        } else {
-            Some(out)
-        }
+        // cluster each umi based on the tree, only returning non-empty clusters.
+        self.umis
+            .iter()
+            .map(move |u| self.visit_and_remove_all(u, 1, &counts, &mut bktree))
+            .filter_map(|o| match o.is_empty() {
+                true => None,
+                false => Some(o),
+            })
     }
 }
