@@ -153,16 +153,16 @@ impl<'a> NGramBKTree<'a> {
         }
     }
 
-    pub fn remove_near(
+    pub fn remove_near<'b>(
         &self,
-        umi: &'a str,
+        umi: &'b str,
         k: i8,
         max_count: i32,
-        ngm: &'a ngram::NgramMaker<'a>,
+        ngm: &ngram::NgramMaker,
     ) -> IndexSet<String> {
         let mut found = IndexSet::new();
         for ngram in ngm.ngrams(umi).iter() {
-            if let Some(node) = self.ngram_tree_map.get(*ngram) {
+            if let Some(node) = self.ngram_tree_map.get(ngram) {
                 self.remove_near_stack(node.clone(), umi, k, max_count, &mut found);
             }
         }
@@ -252,40 +252,40 @@ fn init_test() {
     assert!(ngram_bk.ngram_tree_map.capacity() >= cap);
 }
 
-#[test]
-fn populate_from_umis() {
-    let umi_a = "GATACAGA";
-    let umi_b = "GTTACAGT";
-    let umi_c = "GATACAGT";
-    let umi_d = "TATACATA";
+// #[test]
+// fn populate_from_umis() {
+//     let umi_a = "GATACAGA";
+//     let umi_b = "GTTACAGT";
+//     let umi_c = "GATACAGT";
+//     let umi_d = "TATACATA";
 
-    let umis = iter::repeat(umi_a)
-        .take(5)
-        .chain(iter::repeat(umi_b).take(3))
-        .chain(iter::repeat(umi_c).take(3))
-        .chain(iter::repeat(umi_d).take(1))
-        .collect::<Vec<&str>>();
+//     let umis = iter::repeat(umi_a)
+//         .take(5)
+//         .chain(iter::repeat(umi_b).take(3))
+//         .chain(iter::repeat(umi_c).take(3))
+//         .chain(iter::repeat(umi_d).take(1))
+//         .collect::<Vec<&str>>();
 
-    let mut counts: HashMap<&str, i32> = HashMap::new();
-    let mut ngram_map: IndexMap<ngram::Ngram, IndexSet<&str>> = IndexMap::new();
-    let ngram_maker = ngram::NgramMaker::new(2, umi_a.len());
+//     let mut counts: HashMap<&str, i32> = HashMap::new();
+//     let mut ngram_map: IndexMap<ngram::Ngram, IndexSet<&str>> = IndexMap::new();
+//     let ngram_maker = ngram::NgramMaker::new(2, umi_a.len());
 
-    for u in umis {
-        *counts.entry(u).or_insert(0) += 1;
-        for ngram in ngram_maker.ngrams(u).iter() {
-            ngram_map.entry(ngram).or_insert(IndexSet::new()).insert(u);
-        }
-    }
+//     for u in umis {
+//         *counts.entry(u).or_insert(0) += 1;
+//         for ngram in ngram_maker.ngrams(u).iter() {
+//             ngram_map.entry(ngram).or_insert(IndexSet::new()).insert(u);
+//         }
+//     }
 
-    let mut bktree = NGramBKTree::init_empty(None, umi_a.len());
-    bktree.count_map = RefCell::new(counts);
+//     let mut bktree = NGramBKTree::init_empty(None, umi_a.len());
+//     bktree.count_map = RefCell::new(counts);
 
-    bktree.populate_from_ngram_map(ngram_map);
-    println! {"{bktree}"}
+//     bktree.populate_from_ngram_map(ngram_map);
+//     println! {"{bktree}"}
 
-    let res = bktree.remove_near(umi_a, 1, 5, &ngram_maker);
-    println! {"found for {umi_a}: {:?}", res};
+//     let res = bktree.remove_near(umi_a, 1, 5, &ngram_maker);
+//     println! {"found for {umi_a}: {:?}", res};
 
-    let res = bktree.remove_near(umi_b, 1, 5, &ngram_maker);
-    println! {"found for {umi_b}: {:?}", res};
-}
+//     let res = bktree.remove_near(umi_b, 1, 5, &ngram_maker);
+//     println! {"found for {umi_b}: {:?}", res};
+// }

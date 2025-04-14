@@ -7,14 +7,14 @@ use std::cell::{Ref, RefCell, RefMut};
 ///
 /// To use it to generate ngrams for connecting strings >= K edits apart, it should be initialized with
 /// num_chunks = K + 1.
-pub struct NgramMaker<'a> {
+pub struct NgramMaker {
     chunk_size: usize,
     pub num_chunks: usize,
     string_len: usize,
-    out_vec: RefCell<Vec<Ngram<'a>>>,
+    out_vec: RefCell<Vec<String>>,
 }
 
-impl<'a> NgramMaker<'a> {
+impl NgramMaker {
     pub fn new(num_chunks: usize, string_len: usize) -> Self {
         let mut chunk_size = string_len / num_chunks;
 
@@ -22,7 +22,7 @@ impl<'a> NgramMaker<'a> {
             chunk_size += 1;
         }
 
-        let out_vec = RefCell::new(vec!["NILL"; num_chunks]);
+        let out_vec = RefCell::new(vec!["NILL".to_string(); num_chunks]);
 
         Self {
             chunk_size,
@@ -32,18 +32,18 @@ impl<'a> NgramMaker<'a> {
         }
     }
 
-    pub fn ngrams(&self, s: &'a str) -> Ref<Vec<&'a str>> {
+    pub fn ngrams(&self, s: &str) -> Ref<Vec<String>> {
         self.ngrams_to_ref(s, self.out_vec.borrow_mut());
         self.out_vec.borrow()
     }
 
-    fn ngrams_to_ref(&self, string: &'a str, mut out_vec: RefMut<Vec<&'a str>>) {
+    fn ngrams_to_ref(&self, string: &str, mut out_vec: RefMut<Vec<String>>) {
         let mut start = 0;
 
         let mut cur_idx = 0;
         while start < self.string_len {
             let end = (start + self.chunk_size).min(self.string_len);
-            out_vec[cur_idx] = &string[start..end];
+            out_vec[cur_idx] = string[start..end].to_string();
             start = end;
             cur_idx += 1;
         }

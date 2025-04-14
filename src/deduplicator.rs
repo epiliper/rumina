@@ -102,7 +102,6 @@ impl<'a> GroupHandler<'a> {
         };
 
         for top_umi in final_umis {
-            println!("{}", top_umi.len());
             let num_reads_in_group = get_counts(&top_umi, &counts);
             group_report.num_groups += 1;
             if num_reads_in_group >= read_count_thres {
