@@ -32,9 +32,9 @@ impl NgramMaker {
         }
     }
 
-    pub fn ngrams(&self, s: &str) -> Ref<Vec<String>> {
+    pub fn ngrams(&self, s: &str) -> RefMut<Vec<String>> {
         self.ngrams_to_ref(s, self.out_vec.borrow_mut());
-        self.out_vec.borrow()
+        self.out_vec.borrow_mut()
     }
 
     fn ngrams_to_ref(&self, string: &str, mut out_vec: RefMut<Vec<String>>) {

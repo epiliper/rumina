@@ -2,7 +2,7 @@ use crate::group::bktree::NGramBKTree;
 use crate::ngram::ngram;
 use crate::GroupingMethod;
 use indexmap::{IndexMap, IndexSet};
-use std::cell::{Ref, RefCell};
+use std::cell::{Ref, RefCell, RefMut};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
@@ -25,7 +25,7 @@ impl<'a> Grouper<'a> {
         }
     }
 
-    pub fn ngrams(&self, umi: &'a str) -> Ref<Vec<String>> {
+    pub fn ngrams(&self, umi: &'a str) -> RefMut<Vec<String>> {
         self.ngram_maker.ngrams(umi)
     }
 
@@ -44,15 +44,23 @@ impl<'a> Grouper<'a> {
         substring_map
     }
 
-    pub fn visit_and_remove_all(&self, umi: &str, k: i8, bktree: &NGramBKTree) -> IndexSet<String> {
+    /// for every queried node, cluster its immediate offshoots distant by k edits, then retrieve the
+    /// offshoots of each offshoot, until no more offshoots are found.
+    pub fn visit_and_remove_all(
+        &self,
+        umi: &str,
+        k: u8,
+        counts: &HashMap<&'a str, i32>,
+        bktree: &mut NGramBKTree,
+    ) -> IndexSet<String> {
         let mut to_cluster = VecDeque::from([umi.to_string()]);
         let mut out = IndexSet::new();
 
         while let Some(root) = to_cluster.pop_front() {
-            let max_count = bktree.count_map.borrow().get(root.as_str()).unwrap_or(&0) / 2 + 1;
+            let max_count = counts.get(root.as_str()).unwrap() / 2 + 1;
             let immediate = bktree.remove_near(root.as_str(), k, max_count, &self.ngram_maker);
 
-            for c in immediate.iter().filter(|c| *c != umi) {
+            for c in immediate.iter().filter(|c| **c != root) {
                 to_cluster.push_back(c.to_string());
             }
 
@@ -72,13 +80,17 @@ impl<'a> Grouper<'a> {
         let mut out = Vec::new();
 
         let mut bktree = NGramBKTree::init_empty(None, self.umi_len);
-        bktree.count_map = RefCell::new(counts.clone());
+        bktree.count_map = counts.clone();
+        let original_len = substring_neighbors.len();
+
         for (ng, nei) in substring_neighbors {
-            bktree.populate_from_neighbors(ng.as_str(), nei);
+            bktree.populate_from_neighbors(ng, nei);
         }
 
+        assert_eq!(bktree.ngram_tree_map.len(), original_len);
+
         self.umis.iter().for_each(|u| {
-            let o = self.visit_and_remove_all(u, 1, &bktree);
+            let o = self.visit_and_remove_all(u, 1, &counts, &mut bktree);
             if !o.is_empty() {
                 out.push(o);
             }
