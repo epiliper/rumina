@@ -57,7 +57,7 @@ impl<'a> Grouper<'a> {
         let mut out = IndexSet::new();
 
         while let Some(root) = to_cluster.pop_front() {
-            let max_count = counts.get(root.as_str()).unwrap() / 2 + 1;
+            let max_count = (0.5 * (counts.get(root.as_str()).unwrap() + 1) as f32) as i32;
             let immediate = bktree.remove_near(root.as_str(), k, max_count, &self.ngram_maker);
 
             for c in immediate.iter().filter(|c| **c != root) {
