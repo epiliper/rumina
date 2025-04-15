@@ -14,10 +14,7 @@ impl<'a> Grouper<'a> {
     pub fn new(umis: &'a Vec<String>, max_edit: usize, umi_len: usize) -> Self {
         let ngram_maker = ngram::NgramMaker::new(max_edit + 1, umi_len);
 
-        Self {
-            umis,
-            ngram_maker,
-        }
+        Self { umis, ngram_maker }
     }
 
     /// Represents the main functionality of [Grouper]: for all UMIs loaded into the struct,
@@ -32,7 +29,7 @@ impl<'a> Grouper<'a> {
     /// percentage: the maximum percentage of a UMI's count another UMI must have to be considered
     /// an offshoot.
     ///
-    /// For example: 
+    /// For example:
     /// k = 1, percentage = 0.5
     /// UMI a: ATCG, count: 10
     /// UMI b: ATCC, count: 4
@@ -44,22 +41,58 @@ impl<'a> Grouper<'a> {
         &'a self,
         counts: HashMap<&'a str, i32>,
         grouping_method: Arc<&GroupingMethod>,
-    ) -> impl Iterator<Item = IndexSet<String>> + use <'a> {
+    ) -> Box<dyn Iterator<Item = IndexSet<String>> + 'a> {
+        match *grouping_method {
+            GroupingMethod::Directional => {
+                let mut bk = self.init_bktree(&counts);
+                Box::new(
+                    self.umis
+                        .iter()
+                        .map(move |u| self.visit_and_remove_all(u, 1, &counts, &mut bk))
+                        .filter(|o| !o.is_empty()),
+                )
+            }
+            GroupingMethod::Acyclic => {
+                let mut bk = self.init_bktree(&counts);
+                Box::new(
+                    self.umis
+                        .iter()
+                        .map(move |u| self.visit_and_remove_immediate(u, 1, &counts, &mut bk))
+                        .filter(|o| !o.is_empty()),
+                )
+            }
+            GroupingMethod::Raw => Box::new(
+                self.umis
+                    .iter()
+                    .map(|u| self.remove_single(u))
+                    .filter(|o| !o.is_empty()),
+            ),
+        }
+    }
+
+    pub fn init_bktree(&self, counts: &HashMap<&'a str, i32>) -> NGramBKTree<'a> {
         let mut bktree = NGramBKTree::init_empty(None);
         bktree.count_map = counts.clone();
+        self.umis.iter().for_each(|u| {
+            let count = *counts.get(u.as_str()).unwrap();
+            bktree.populate_single(u, count, &self.ngram_maker);
+        });
+        bktree
+    }
 
-        for u in self.umis {
-            bktree.populate_single(u, *counts.get(u.as_str()).unwrap(), &self.ngram_maker);
-        }
+    pub fn remove_single(&self, umi: &str) -> IndexSet<String> {
+        IndexSet::from([umi.to_string()])
+    }
 
-        // cluster each umi based on the tree, only returning non-empty clusters.
-        self.umis
-            .iter()
-            .map(move |u| self.visit_and_remove_all(u, 1, &counts, &mut bktree))
-            .filter_map(|o| match o.is_empty() {
-                true => None,
-                false => Some(o),
-            })
+    pub fn visit_and_remove_immediate(
+        &self,
+        umi: &str,
+        k: u8,
+        counts: &HashMap<&'a str, i32>,
+        bktree: &mut NGramBKTree,
+    ) -> IndexSet<String> {
+        let max_count = (0.5 * (counts.get(umi).unwrap() + 1) as f32) as i32;
+        bktree.remove_near(umi, k, max_count, &self.ngram_maker)
     }
 
     /// for every queried node, cluster its immediate offshoots distant by <= k edits and the given count percentage, then retrieve the
@@ -79,6 +112,7 @@ impl<'a> Grouper<'a> {
             let max_count = (0.5 * (counts.get(root.as_str()).unwrap() + 1) as f32) as i32;
             let immediate = bktree.remove_near(root.as_str(), k, max_count, &self.ngram_maker);
 
+            // if directional, we limit a umi's cluster to a depth of one maximum
             for c in immediate.iter().filter(|c| **c != root) {
                 to_cluster.push_back(c.to_string());
             }
@@ -88,5 +122,4 @@ impl<'a> Grouper<'a> {
 
         out
     }
-
 }
