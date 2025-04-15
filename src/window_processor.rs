@@ -13,6 +13,7 @@ use log::info;
 use parking_lot::Mutex;
 use rayon::prelude::*;
 use rust_htslib::bam::{IndexedReader, Read, Record, Writer};
+use std::cmp;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -146,12 +147,18 @@ impl ChunkProcessor {
         reader: &mut IndexedReader,
         ids: IndexSet<&[u8]>,
     ) -> Vec<Record> {
-        reader.fetch((tid, chunk_start, chunk_end + 15)).unwrap();
+        let ref_len = reader.header().target_len(tid);
+        reader
+            .fetch((
+                tid,
+                cmp::min(0, chunk_start - 100),
+                cmp::max(chunk_end + 100, ref_len.unwrap_or(u64::MAX) as i64),
+            ))
+            .unwrap();
         let mut mates: Vec<Record> = Vec::with_capacity(ids.len());
 
         for read in reader.records().flatten() {
-            if ids.contains(read.qname()) && read.is_last_in_template() && read.pos() >= chunk_start
-            {
+            if ids.contains(read.qname()) && read.is_last_in_template() {
                 mates.push(read);
             }
         }
