@@ -207,7 +207,7 @@ impl<'a> NGramBKTree<'a> {
                 self.insert_raw_string(node.clone(), s, count);
             } else {
                 self.ngram_tree_map
-                    .insert(n.to_string(), Rc::new(RefCell::new(Node::new(s, count))));
+                    .insert(n.clone(), Rc::new(RefCell::new(Node::new(s, count))));
             }
         }
     }

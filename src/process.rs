@@ -51,79 +51,92 @@ pub fn gather_files(input_file: &str) -> HashMap<String, String> {
     }
 }
 
+pub trait FileProcess {
+    fn init_from_args(args: &Args, bam_file_path: &String, bam_file_name: &String) -> Self;
+    fn process(self);
+}
+
 pub struct BamFileProcess {
     bam_io: BamIO,
     chunk_processor: ChunkProcessor,
-    // pair_merger: Option<PairMerger>,
+    outfile: String,
+    pair_merger: Option<PairMerger>,
+    separator: String,
 }
 
-impl BamFileProcess {
-    pub fn init_from_args(args: &Args, outfile: &String, seed: u64) -> Self {
-        let bam_io = BamIO::init_from_args(args, outfile);
+impl FileProcess for BamFileProcess {
+    fn init_from_args(args: &Args, bam_file_path: &String, bam_file_name: &String) -> Self {
+        let outfile = gen_outfile_name(Some(&args.outdir), "RUMINA", bam_file_name);
+        let bam_io = BamIO::init_from_args(args, bam_file_path, &outfile);
+
+        let mut hasher = DefaultHasher::new();
+        bam_file_name.hash(&mut hasher);
+        let seed = hasher.finish();
+
         let chunk_processor = ChunkProcessor::init_from_args(args, seed);
+        let mut pair_merger: Option<PairMerger> = None;
+
+        if let Some(ref ref_fasta) = args.merge_pairs {
+            pair_merger = Some(PairMerger {
+                ref_fasta: ref_fasta.to_string(),
+                min_overlap_bp: args.min_overlap_bp,
+                threads: args.threads,
+                infile: outfile.to_string(),
+                outfile: gen_outfile_name(None, "MERGED", &outfile),
+                split_window: args.split_window,
+            })
+        }
+
+        let separator = args.separator.clone();
 
         Self {
             bam_io,
             chunk_processor,
+            outfile,
+            pair_merger,
+            separator,
         }
     }
-}
 
-pub fn process(input_file: (String, String), args: &Args) {
-    let output_file = gen_outfile_name(Some(&args.outdir), "RUMINA", &input_file.1);
+    fn process(mut self) {
+        info!("{:?}", self.chunk_processor);
 
-    let mut hasher = DefaultHasher::new();
-    input_file.hash(&mut hasher);
-    let seed = hasher.finish();
+        process_chunks(
+            &mut self.chunk_processor,
+            self.bam_io.windowed_reader,
+            self.bam_io.mate_reader,
+            &self.separator,
+            self.bam_io.writer,
+        );
 
-    let mut file_process = BamFileProcess::init_from_args(args, &output_file, seed);
+        let num_reads_in = self.chunk_processor.read_counter;
+        let min_maxes = self.chunk_processor.min_max.clone();
 
-    info!("{:?}", file_process.chunk_processor);
+        drop(self.chunk_processor);
 
-    process_chunks(
-        &mut file_process.chunk_processor,
-        file_process.bam_io.windowed_reader,
-        file_process.bam_io.mate_reader,
-        &args.separator,
-        file_process.bam_io.writer,
-    );
+        // do final report
+        let mut group_report = Arc::try_unwrap(min_maxes).unwrap().into_inner();
+        group_report.num_reads_input_file = num_reads_in;
 
-    let num_reads_in = file_process.chunk_processor.read_counter;
-    let min_maxes = file_process.chunk_processor.min_max.clone();
+        // report on min and max number of reads per group
+        // this creates minmax.txt
+        if !group_report.is_blank() {
+            println!("{}", "DONE".green());
 
-    drop(file_process.chunk_processor);
+            group_report.write_to_report_file(&self.outfile);
+            println!("{}\n", group_report);
+        }
 
-    // do final report
-    let mut group_report = Arc::try_unwrap(min_maxes).unwrap().into_inner();
-    group_report.num_reads_input_file = num_reads_in;
+        let idx = index_bam(&self.outfile, self.bam_io.num_threads).expect("Failed to index bam");
 
-    // report on min and max number of reads per group
-    // this creates minmax.txt
-    if !group_report.is_blank() {
-        println!("{}", "DONE".green());
+        if let Some(mut pair_merger) = self.pair_merger {
+            info!("{:?}", pair_merger);
 
-        group_report.write_to_report_file(&output_file);
-        println!("{}", group_report);
-    }
-
-    let idx = index_bam(&output_file, args.threads).expect("Failed to index bam");
-
-    if let Some(ref ref_fasta) = args.merge_pairs {
-        let mut merger = PairMerger {
-            ref_fasta: ref_fasta.to_string(),
-            min_overlap_bp: args.min_overlap_bp,
-            threads: args.threads,
-            infile: output_file.to_string(),
-            outfile: gen_outfile_name(None, "MERGED", &output_file),
-            split_window: args.split_window,
-        };
-
-        info!("{:?}", merger);
-
-        let merge_report = merger.merge_windows();
-        remove_file(output_file).ok();
-        remove_file(idx).ok();
-        index_bam(&merger.outfile, args.threads).unwrap();
-        print!("{merge_report}");
+            let merge_report = pair_merger.merge_windows();
+            remove_file(self.outfile).ok();
+            remove_file(idx).ok();
+            index_bam(&pair_merger.outfile, self.bam_io.num_threads).unwrap();
+            print!("{merge_report}");
+        }
     }
 }

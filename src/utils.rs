@@ -60,11 +60,9 @@ pub fn get_windows(window_size: Option<i64>, max_pos: i64) -> Vec<Window> {
             j = i;
             i = j + window_size;
 
-            // ranges.push([j, i]);
             ranges.push(Window { start: j, end: i });
         }
 
-        // ranges.push([i, max_pos + 1]);
         ranges.push(Window {
             start: i,
             end: max_pos + 1,
@@ -72,7 +70,6 @@ pub fn get_windows(window_size: Option<i64>, max_pos: i64) -> Vec<Window> {
 
         return ranges;
     } else {
-        // return vec![[0, i64::MAX]];
         return vec![Window {
             start: 0,
             end: i64::MAX,

@@ -4,7 +4,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 use crate::args::{parse_args, GroupingMethod};
 use crate::cli::*;
 use crate::group_report::GroupReport;
-use crate::process::{gather_files, process};
+use crate::process::{gather_files, FileProcess};
 use indexmap::IndexMap;
 use std::fs::create_dir;
 use std::path::Path;
@@ -60,8 +60,8 @@ fn main() {
     let infiles = gather_files(input_file);
 
     let num_files = infiles.len();
-    for (i, file) in infiles.into_iter().enumerate() {
-        print_file_info(&file.0, i + 1, num_files);
-        process(file, &args);
+    for (i, (path, name)) in infiles.into_iter().enumerate() {
+        print_file_info(&name, i + 1, num_files);
+        process::BamFileProcess::init_from_args(&args, &path, &name).process();
     }
 }

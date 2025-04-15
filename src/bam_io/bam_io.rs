@@ -7,7 +7,8 @@ pub struct BamIO {
     pub windowed_reader: crate::bam_io::bam_reader::WindowedBamReader,
     pub mate_reader: Option<IndexedReader>,
     pub writer: Writer,
-    _num_threads: usize,
+    pub num_threads: usize,
+    pub window_size: Option<i64>,
 }
 
 impl BamIO {
@@ -38,14 +39,15 @@ impl BamIO {
             windowed_reader,
             mate_reader,
             writer,
-            _num_threads: num_threads,
+            num_threads,
+            window_size,
         }
     }
 
-    pub fn init_from_args(args: &Args, outfile_name: &String) -> Self {
+    pub fn init_from_args(args: &Args, infile_path: &String, outfile_path: &String) -> Self {
         Self::new(
-            &args.input,
-            outfile_name,
+            infile_path,
+            outfile_path,
             args.r1_only,
             args.threads,
             args.strict_threads,
