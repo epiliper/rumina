@@ -1,10 +1,11 @@
 use crate::read_store::read_store::*;
+use crate::record::record::BamRecord;
 use indexmap::IndexMap;
 use log::warn;
 use rust_htslib::bam::{record::Aux, Record};
 
 pub struct PairBundles {
-    pub read_dict: IndexMap<String, ReadsAndCount>,
+    pub read_dict: IndexMap<String, ReadsAndCount<BamRecord>>,
 }
 
 const UMI_TAG: &[u8; 2] = b"BX";

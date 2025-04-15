@@ -5,8 +5,9 @@ use crate::read_store::read_store::ReadsAndCount;
 use crate::utils::{get_umi, get_umi_static};
 use crate::IndexMap;
 use indexmap::IndexSet;
-use rust_htslib::bam::record::Aux;
-use rust_htslib::bam::Record;
+// use rust_htslib::bam::record::Aux;
+// use rust_htslib::bam::Record;
+use crate::record::record::Record;
 
 use core::str;
 use rand::rngs::StdRng;
@@ -60,27 +61,27 @@ impl<'a> GroupHandler<'a> {
     // push them to a list of tagged records awaiting writing to an output bamfile
 
     // driver function of grouping
-    pub fn tag_records(
+    pub fn tag_records<T: Record>(
         &mut self,
         counts: HashMap<&str, i32>,
         // grouping_output: Option<Vec<IndexSet<String>>>,
         grouping_output: impl Iterator<Item = IndexSet<String>>,
-        mut umis_records: IndexMap<String, ReadsAndCount>,
-    ) -> (Option<GroupReport>, Vec<Record>) {
+        mut umis_records: IndexMap<String, ReadsAndCount<T>>,
+    ) -> (Option<GroupReport>, Vec<T>) {
         self.tag_groups(grouping_output, &mut umis_records, counts)
     }
-    pub fn tag_groups(
+    pub fn tag_groups<T: Record>(
         &mut self,
         // mut final_umis: Vec<Vec<&str>>,
         // final_umis: Vec<IndexSet<String>>,
         final_umis: impl Iterator<Item = IndexSet<String>>,
-        umis_records: &mut IndexMap<String, ReadsAndCount>,
+        umis_records: &mut IndexMap<String, ReadsAndCount<T>>,
         counts: HashMap<&str, i32>,
-    ) -> (Option<GroupReport>, Vec<Record>) {
+    ) -> (Option<GroupReport>, Vec<T>) {
         // for each UMI within a group, assign the same tag
 
         let mut rng = StdRng::seed_from_u64(self.seed);
-        let mut output_list: Vec<Record> = Vec::new();
+        let mut output_list: Vec<T> = Vec::new();
         let mut used_tags: HashSet<[u8; UMI_TAG_LEN]> = HashSet::with_capacity(output_list.len());
 
         // either group reads, or group and deduplicate
@@ -117,7 +118,7 @@ impl<'a> GroupHandler<'a> {
                 // since the group has enough reads to be used, count it in the report
                 group_report.num_passing_groups += 1;
 
-                let mut cluster_list: Vec<ReadsAndCount> = Vec::new();
+                let mut cluster_list: Vec<ReadsAndCount<T>> = Vec::new();
 
                 // get all the reads across all the umis in the group
                 for group in &top_umi {
@@ -127,18 +128,20 @@ impl<'a> GroupHandler<'a> {
                 // tag final reads and send for writing to output bam
                 let mut to_write = read_processor(&mut cluster_list);
 
+                // TODO: FIX THIS FOR BOTH BAM AND FASTQ RECORDS
                 to_write.iter_mut().for_each(|read| {
-                    let read_umi = get_umi_static(get_umi(read, self.separator));
+                    // TODO; avoid clone
+                    // let read_umi = get_umi_static(read.get_umi(self.separator).as_str());
 
                     // add group tag
-                    read.push_aux(b"UG", Aux::String(str::from_utf8(&ug_tag).unwrap()))
-                        .unwrap();
+                    // read.push_aux(b"UG", Aux::String(str::from_utf8(&ug_tag).unwrap()))
+                    //     .unwrap();
 
-                    read.push_aux(
-                        b"BX",
-                        Aux::String(str::from_utf8(read_umi.as_slice()).unwrap()),
-                    )
-                    .unwrap();
+                    // read.push_aux(
+                    //     b"BX",
+                    //     Aux::String(str::from_utf8(read_umi.as_slice()).unwrap()),
+                    // )
+                    // .unwrap();
 
                     group_report.num_reads_output_file += 1;
                 });

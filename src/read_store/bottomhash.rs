@@ -1,5 +1,6 @@
 use crate::read_store::read_store::*;
-use rust_htslib::bam::Record;
+// use rust_htslib::bam::Record;
+use crate::record::record::Record;
 
 /* When main function executes, this struct is populated with
 * all information necessary for grouping/deduplicating.
@@ -16,12 +17,12 @@ use rust_htslib::bam::Record;
 *               }
 * }
 */
-pub struct BottomHashMap {
-    pub read_dict: PositionKey,
+pub struct BottomHashMap<T: Record> {
+    pub read_dict: PositionKey<T>,
 }
 
-impl BottomHashMap {
-    pub fn update_dict(&mut self, position: i64, key: u64, umi: String, read: Record) {
+impl<T: Record> BottomHashMap<T> {
+    pub fn update_dict(&mut self, position: i64, key: u64, umi: String, read: T) {
         self.read_dict
             .entry(position)
             .or_default()

@@ -1,3 +1,4 @@
+use crate::record::record::BamRecord;
 use crate::utils::{get_windows, make_bam_reader, Window};
 use rust_htslib::bam::{Header, HeaderView, IndexedReader, Read, Record};
 
@@ -43,7 +44,7 @@ impl WindowedBamReader {
     }
 
     /// Yield all records in the given coordinate window.
-    pub fn window_records(&mut self) -> impl Iterator<Item = Record> + '_ {
+    pub fn window_records(&mut self) -> impl Iterator<Item = BamRecord> + '_ {
         self.reader.records().flatten().take_while(|record| {
             record.pos() >= self.cur_window.start && record.pos() < self.cur_window.end
         })

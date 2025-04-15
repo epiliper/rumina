@@ -2,12 +2,13 @@ use crate::bam_io::bam_reader::WindowedBamReader;
 use crate::progbars::make_windowbar;
 use crate::read_store::bottomhash::BottomHashMap;
 use crate::readkey::ReadKey;
+use crate::record::record::BamRecord;
 use crate::utils::get_read_pos_key;
 use crate::window_processor::*;
 use indexmap::IndexMap;
 use indicatif::MultiProgress;
 use log::info;
-use rust_htslib::bam::{IndexedReader, Record, Writer};
+use rust_htslib::bam::{IndexedReader, Writer};
 
 // for every position, group, and process UMIs. output remaining UMIs to write list
 pub fn process_chunks(
@@ -18,7 +19,7 @@ pub fn process_chunks(
     mut bam_writer: Writer,
 ) {
     let (mut pos, mut key): (i64, ReadKey);
-    let mut outreads: Vec<Record> = Vec::with_capacity(1_000_000);
+    let mut outreads: Vec<BamRecord> = Vec::with_capacity(1_000_000);
 
     let multiprog = MultiProgress::new();
 

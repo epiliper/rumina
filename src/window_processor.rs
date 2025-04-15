@@ -4,6 +4,7 @@ use crate::grouper::Grouper;
 use crate::progbars::*;
 use crate::read_store::bottomhash::BottomHashMap;
 use crate::readkey::ReadKey;
+use crate::record::record::{BamRecord, Record};
 use crate::utils::{get_umi, Window};
 use crate::GroupReport;
 use crate::GroupingMethod;
@@ -12,7 +13,7 @@ use indicatif::MultiProgress;
 use log::info;
 use parking_lot::Mutex;
 use rayon::prelude::*;
-use rust_htslib::bam::{IndexedReader, Read, Record, Writer};
+use rust_htslib::bam::{IndexedReader, Read, Writer};
 use std::cmp;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -65,10 +66,10 @@ impl ChunkProcessor {
     // output them to list for writing to bam
     pub fn group_reads(
         &mut self,
-        bottomhash: &mut BottomHashMap,
+        bottomhash: &mut BottomHashMap<BamRecord>,
         multiprog: &MultiProgress,
         separator: &String,
-    ) -> Vec<Record> {
+    ) -> Vec<BamRecord> {
         let grouping_method = Arc::new(&self.grouping_method);
 
         let mut coord_bar = make_coordbar(bottomhash.read_dict.len() as u64);
@@ -146,7 +147,7 @@ impl ChunkProcessor {
         chunk_end: i64,
         reader: &mut IndexedReader,
         ids: IndexSet<&[u8]>,
-    ) -> Vec<Record> {
+    ) -> Vec<BamRecord> {
         let ref_len = reader.header().target_len(tid);
         reader
             .fetch((
@@ -155,7 +156,7 @@ impl ChunkProcessor {
                 cmp::max(chunk_end + 100, ref_len.unwrap_or(u64::MAX) as i64),
             ))
             .unwrap();
-        let mut mates: Vec<Record> = Vec::with_capacity(ids.len());
+        let mut mates: Vec<BamRecord> = Vec::with_capacity(ids.len());
 
         for read in reader.records().flatten() {
             if ids.contains(read.qname()) && read.is_last_in_template() {
@@ -167,18 +168,19 @@ impl ChunkProcessor {
     }
 
     // organize reads in bottomhash based on position
-    pub fn pull_read(
+    pub fn pull_read<T: Record>(
         &mut self,
-        read: Record,
+        read: T,
         pos: i64,
         key: ReadKey,
-        bottomhash: &mut BottomHashMap,
+        bottomhash: &mut BottomHashMap<T>,
         separator: &String,
     ) {
         bottomhash.update_dict(
             pos,
             key.get_key(),
-            get_umi(&read, separator).to_string(),
+            read.get_umi(separator),
+            // get_umi(&read, separator).to_string(),
             read,
         );
         self.read_counter += 1;
@@ -186,14 +188,14 @@ impl ChunkProcessor {
 
     pub fn write_reads(
         &mut self,
-        outreads: &mut Vec<Record>,
+        outreads: &mut Vec<BamRecord>,
         bam_writer: &mut Writer,
         bam_reader: &mut Option<IndexedReader>,
         tid: u32,
         window: &Window,
     ) {
         let mut count = 0;
-        let mut mates: Option<Vec<Record>> = None;
+        let mut mates: Option<Vec<BamRecord>> = None;
 
         if !outreads.is_empty() {
             if let Some(ref mut bam_reader) = bam_reader {

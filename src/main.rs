@@ -30,6 +30,7 @@ mod read_picker;
 mod read_store;
 mod readkey;
 mod realign;
+mod record;
 mod utils;
 mod window_processor;
 

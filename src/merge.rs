@@ -1,8 +1,9 @@
+use crate::record::record::BamRecord;
 use indexmap::IndexMap;
 use log::{debug, warn};
 use parking_lot::Mutex;
 use rayon::prelude::*;
-use rust_htslib::bam::{ext::BamRecordExtensions, Record};
+use rust_htslib::bam::ext::BamRecordExtensions;
 use std::str;
 use std::sync::Arc;
 
@@ -11,11 +12,11 @@ use crate::read_store::read_store::ReadsAndCount;
 use crate::realign::{align_to_ref, ReMapper};
 
 pub fn handle_dupes(
-    umis_reads: &mut IndexMap<String, ReadsAndCount>,
+    umis_reads: &mut IndexMap<String, ReadsAndCount<BamRecord>>,
     mapper: ReMapper,
     ref_fasta: &Vec<u8>,
     min_overlap_bp: usize,
-    sender: crossbeam::channel::Sender<Record>,
+    sender: crossbeam::channel::Sender<BamRecord>,
 ) -> Vec<MergeResult> {
     let results: Arc<Mutex<Vec<MergeResult>>> = Arc::new(Mutex::new(Vec::new()));
 
@@ -80,11 +81,11 @@ pub fn handle_dupes(
     Arc::try_unwrap(results).unwrap().into_inner()
 }
 
-pub fn is_opp_orientation(read_a: &Record, read_b: &Record) -> bool {
+pub fn is_opp_orientation(read_a: &BamRecord, read_b: &BamRecord) -> bool {
     read_a.is_reverse() | read_b.is_reverse()
 }
 
-pub fn is_overlap(read_a: &Record, read_b: &Record) -> bool {
+pub fn is_overlap(read_a: &BamRecord, read_b: &BamRecord) -> bool {
     let (ras, rae) = (read_a.reference_start(), read_a.reference_end());
     let (rbs, rbe) = (read_b.reference_start(), read_b.reference_end());
 
@@ -96,7 +97,11 @@ pub fn is_overlap(read_a: &Record, read_b: &Record) -> bool {
 }
 
 // for groups of >2 reads, find every overlapping f/r read pair, attempt merge
-pub fn find_merges(read: &Record, reads: &mut Vec<Record>, min_overlap_bp: usize) -> MergeResult {
+pub fn find_merges(
+    read: &BamRecord,
+    reads: &mut Vec<BamRecord>,
+    min_overlap_bp: usize,
+) -> MergeResult {
     for (i, other_read) in reads.iter().enumerate() {
         if is_opp_orientation(&read, other_read) && is_overlap(&read, other_read) {
             let merge_result = attempt_merge(&read, other_read, min_overlap_bp);
@@ -135,11 +140,11 @@ pub fn construct_sequence<'a>(mut read_blueprint: IndexMap<i64, u8>) -> (i64, Ve
 }
 
 pub fn construct_read(
-    original_read: &Record,
+    original_read: &BamRecord,
     new_seq: Vec<u8>,
     mapper: &mut ReMapper,
     ref_seq: &Vec<u8>,
-) -> Record {
+) -> BamRecord {
     let mut new_rec = original_read.clone();
 
     let (start, _end, cigar) = align_to_ref(mapper, &new_seq, &ref_seq);
@@ -158,7 +163,7 @@ pub fn construct_read(
 
 // with two overlapping reads, attempt to merge the reads
 // halt if the reads have discordant sequence
-pub fn attempt_merge(read_a: &Record, read_b: &Record, min_overlap_bp: usize) -> MergeResult {
+pub fn attempt_merge(read_a: &BamRecord, read_b: &BamRecord, min_overlap_bp: usize) -> MergeResult {
     // check that these reads have opposing orientation
     let mut ra: IndexMap<i64, u8> = IndexMap::new();
     let mut rb: IndexMap<i64, u8> = IndexMap::new();
@@ -209,6 +214,7 @@ pub fn attempt_merge(read_a: &Record, read_b: &Record, min_overlap_bp: usize) ->
 mod tests {
 
     use super::*;
+    use crate::record::record::BamRecord;
     use bio::alignment::pairwise::banded::Aligner;
     use bio::scores::blosum62;
     use crossbeam::channel::{bounded, Receiver, Sender};
@@ -275,7 +281,7 @@ mod tests {
     // Test the handle_dupes function (simplified test)
     #[test]
     fn test_handle_dupes() {
-        let mut umis_reads: IndexMap<String, ReadsAndCount> = IndexMap::new();
+        let mut umis_reads: IndexMap<String, ReadsAndCount<BamRecord>> = IndexMap::new();
         let mut merge_report = MergeReport::new();
         let (s, r): (Sender<Record>, Receiver<Record>) = bounded(10);
         umis_reads.insert(
