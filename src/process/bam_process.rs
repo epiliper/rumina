@@ -1,6 +1,6 @@
 use crate::args::Args;
-use crate::bam_io::bam_io::BamIO;
-use crate::bam_io::file_io::FileIO;
+use crate::io::BamIO;
+use crate::io::FileIO;
 use crate::pair_merger::PairMerger;
 use crate::process::file_process::FileProcess;
 use crate::processor::Processor;

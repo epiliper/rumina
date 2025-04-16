@@ -1,12 +1,5 @@
-use crate::group_report::StaticUMI;
 use rust_htslib::bam::{index, Header, IndexedReader, Read, Writer};
 use std::path::Path;
-
-pub fn get_umi_static<'c>(raw_umi: &'c str) -> StaticUMI {
-    let mut umi = StaticUMI::new();
-    umi.extend(raw_umi.as_bytes().into_iter().map(|b| *b));
-    umi
-}
 
 pub fn get_file_ext(path: &Path) -> Option<&str> {
     path.extension().and_then(|ext| ext.to_str())

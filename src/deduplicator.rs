@@ -2,7 +2,6 @@ use crate::group_report::GroupReport;
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
 use crate::read_store::ReadsAndCount;
 use crate::record::Record;
-use crate::utils::get_umi_static;
 use crate::IndexMap;
 use indexmap::IndexSet;
 

@@ -23,7 +23,6 @@ parking_lot = {version = "0.12.2"}
 clap = {version = "4.5.4", features = ["derive", "wrap_help"]}
 tikv-jemallocator = "0.5"
 rust-htslib = "0.47.0"
-arrayvec = "0.7.6"
 colored = "2"
 indicatif = "0.17.8"
 num-format = "0.4.4"

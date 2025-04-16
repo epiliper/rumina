@@ -1,6 +1,6 @@
 use crate::args::Args;
-use crate::bam_io::{bam_reader::WindowedBamReader, file_io::FileIO};
-use crate::record::{BamRecord, Record};
+use crate::io::{FileIO, WindowedBamReader};
+use crate::record::BamRecord;
 use crate::utils::{make_bam_reader, make_bam_writer};
 use indexmap::IndexSet;
 use log::info;
@@ -9,12 +9,12 @@ use rust_htslib::bam::{IndexedReader, Read, Writer};
 use std::cmp;
 
 pub struct BamIO {
-    pub windowed_reader: crate::bam_io::bam_reader::WindowedBamReader,
+    pub windowed_reader: WindowedBamReader,
     pub mate_reader: Option<IndexedReader>,
     pub writer: Writer,
     pub num_threads: usize,
     pub _window_size: Option<i64>,
-    pub separator: String,
+    pub _separator: String,
 }
 
 impl BamIO {
@@ -25,7 +25,7 @@ impl BamIO {
         num_threads: usize,
         strict_threads: bool,
         _window_size: Option<i64>,
-        separator: String,
+        _separator: String,
     ) -> Self {
         let num_threads = match strict_threads {
             true => num_threads,
@@ -48,7 +48,7 @@ impl BamIO {
             writer,
             num_threads,
             _window_size,
-            separator,
+            _separator,
         }
     }
 
@@ -100,7 +100,7 @@ impl FileIO<BamRecord> for BamIO {
         let mut mates: Option<Vec<BamRecord>> = None;
 
         if !outreads.is_empty() {
-            if let Some(ref mut bam_reader) = self.mate_reader {
+            if let Some(ref mut _bam_reader) = self.mate_reader {
                 let mut ids_to_pair = IndexSet::with_capacity(outreads.len());
 
                 outreads.iter().for_each(|read| {

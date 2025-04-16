@@ -1,6 +1,6 @@
 use crate::args::Args;
-use crate::bam_io::fastq_io::FastqIO;
-use crate::bam_io::file_io::FileIO;
+use crate::io::FastqIO;
+use crate::io::FileIO;
 use crate::process::file_process::FileProcess;
 use crate::processor::Processor;
 use crate::read_store::BottomHashMap;

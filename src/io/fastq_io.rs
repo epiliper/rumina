@@ -1,10 +1,7 @@
 use crate::args::Args;
-use crate::bam_io::file_io::FileIO;
-use crate::read_store::BottomHashMap;
-use crate::readkey::ReadKey;
-use crate::record::{FastqRecord, Record};
+use crate::io::FileIO;
+use crate::record::FastqRecord;
 use bio::io::fastq::{Reader, Writer};
-use indexmap::IndexMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 
@@ -16,7 +13,7 @@ pub struct FastqIO {
     pub _mate_reader: Option<FastqReader>,
     pub writer: FastqWriter,
     pub _num_threads: usize,
-    pub separator: String,
+    pub _separator: String,
 }
 
 impl FastqIO {
@@ -26,7 +23,7 @@ impl FastqIO {
         retrieve_r2s: bool,
         num_threads: usize,
         strict_threads: bool,
-        separator: String,
+        _separator: String,
     ) -> Self {
         let _num_threads = match strict_threads {
             true => num_threads,
@@ -51,7 +48,7 @@ impl FastqIO {
             _mate_reader,
             writer,
             _num_threads,
-            separator,
+            _separator,
         }
     }
 

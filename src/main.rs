@@ -2,11 +2,9 @@
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 use crate::args::{parse_args, GroupingMethod};
-use crate::bam_io::file_io::gather_files;
 use crate::cli::*;
 use crate::group_report::GroupReport;
-use crate::process::bam_process::BamFileProcess;
-use crate::process::file_process::FileProcess;
+use crate::io::{gather_files, process_all};
 use indexmap::IndexMap;
 use std::fs::create_dir;
 use std::path::Path;
@@ -15,12 +13,12 @@ use log::LevelFilter;
 use rayon::ThreadPoolBuilder;
 
 mod args;
-mod bam_io;
 mod cli;
 mod deduplicator;
 mod group;
 mod group_report;
 mod grouper;
+mod io;
 mod merge;
 mod merge_report;
 mod ngram;
@@ -60,10 +58,5 @@ fn main() {
     }
 
     let infiles = gather_files(input_file);
-
-    let num_files = infiles.len();
-    for (i, (path, name)) in infiles.into_iter().enumerate() {
-        print_file_info(&name, i + 1, num_files);
-        BamFileProcess::init_from_args(&args, &path, &name).process();
-    }
+    process_all(&args, infiles);
 }

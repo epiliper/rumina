@@ -1,3 +1,6 @@
+use crate::args::Args;
+use crate::cli::print_file_info;
+use crate::process::{BamFileProcess, FastQFileProcess, FileProcess};
 use crate::record::Record;
 use crate::utils::get_file_ext;
 use log::error;
@@ -25,7 +28,10 @@ pub fn gather_files(input_file: &str) -> HashMap<String, String> {
                     }
                 };
                 let path = entry.path();
-                if !path.is_dir() && get_file_ext(&path) == Some("bam") {
+                if !path.is_dir()
+                    && (get_file_ext(&path) == Some("bam")
+                        || get_file_ext(&path) == Some("fastq.gz"))
+                {
                     Some((
                         path.to_string_lossy().into_owned(),
                         entry.file_name().to_string_lossy().into_owned(),
@@ -44,5 +50,19 @@ pub fn gather_files(input_file: &str) -> HashMap<String, String> {
                 .unwrap_or_default(),
         ))
         .collect()
+    }
+}
+
+pub fn process_all(args: &Args, file_map: HashMap<String, String>) {
+    let num_files = file_map.len();
+    for (i, (file_path, file_name)) in file_map.into_iter().enumerate() {
+        print_file_info(&file_name, i + 1, num_files);
+        match get_file_ext(Path::new(&file_name)) {
+            Some("bam") => BamFileProcess::init_from_args(args, &file_path, &file_name).process(),
+            Some("fastq.gz") => {
+                FastQFileProcess::init_from_args(args, &file_path, &file_name).process()
+            }
+            _ => (),
+        };
     }
 }

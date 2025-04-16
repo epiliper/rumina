@@ -1,4 +1,3 @@
-use arrayvec::ArrayVec;
 use colored::Colorize;
 use std::fmt;
 use std::fs::{File, OpenOptions};
@@ -7,10 +6,6 @@ use std::io::Write;
 use num_format::{Locale, ToFormattedString};
 
 const LOCALE: Locale = Locale::en;
-
-const MAX_UMI_LENGTH: usize = 30;
-
-pub type StaticUMI = ArrayVec<u8, MAX_UMI_LENGTH>;
 
 // This report contains details like UMIs in/out, reads in/out, and other details, and is updated
 // after the deduplication of each batch.

@@ -1,8 +1,8 @@
 use indicatif::{ProgressBar, ProgressStyle};
 
-pub fn make_readbar() -> ProgressBar {
-    ProgressBar::new_spinner().with_style(ProgressStyle::with_template("{msg}").unwrap())
-}
+// pub fn make_readbar() -> ProgressBar {
+//     ProgressBar::new_spinner().with_style(ProgressStyle::with_template("{msg}").unwrap())
+// }
 
 pub fn make_windowbar(num_windows: u64) -> ProgressBar {
     ProgressBar::with_style(

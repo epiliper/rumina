@@ -1,5 +1,4 @@
 use crate::args::Args;
-use crate::bam_io::file_io::FileIO;
 use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::progbars::*;
