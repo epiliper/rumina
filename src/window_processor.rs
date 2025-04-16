@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct ChunkProcessor {
+pub struct Processor {
     pub read_counter: i64,
     pub min_max: Arc<Mutex<GroupReport>>,
     pub grouping_method: GroupingMethod,
@@ -30,7 +30,7 @@ pub struct ChunkProcessor {
     pub r1_only: bool,
 }
 
-impl ChunkProcessor {
+impl Processor {
     pub fn new(
         grouping_method: &GroupingMethod,
         group_by_length: bool,
@@ -39,7 +39,7 @@ impl ChunkProcessor {
         singletons: bool,
         r1_only: bool,
     ) -> Self {
-        ChunkProcessor {
+        Processor {
             read_counter: 0,
             min_max: Arc::new(Mutex::new(GroupReport::new())),
             grouping_method: grouping_method.clone(),
@@ -83,8 +83,7 @@ impl ChunkProcessor {
             for umi in position.1 {
                 let mut umis_reads = umi.1;
 
-                // sort UMIs by read count
-                // note that this is an unstable sort, so we need to identify read-tied groups
+                // sort UMIs (stably) by read count in descending order.
                 umis_reads
                     .par_sort_by(|_umi1, count1, _umi2, count2| count2.count.cmp(&count1.count));
 

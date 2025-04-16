@@ -1,10 +1,10 @@
 use crate::args::Args;
-use crate::bam_io::bam_io::BamIO;
-use crate::main_dedup::process_chunks;
+use crate::bam_io::{bam_io::BamIO, fastq_io::FastqIO};
+use crate::main_dedup::process_windows;
 use crate::pair_merger::PairMerger;
 use crate::utils::index_bam;
 use crate::utils::{gen_outfile_name, get_file_ext};
-use crate::window_processor::ChunkProcessor;
+use crate::window_processor::Processor;
 use colored::Colorize;
 use log::{error, info};
 use std::collections::HashMap;
@@ -57,23 +57,56 @@ pub trait FileProcess {
 }
 
 pub struct BamFileProcess {
-    bam_io: BamIO,
-    chunk_processor: ChunkProcessor,
+    io: BamIO,
+    chunk_processor: Processor,
     outfile: String,
     pair_merger: Option<PairMerger>,
     separator: String,
 }
 
-impl FileProcess for BamFileProcess {
-    fn init_from_args(args: &Args, bam_file_path: &String, bam_file_name: &String) -> Self {
-        let outfile = gen_outfile_name(Some(&args.outdir), "RUMINA", bam_file_name);
-        let bam_io = BamIO::init_from_args(args, bam_file_path, &outfile);
+pub struct FastQFileProcess {
+    io: FastqIO,
+    chunk_processor: Processor,
+    outfile: String,
+    separator: String,
+}
+
+impl FileProcess for FastQFileProcess {
+    fn init_from_args(args: &Args, file_path: &String, file_name: &String) -> Self {
+        let outfile = gen_outfile_name(Some(&args.outdir), "RUMINA", file_name);
+        let io = FastqIO::init_from_args(args, file_path, &outfile);
 
         let mut hasher = DefaultHasher::new();
-        bam_file_name.hash(&mut hasher);
+        file_name.hash(&mut hasher);
         let seed = hasher.finish();
 
-        let chunk_processor = ChunkProcessor::init_from_args(args, seed);
+        let chunk_processor = Processor::init_from_args(args, seed);
+        let separator = args.separator.clone();
+
+        Self {
+            io,
+            chunk_processor,
+            outfile,
+            separator,
+        }
+    }
+
+    fn process(self) {
+        // unimplemented!();
+        info!("{:?}", self.chunk_processor);
+    }
+}
+
+impl FileProcess for BamFileProcess {
+    fn init_from_args(args: &Args, file_path: &String, file_name: &String) -> Self {
+        let outfile = gen_outfile_name(Some(&args.outdir), "RUMINA", file_name);
+        let bam_io = BamIO::init_from_args(args, file_path, &outfile);
+
+        let mut hasher = DefaultHasher::new();
+        file_name.hash(&mut hasher);
+        let seed = hasher.finish();
+
+        let chunk_processor = Processor::init_from_args(args, seed);
         let mut pair_merger: Option<PairMerger> = None;
 
         if let Some(ref ref_fasta) = args.merge_pairs {
@@ -90,7 +123,7 @@ impl FileProcess for BamFileProcess {
         let separator = args.separator.clone();
 
         Self {
-            bam_io,
+            io: bam_io,
             chunk_processor,
             outfile,
             pair_merger,
@@ -101,12 +134,12 @@ impl FileProcess for BamFileProcess {
     fn process(mut self) {
         info!("{:?}", self.chunk_processor);
 
-        process_chunks(
+        process_windows(
             &mut self.chunk_processor,
-            self.bam_io.windowed_reader,
-            self.bam_io.mate_reader,
+            self.io.windowed_reader,
+            self.io.mate_reader,
             &self.separator,
-            self.bam_io.writer,
+            self.io.writer,
         );
 
         let num_reads_in = self.chunk_processor.read_counter;
@@ -127,7 +160,7 @@ impl FileProcess for BamFileProcess {
             println!("{}\n", group_report);
         }
 
-        let idx = index_bam(&self.outfile, self.bam_io.num_threads).expect("Failed to index bam");
+        let idx = index_bam(&self.outfile, self.io.num_threads).expect("Failed to index bam");
 
         if let Some(mut pair_merger) = self.pair_merger {
             info!("{:?}", pair_merger);
@@ -135,7 +168,7 @@ impl FileProcess for BamFileProcess {
             let merge_report = pair_merger.merge_windows();
             remove_file(self.outfile).ok();
             remove_file(idx).ok();
-            index_bam(&pair_merger.outfile, self.bam_io.num_threads).unwrap();
+            index_bam(&pair_merger.outfile, self.io.num_threads).unwrap();
             print!("{merge_report}");
         }
     }

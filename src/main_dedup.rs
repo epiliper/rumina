@@ -1,8 +1,11 @@
-use crate::bam_io::bam_reader::WindowedBamReader;
+use crate::bam_io::{
+    bam_reader::WindowedBamReader,
+    fastq_io::{FastqReader, FastqWriter},
+};
 use crate::progbars::make_windowbar;
 use crate::read_store::BottomHashMap;
 use crate::readkey::ReadKey;
-use crate::record::BamRecord;
+use crate::record::{BamRecord, FastqRecord};
 use crate::utils::get_read_pos_key;
 use crate::window_processor::*;
 use indexmap::IndexMap;
@@ -10,9 +13,18 @@ use indicatif::MultiProgress;
 use log::info;
 use rust_htslib::bam::{IndexedReader, Writer};
 
+pub fn process_whole(
+    chunk_processor: &mut Processor,
+    mut reader: FastqReader,
+    separator: &String,
+    mut writer: FastqWriter,
+) {
+    unimplemented!();
+}
+
 // for every position, group, and process UMIs. output remaining UMIs to write list
-pub fn process_chunks(
-    chunk_processor: &mut ChunkProcessor,
+pub fn process_windows(
+    chunk_processor: &mut Processor,
     mut reader: WindowedBamReader,
     mut other_reader: Option<IndexedReader>,
     separator: &String,
@@ -49,7 +61,7 @@ pub fn process_chunks(
             window_bar.set_message(format!("{window_records} reads in window"));
             window_bar.inc(1);
 
-            outreads.extend(ChunkProcessor::group_reads(
+            outreads.extend(Processor::group_reads(
                 chunk_processor,
                 &mut bottomhash,
                 &multiprog,
