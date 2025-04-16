@@ -2,6 +2,7 @@ use crate::group_report::GroupReport;
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
 use crate::read_store::ReadsAndCount;
 use crate::record::Record;
+use crate::utils::get_umi_static;
 use crate::IndexMap;
 use indexmap::IndexSet;
 
@@ -127,17 +128,12 @@ impl<'a> GroupHandler<'a> {
                 // TODO: FIX THIS FOR BOTH BAM AND FASTQ RECORDS
                 to_write.iter_mut().for_each(|read| {
                     // TODO; avoid clone
-                    // let read_umi = get_umi_static(read.get_umi(self.separator).as_str());
+                    let read_umi = read.get_umi(self.separator);
 
                     // add group tag
+                    read.mark_group(read_umi.as_bytes());
                     // read.push_aux(b"UG", Aux::String(str::from_utf8(&ug_tag).unwrap()))
                     //     .unwrap();
-
-                    // read.push_aux(
-                    //     b"BX",
-                    //     Aux::String(str::from_utf8(read_umi.as_slice()).unwrap()),
-                    // )
-                    // .unwrap();
 
                     group_report.num_reads_output_file += 1;
                 });

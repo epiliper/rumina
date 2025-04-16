@@ -27,7 +27,6 @@ pub fn handle_dupes(
             let mut reads = reads_and_count.reads;
             match reads.len() {
                 1 => {
-                    // print!("\rWarning: 1 read found for UMI marked as duplicate. Rerunning RUMINA on this file is recommended. If this issue persists, see GitHub issues page.");
                     reads.drain(..).for_each(|read| sender.send(read).unwrap());
                 }
                 _ => {
@@ -67,7 +66,6 @@ pub fn handle_dupes(
                                     &mut mapper.clone(),
                                     &ref_fasta,
                                 );
-                                // outreads.push(merged_read);
                                 sender.send(merged_read).unwrap();
                                 merge_results.push(MergeResult::Merge(None));
                             }

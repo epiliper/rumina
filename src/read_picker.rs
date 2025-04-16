@@ -12,8 +12,6 @@ use crate::read_store::read_store::ReadsAndCount;
 use crate::record::Record;
 use crate::IndexMap;
 use indexmap::IndexSet;
-// use rust_htslib::bam::Record;
-use std::borrow::Cow;
 use std::collections::HashMap;
 
 pub fn correct_errors<T: Record>(clusters: &mut Vec<ReadsAndCount<T>>) -> Vec<T> {

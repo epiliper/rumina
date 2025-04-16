@@ -1,6 +1,6 @@
 use crate::record::record::BamRecord;
 use crate::utils::{get_windows, make_bam_reader, Window};
-use rust_htslib::bam::{Header, HeaderView, IndexedReader, Read, Record};
+use rust_htslib::bam::{Header, HeaderView, IndexedReader, Read};
 
 // we use these values to mark when the bam reader hasn't loaded the first reference/window.
 const UNINIT_U32: u32 = u32::MAX - 1;
@@ -15,7 +15,7 @@ pub struct WindowedBamReader {
     reader: IndexedReader,
     window_size: Option<i64>,
     pub raw_header: Header,
-    meta_header: HeaderView,
+    pub meta_header: HeaderView,
     pub windows: Vec<Vec<Window>>,
     pub cur_window: Window,
     cur_window_idx: usize,

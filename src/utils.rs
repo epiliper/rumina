@@ -1,17 +1,6 @@
 use crate::group_report::StaticUMI;
-use crate::readkey::ReadKey;
-use rust_htslib::bam::ext::BamRecordExtensions;
-use rust_htslib::bam::{index, Header, IndexedReader, Read, Record, Writer};
+use rust_htslib::bam::{index, Header, IndexedReader, Read, Writer};
 use std::path::Path;
-
-pub fn get_umi<'b>(record: &'b Record, separator: &String) -> &'b str {
-    unsafe {
-        std::str::from_utf8_unchecked(record.qname())
-            .rsplit_once(separator)
-            .expect("ERROR: failed to get UMI from read QNAME. Check --separator. Exiting.")
-            .1
-    }
-}
 
 pub fn get_umi_static<'c>(raw_umi: &'c str) -> StaticUMI {
     let mut umi = StaticUMI::new();
@@ -74,33 +63,6 @@ pub fn get_windows(window_size: Option<i64>, max_pos: i64) -> Vec<Window> {
             start: 0,
             end: i64::MAX,
         }];
-    }
-}
-
-pub fn get_read_pos_key(group_by_length: bool, read: &Record) -> (i64, ReadKey) {
-    let mut pos;
-    let key: ReadKey;
-
-    if read.is_reverse() {
-        // set end pos as start to group with forward-reads covering same region
-        pos = read.reference_end();
-        pos += read.cigar().trailing_softclips(); // pad with right-side soft clip
-        key = ReadKey {
-            length: read.seq_len() * group_by_length as usize,
-            reverse: true,
-            chr: read.tid() as usize,
-        };
-        (pos, key)
-    } else {
-        pos = read.reference_start();
-        pos -= read.cigar().leading_softclips(); // pad with left-side soft clip
-
-        key = ReadKey {
-            length: read.seq_len() * group_by_length as usize,
-            reverse: false,
-            chr: read.tid() as usize,
-        };
-        (pos, key)
     }
 }
 

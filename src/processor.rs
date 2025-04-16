@@ -1,20 +1,17 @@
 use crate::args::Args;
+use crate::bam_io::file_io::FileIO;
 use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::progbars::*;
 use crate::read_store::bottomhash::BottomHashMap;
 use crate::readkey::ReadKey;
-use crate::record::{BamRecord, Record};
-use crate::utils::{get_umi, Window};
+use crate::record::Record;
 use crate::GroupReport;
 use crate::GroupingMethod;
-use indexmap::IndexSet;
 use indicatif::MultiProgress;
 use log::info;
 use parking_lot::Mutex;
 use rayon::prelude::*;
-use rust_htslib::bam::{IndexedReader, Read, Writer};
-use std::cmp;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -61,15 +58,16 @@ impl Processor {
             args.r1_only,
         )
     }
+
     // run grouping on pulled reads
     // add tags to Records
     // output them to list for writing to bam
-    pub fn group_reads(
+    pub fn group_reads<T: Record + Send + std::fmt::Debug>(
         &mut self,
-        bottomhash: &mut BottomHashMap<BamRecord>,
+        bottomhash: &mut BottomHashMap<T>,
         multiprog: &MultiProgress,
         separator: &String,
-    ) -> Vec<BamRecord> {
+    ) -> Vec<T> {
         let grouping_method = Arc::new(&self.grouping_method);
 
         let mut coord_bar = make_coordbar(bottomhash.read_dict.len() as u64);
@@ -139,33 +137,6 @@ impl Processor {
             .expect("Unable to dereference tagged reads!")
             .into_inner()
     }
-
-    pub fn retrieve_r2s(
-        tid: u32,
-        chunk_start: i64,
-        chunk_end: i64,
-        reader: &mut IndexedReader,
-        ids: IndexSet<&[u8]>,
-    ) -> Vec<BamRecord> {
-        let ref_len = reader.header().target_len(tid);
-        reader
-            .fetch((
-                tid,
-                cmp::min(0, chunk_start - 100),
-                cmp::max(chunk_end + 100, ref_len.unwrap_or(u64::MAX) as i64),
-            ))
-            .unwrap();
-        let mut mates: Vec<BamRecord> = Vec::with_capacity(ids.len());
-
-        for read in reader.records().flatten() {
-            if ids.contains(read.qname()) && read.is_last_in_template() {
-                mates.push(read);
-            }
-        }
-
-        mates
-    }
-
     // organize reads in bottomhash based on position
     pub fn pull_read<T: Record>(
         &mut self,
@@ -175,58 +146,7 @@ impl Processor {
         bottomhash: &mut BottomHashMap<T>,
         separator: &String,
     ) {
-        bottomhash.update_dict(
-            pos,
-            key.get_key(),
-            read.get_umi(separator),
-            // get_umi(&read, separator).to_string(),
-            read,
-        );
+        bottomhash.update_dict(pos, key.get_key(), read.get_umi(separator), read);
         self.read_counter += 1;
-    }
-
-    pub fn write_reads(
-        &mut self,
-        outreads: &mut Vec<BamRecord>,
-        bam_writer: &mut Writer,
-        bam_reader: &mut Option<IndexedReader>,
-        tid: u32,
-        window: &Window,
-    ) {
-        let mut count = 0;
-        let mut mates: Option<Vec<BamRecord>> = None;
-
-        if !outreads.is_empty() {
-            if let Some(ref mut bam_reader) = bam_reader {
-                let chunk_start = window.start;
-                let chunk_end = window.end;
-
-                let mut ids_to_pair = IndexSet::with_capacity(outreads.len());
-
-                outreads.iter().for_each(|read| {
-                    ids_to_pair.insert(read.qname());
-                });
-
-                mates = Some(Self::retrieve_r2s(
-                    tid,
-                    chunk_start,
-                    chunk_end,
-                    bam_reader,
-                    ids_to_pair,
-                ));
-            }
-
-            if let Some(mates) = mates {
-                outreads.extend(mates);
-            }
-
-            outreads.par_sort_by(|ra, rb| ra.pos().cmp(&rb.pos()));
-            outreads.drain(..).for_each(|read| {
-                bam_writer.write(&read).unwrap();
-                count += 1;
-            });
-        }
-
-        info!("Written {count} reads!")
     }
 }

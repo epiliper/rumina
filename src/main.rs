@@ -2,9 +2,11 @@
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 use crate::args::{parse_args, GroupingMethod};
+use crate::bam_io::file_io::gather_files;
 use crate::cli::*;
 use crate::group_report::GroupReport;
-use crate::process::{gather_files, FileProcess};
+use crate::process::bam_process::BamFileProcess;
+use crate::process::file_process::FileProcess;
 use indexmap::IndexMap;
 use std::fs::create_dir;
 use std::path::Path;
@@ -19,12 +21,12 @@ mod deduplicator;
 mod group;
 mod group_report;
 mod grouper;
-mod main_dedup;
 mod merge;
 mod merge_report;
 mod ngram;
 mod pair_merger;
 mod process;
+mod processor;
 mod progbars;
 mod read_picker;
 mod read_store;
@@ -32,7 +34,6 @@ mod readkey;
 mod realign;
 mod record;
 mod utils;
-mod window_processor;
 
 fn main() {
     let args = parse_args();
@@ -63,6 +64,6 @@ fn main() {
     let num_files = infiles.len();
     for (i, (path, name)) in infiles.into_iter().enumerate() {
         print_file_info(&name, i + 1, num_files);
-        process::BamFileProcess::init_from_args(&args, &path, &name).process();
+        BamFileProcess::init_from_args(&args, &path, &name).process();
     }
 }
