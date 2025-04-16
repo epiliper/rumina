@@ -1,6 +1,9 @@
 use bio::io::fastq;
 use rust_htslib::bam;
 
+/// The record interface serves to allow using FASTQ and BAM records with the clustering and
+/// deduplication portions of the pipeline. The [FastqRecord] and [BamRecord] structs are very thin
+/// wrappers around their original types.
 pub trait Record {
     fn seq(&self) -> String;
     fn qual(&self) -> &[u8];
@@ -8,6 +11,7 @@ pub trait Record {
     fn qname(&self) -> &[u8];
 }
 
+/// A wrapper around [rust_htslib::bam::Record]
 pub type BamRecord = bam::Record;
 
 impl Record for BamRecord {
@@ -34,6 +38,7 @@ impl Record for BamRecord {
     }
 }
 
+/// A wrapper around [bio::io::fastq::Record]
 pub type FastqRecord = fastq::Record;
 
 impl Record for fastq::Record {

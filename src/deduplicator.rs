@@ -1,13 +1,9 @@
 use crate::group_report::GroupReport;
-// use crate::grouper::GroupIterator;
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
-use crate::read_store::read_store::ReadsAndCount;
-use crate::utils::{get_umi, get_umi_static};
+use crate::read_store::ReadsAndCount;
+use crate::record::Record;
 use crate::IndexMap;
 use indexmap::IndexSet;
-// use rust_htslib::bam::record::Aux;
-// use rust_htslib::bam::Record;
-use crate::record::record::Record;
 
 use core::str;
 use rand::rngs::StdRng;

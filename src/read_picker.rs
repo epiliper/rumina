@@ -9,7 +9,7 @@
 */
 
 use crate::read_store::read_store::ReadsAndCount;
-use crate::record::record::Record;
+use crate::record::Record;
 use crate::IndexMap;
 use indexmap::IndexSet;
 // use rust_htslib::bam::Record;

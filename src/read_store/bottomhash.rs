@@ -1,6 +1,6 @@
 use crate::read_store::read_store::*;
 // use rust_htslib::bam::Record;
-use crate::record::record::Record;
+use crate::record::Record;
 
 /* When main function executes, this struct is populated with
 * all information necessary for grouping/deduplicating.

@@ -1,6 +1,5 @@
+use crate::record::Record;
 use indexmap::IndexMap;
-// use rust_htslib::bam::Record;
-use crate::record::record::Record;
 
 pub type PositionKey<T> = IndexMap<i64, KeyUMI<T>>; //every position has a key
 type KeyUMI<T> = IndexMap<u64, UMIReads<T>>; // every key has a UMI

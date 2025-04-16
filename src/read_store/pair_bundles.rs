@@ -1,5 +1,5 @@
 use crate::read_store::read_store::*;
-use crate::record::record::BamRecord;
+use crate::record::BamRecord;
 use indexmap::IndexMap;
 use log::warn;
 use rust_htslib::bam::{record::Aux, Record};

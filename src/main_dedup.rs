@@ -1,8 +1,8 @@
 use crate::bam_io::bam_reader::WindowedBamReader;
 use crate::progbars::make_windowbar;
-use crate::read_store::bottomhash::BottomHashMap;
+use crate::read_store::BottomHashMap;
 use crate::readkey::ReadKey;
-use crate::record::record::BamRecord;
+use crate::record::BamRecord;
 use crate::utils::get_read_pos_key;
 use crate::window_processor::*;
 use indexmap::IndexMap;

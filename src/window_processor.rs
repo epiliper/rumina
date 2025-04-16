@@ -4,7 +4,7 @@ use crate::grouper::Grouper;
 use crate::progbars::*;
 use crate::read_store::bottomhash::BottomHashMap;
 use crate::readkey::ReadKey;
-use crate::record::record::{BamRecord, Record};
+use crate::record::{BamRecord, Record};
 use crate::utils::{get_umi, Window};
 use crate::GroupReport;
 use crate::GroupingMethod;

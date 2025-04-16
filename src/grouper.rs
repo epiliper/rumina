@@ -1,5 +1,5 @@
 use crate::group::bktree::NGramBKTree;
-use crate::ngram::ngram;
+use crate::ngram::NgramMaker;
 use crate::GroupingMethod;
 use indexmap::IndexSet;
 use std::collections::{HashMap, VecDeque};
@@ -7,12 +7,12 @@ use std::sync::Arc;
 
 pub struct Grouper<'a> {
     pub umis: &'a Vec<String>,
-    pub ngram_maker: ngram::NgramMaker,
+    pub ngram_maker: NgramMaker,
 }
 
 impl<'a> Grouper<'a> {
     pub fn new(umis: &'a Vec<String>, max_edit: usize, umi_len: usize) -> Self {
-        let ngram_maker = ngram::NgramMaker::new(max_edit + 1, umi_len);
+        let ngram_maker = NgramMaker::new(max_edit + 1, umi_len);
 
         Self { umis, ngram_maker }
     }
