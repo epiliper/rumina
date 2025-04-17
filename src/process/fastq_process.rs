@@ -22,7 +22,7 @@ pub struct FastQFileProcess {
 
 impl FileProcess for FastQFileProcess {
     fn init_from_args(args: &Args, file_path: &String, file_name: &String) -> Self {
-        let outfile = gen_outfile_name(Some(&args.outdir), "RUMINA", file_name);
+        let outfile = gen_outfile_name(Some(&args.outdir), ".fastq.gz", "RUMINA", file_name);
         let io = FastqIO::init_from_args(args, file_path, &outfile);
 
         let mut hasher = DefaultHasher::new();

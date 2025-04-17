@@ -27,7 +27,7 @@ pub struct BamFileProcess {
 
 impl FileProcess for BamFileProcess {
     fn init_from_args(args: &Args, file_path: &String, file_name: &String) -> Self {
-        let outfile = gen_outfile_name(Some(&args.outdir), "RUMINA", file_name);
+        let outfile = gen_outfile_name(Some(&args.outdir), ".bam", "RUMINA", file_name);
         let bam_io = BamIO::init_from_args(args, file_path, &outfile);
 
         let mut hasher = DefaultHasher::new();
@@ -43,7 +43,7 @@ impl FileProcess for BamFileProcess {
                 min_overlap_bp: args.min_overlap_bp,
                 threads: args.threads,
                 infile: outfile.to_string(),
-                outfile: gen_outfile_name(None, "MERGED", &outfile),
+                outfile: gen_outfile_name(None, ".bam", "MERGED", &outfile),
                 split_window: args.split_window,
             })
         }

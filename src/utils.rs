@@ -5,8 +5,8 @@ pub fn get_file_ext(path: &Path) -> Option<&str> {
     path.extension().and_then(|ext| ext.to_str())
 }
 
-pub fn gen_outfile_name(outdir: Option<&String>, suffix: &str, fname: &str) -> String {
-    let outf = fname.rsplit_once(".bam").unwrap().0.to_string() + &format!("_{suffix}.bam");
+pub fn gen_outfile_name(outdir: Option<&String>, split: &str, suffix: &str, fname: &str) -> String {
+    let outf = fname.rsplit_once(split).unwrap().0.to_string() + &format!("_{suffix}.{split}");
     if let Some(outdir) = outdir {
         Path::new(outdir)
             .join(Path::new(&outf))
