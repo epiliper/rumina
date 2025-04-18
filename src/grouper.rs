@@ -8,13 +8,26 @@ use std::sync::Arc;
 pub struct Grouper<'a> {
     pub umis: &'a Vec<String>,
     pub ngram_maker: NgramMaker,
+    percentage: f32,
+    max_edit: u32,
 }
 
 impl<'a> Grouper<'a> {
-    pub fn new(umis: &'a Vec<String>, max_edit: usize, umi_len: usize) -> Self {
-        let ngram_maker = NgramMaker::new(max_edit + 1, umi_len);
+    pub fn new(umis: &'a Vec<String>, max_edit: u32, percentage: f32, umi_len: usize) -> Self {
+        assert!(percentage > 0.0 && percentage <= 1.0);
+        let ngram_maker = NgramMaker::new(
+            (max_edit + 1)
+                .try_into()
+                .expect("Unable to convert value for ngram_maker"),
+            umi_len,
+        );
 
-        Self { umis, ngram_maker }
+        Self {
+            umis,
+            ngram_maker,
+            percentage,
+            max_edit,
+        }
     }
 
     /// Represents the main functionality of [Grouper]: for all UMIs loaded into the struct,
@@ -48,7 +61,7 @@ impl<'a> Grouper<'a> {
                 Box::new(
                     self.umis
                         .iter()
-                        .map(move |u| self.visit_and_remove_all(u, 1, &counts, &mut bk))
+                        .map(move |u| self.visit_and_remove_all(u, self.max_edit, &counts, &mut bk))
                         .filter(|o| !o.is_empty()),
                 )
             }
@@ -87,11 +100,11 @@ impl<'a> Grouper<'a> {
     pub fn visit_and_remove_immediate(
         &self,
         umi: &str,
-        k: u8,
+        k: u32,
         counts: &HashMap<&'a str, i32>,
         bktree: &mut NGramBKTree,
     ) -> IndexSet<String> {
-        let max_count = (0.5 * (counts.get(umi).unwrap() + 1) as f32) as i32;
+        let max_count = (self.percentage * (counts.get(umi).unwrap() + 1) as f32) as i32;
         bktree.remove_near(umi, k, max_count, &self.ngram_maker)
     }
 
@@ -100,7 +113,7 @@ impl<'a> Grouper<'a> {
     pub fn visit_and_remove_all(
         &self,
         umi: &str,
-        k: u8,
+        k: u32,
         counts: &HashMap<&'a str, i32>,
         bktree: &mut NGramBKTree,
     ) -> IndexSet<String> {
@@ -109,7 +122,8 @@ impl<'a> Grouper<'a> {
 
         while let Some(root) = to_cluster.pop_front() {
             // TODO: make percentage adjustable
-            let max_count = (0.5 * (counts.get(root.as_str()).unwrap() + 1) as f32) as i32;
+            let max_count =
+                (self.percentage * (counts.get(root.as_str()).unwrap() + 1) as f32) as i32;
             let immediate = bktree.remove_near(root.as_str(), k, max_count, &self.ngram_maker);
 
             // if directional, we limit a umi's cluster to a depth of one maximum

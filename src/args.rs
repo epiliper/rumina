@@ -71,6 +71,17 @@ pub struct Args {
     /// --threads. Choose this option to make CPU usage more predictable, but expect runtime to
     /// increase when using fewer than all available threads.
     pub strict_threads: bool,
+
+    #[arg(short = 'p', long = "percentage", default_value_t = 0.5)]
+    /// The percentage of a parent UMIs read count an offshoot must hold, at maximum, to be
+    /// considered an offshoot. This is one of two criteria for clustering; also see -m /
+    /// --max_edit.
+    pub percentage: f32,
+
+    #[arg(short = 'm', long = "max_edit", default_value_t = 1, value_parser = clap::value_parser!(u32).range(0..))]
+    /// The maximum hamming distance difference between two UMIs for one to be considered an
+    /// offshoot of the other.
+    pub max_edit: u32,
 }
 
 impl std::fmt::Display for Args {
@@ -88,7 +99,10 @@ impl std::fmt::Display for Args {
             {}: {}\n\
             {}: {}\n\
             {}: {}\n\
-            {}: {}\n",
+            {}: {}\n\
+            {}: {}\n\
+            {}: {}\n
+",
             "Input".purple(),
             self.input,
             "Grouping method".purple(),
@@ -112,7 +126,11 @@ impl std::fmt::Display for Args {
             "Keep singletons".purple(),
             self.singletons,
             "Halve pairs".purple(),
-            self.r1_only
+            self.r1_only,
+            "Percentage".purple(),
+            self.percentage,
+            "Max edit distance".purple(),
+            self.max_edit,
         )?;
 
         Ok(())
@@ -120,5 +138,12 @@ impl std::fmt::Display for Args {
 }
 
 pub fn parse_args() -> Args {
-    Args::parse()
+    let args = Args::parse();
+    if args.percentage < 0.01 || args.percentage > 1.0 {
+        panic!(
+            "Invalid value {} for -p/--percentage! Choose a value between (inclusive) 0.01 and 1.0",
+            args.percentage
+        );
+    }
+    args
 }

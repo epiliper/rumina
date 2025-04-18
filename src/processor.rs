@@ -24,6 +24,8 @@ pub struct Processor {
     pub only_group: bool,
     pub singletons: bool,
     pub r1_only: bool,
+    percentage: f32,
+    max_edit: u32,
 }
 
 impl Processor {
@@ -34,7 +36,10 @@ impl Processor {
         only_group: bool,
         singletons: bool,
         r1_only: bool,
+        percentage: f32,
+        max_edit: u32,
     ) -> Self {
+        assert!(percentage > 0.0 && percentage <= 1.0);
         Processor {
             read_counter: 0,
             min_max: Arc::new(Mutex::new(GroupReport::new())),
@@ -44,6 +49,8 @@ impl Processor {
             only_group,
             singletons,
             r1_only,
+            percentage,
+            max_edit,
         }
     }
 
@@ -55,6 +62,8 @@ impl Processor {
             args.only_group,
             args.singletons,
             args.r1_only,
+            args.percentage,
+            args.max_edit,
         )
     }
 
@@ -91,7 +100,7 @@ impl Processor {
 
                 let umi_len = umis.get(0).unwrap().len();
 
-                let grouper = Grouper::new(&umis, 1, umi_len);
+                let grouper = Grouper::new(&umis, self.max_edit, self.percentage, umi_len);
                 let mut counts: HashMap<&str, i32> = HashMap::with_capacity(umis_reads.len());
 
                 // get number of reads for each raw UMI

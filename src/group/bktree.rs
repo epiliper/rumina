@@ -18,7 +18,7 @@ pub fn hamming(ua: &str, ub: &str) -> usize {
 #[derive(Debug)]
 pub struct Node {
     umi: String,
-    children: HashMap<u8, Rc<RefCell<Node>>>,
+    children: HashMap<u32, Rc<RefCell<Node>>>,
     subtree_exists: bool,
     count: i32,
     min_count: i32,
@@ -75,7 +75,7 @@ impl Node {
 
     /// attempt to add a string as a child to a node, unless a child with the same edit distance exists for
     /// the given node. Return the child if it exists.
-    pub fn append_child(&mut self, k: u8, umi: &str, count: i32) -> Option<Rc<RefCell<Node>>> {
+    pub fn append_child(&mut self, k: u32, umi: &str, count: i32) -> Option<Rc<RefCell<Node>>> {
         if self.children.get(&k).is_none() {
             let c = Rc::new(RefCell::new(Node::new(umi, count)));
 
@@ -128,7 +128,7 @@ impl<'a> NGramBKTree<'a> {
         loop {
             {
                 let mut curr = curr.borrow_mut();
-                k = hamming(&umi, &curr.umi) as u8;
+                k = hamming(&umi, &curr.umi) as u32;
                 if k == 0 {
                     // umi already in tree
                     break;
@@ -148,7 +148,7 @@ impl<'a> NGramBKTree<'a> {
     pub fn remove_near<'b>(
         &mut self,
         umi: &'b str,
-        k: u8,
+        k: u32,
         max_count: i32,
         ngm: &ngram::NgramMaker,
     ) -> IndexSet<String> {
@@ -174,7 +174,7 @@ impl<'a> NGramBKTree<'a> {
         &self,
         node: Rc<RefCell<Node>>,
         umi: &str,
-        k: u8,
+        k: u32,
         max_count: i32,
         output: &mut IndexSet<String>,
     ) {
@@ -183,7 +183,7 @@ impl<'a> NGramBKTree<'a> {
         while let Some(node_ref) = visited.pop_front() {
             let node = node_ref.borrow();
 
-            let dist = hamming(&node.umi, umi) as u8;
+            let dist = hamming(&node.umi, umi) as u32;
             let min_dist = dist.saturating_sub(k);
             let max_dist = dist.saturating_add(k);
 
