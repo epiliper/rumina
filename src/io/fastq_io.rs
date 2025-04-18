@@ -2,15 +2,16 @@ use crate::args::Args;
 use crate::io::FileIO;
 use crate::record::FastqRecord;
 use bio::io::fastq::{Reader, Writer};
+use flate2::read::GzDecoder;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 
-pub type FastqReader = Reader<BufReader<File>>;
+pub type FastqReaderGz = Reader<BufReader<GzDecoder<File>>>;
 pub type FastqWriter = Writer<BufWriter<File>>;
 
 pub struct FastqIO {
-    pub reader: Option<FastqReader>,
-    pub _mate_reader: Option<FastqReader>,
+    pub reader: Option<FastqReaderGz>,
+    pub _mate_reader: Option<FastqReaderGz>,
     pub writer: FastqWriter,
     pub _num_threads: usize,
     pub _separator: String,
@@ -31,14 +32,16 @@ impl FastqIO {
         };
 
         let _mate_reader = match retrieve_r2s {
-            true => {
-                Some(FastqReader::from_file(infile_name).expect("Failed to create mate reader!"))
-            }
+            true => Some(Reader::new(GzDecoder::new(
+                File::open(infile_name).expect("Failed to open mate file"),
+            ))),
             false => None,
         };
 
-        let reader =
-            Some(Reader::from_file(infile_name).expect("Failed to create reader for file!"));
+        let reader = Some(Reader::new(GzDecoder::new(
+            File::open(infile_name).expect("Failed to open mate file"),
+        )));
+
         let writer = Writer::new(std::io::BufWriter::new(
             File::create(outfile_name).expect("Failed to create output file!"),
         ));
