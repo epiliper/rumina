@@ -1,5 +1,6 @@
 use crate::record::record::BamRecord;
 use crate::utils::{get_windows, make_bam_reader, Window};
+use anyhow::{Context, Error};
 use rust_htslib::bam::{Header, HeaderView, IndexedReader, Read};
 
 // we use these values to mark when the bam reader hasn't loaded the first reference/window.
@@ -52,16 +53,18 @@ impl WindowedBamReader {
 
     /// Set the inner reader to fetch records from the next reference if it exists, and
     /// generate a new set of coordinate windows for read yielding.
-    pub fn next_reference(&mut self) -> bool {
+    pub fn next_reference(&mut self) -> Result<bool, Error> {
         self.cur_ref = match self.cur_ref {
             UNINIT_U32 => 0,
             _ => self.cur_ref + 1,
         };
 
-        self.reader.fetch((self.cur_ref, 0, u32::MAX)).unwrap();
+        self.reader
+            .fetch((self.cur_ref, 0, u32::MAX))
+            .with_context(|| format!("BAM reader: failed to fetch tid {}", self.cur_ref))?;
 
         if self.cur_ref >= self.meta_header.target_count() {
-            false
+            Ok(false)
         } else {
             let windows = get_windows(
                 self.window_size,
@@ -73,7 +76,7 @@ impl WindowedBamReader {
 
             self.windows = windows;
             self.cur_window_idx = usize::MAX;
-            true
+            Ok(true)
         }
     }
 

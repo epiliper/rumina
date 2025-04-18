@@ -1,3 +1,4 @@
+use anyhow::{Context, Error};
 use rust_htslib::bam::{index, Header, IndexedReader, Read, Writer};
 use std::path::Path;
 
@@ -5,16 +6,29 @@ pub fn get_file_ext(path: &Path) -> Option<&str> {
     path.extension().and_then(|ext| ext.to_str())
 }
 
-pub fn gen_outfile_name(outdir: Option<&String>, split: &str, suffix: &str, fname: &str) -> String {
-    let outf = fname.rsplit_once(split).unwrap().0.to_string() + &format!("_{suffix}.{split}");
+pub fn gen_outfile_name(
+    outdir: Option<&String>,
+    split: &str,
+    suffix: &str,
+    fname: &str,
+) -> Result<String, Error> {
+    let outf = fname
+        .rsplit_once(split)
+        .context("Unable to split file")?
+        .0
+        .to_string()
+        + &format!("_{suffix}.{split}");
     if let Some(outdir) = outdir {
-        Path::new(outdir)
+        Ok(Path::new(outdir)
             .join(Path::new(&outf))
             .to_str()
-            .unwrap()
-            .to_string()
+            .context("unable to construct output file path")?
+            .to_string())
     } else {
-        Path::new(&outf).to_str().unwrap().to_string()
+        Ok(Path::new(&outf)
+            .to_str()
+            .context("Unable to construct output file path")?
+            .to_string())
     }
 }
 

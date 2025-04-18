@@ -9,6 +9,7 @@ use indexmap::IndexMap;
 use std::fs::create_dir;
 use std::path::Path;
 
+use anyhow::Error;
 use log::LevelFilter;
 use rayon::ThreadPoolBuilder;
 
@@ -33,7 +34,7 @@ mod realign;
 mod record;
 mod utils;
 
-fn main() {
+fn main() -> Result<(), Error> {
     let args = parse_args();
     let input_file = &args.input;
 
@@ -54,9 +55,10 @@ fn main() {
     }
 
     if !Path::exists(Path::new(&args.outdir)) {
-        create_dir(&args.outdir).unwrap();
+        create_dir(&args.outdir).expect("Unable to create output directory!");
     }
 
-    let infiles = gather_files(input_file);
-    process_all(&args, infiles);
+    let infiles = gather_files(input_file)?;
+    process_all(&args, infiles)?;
+    Ok(())
 }

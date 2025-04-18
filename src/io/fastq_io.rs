@@ -1,6 +1,7 @@
 use crate::args::Args;
 use crate::io::FileIO;
 use crate::record::FastqRecord;
+use anyhow::{Context, Error};
 use bio::io::fastq::{Reader, Writer};
 use flate2::read::GzDecoder;
 use std::fs::File;
@@ -25,7 +26,7 @@ impl FastqIO {
         num_threads: usize,
         strict_threads: bool,
         _separator: String,
-    ) -> Self {
+    ) -> Result<Self, Error> {
         let _num_threads = match strict_threads {
             true => num_threads,
             false => num_cpus::get(),
@@ -33,29 +34,33 @@ impl FastqIO {
 
         let _mate_reader = match retrieve_r2s {
             true => Some(Reader::new(GzDecoder::new(
-                File::open(infile_name).expect("Failed to open mate file"),
+                File::open(infile_name).context("Failed to open mate file")?,
             ))),
             false => None,
         };
 
         let reader = Some(Reader::new(GzDecoder::new(
-            File::open(infile_name).expect("Failed to open mate file"),
+            File::open(infile_name).context("Failed to open mate file")?,
         )));
 
         let writer = Writer::new(std::io::BufWriter::new(
-            File::create(outfile_name).expect("Failed to create output file!"),
+            File::create(outfile_name).context("Failed to create output file!")?,
         ));
 
-        Self {
+        Ok(Self {
             reader,
             _mate_reader,
             writer,
             _num_threads,
             _separator,
-        }
+        })
     }
 
-    pub fn init_from_args(args: &Args, infile_path: &String, outfile_path: &String) -> Self {
+    pub fn init_from_args(
+        args: &Args,
+        infile_path: &String,
+        outfile_path: &String,
+    ) -> Result<Self, Error> {
         Self::new(
             infile_path,
             outfile_path,

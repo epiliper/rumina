@@ -7,6 +7,7 @@ use crate::read_store::BottomHashMap;
 use crate::readkey::ReadKey;
 use crate::record::{FastqRecord, Record};
 use crate::utils::gen_outfile_name;
+use anyhow::{Context, Error};
 use colored::Colorize;
 use indexmap::IndexMap;
 use indicatif::MultiProgress;
@@ -21,9 +22,9 @@ pub struct FastQFileProcess {
 }
 
 impl FileProcess for FastQFileProcess {
-    fn init_from_args(args: &Args, file_path: &String, file_name: &String) -> Self {
-        let outfile = gen_outfile_name(Some(&args.outdir), ".fastq.gz", "RUMINA", file_name);
-        let io = FastqIO::init_from_args(args, file_path, &outfile);
+    fn init_from_args(args: &Args, file_path: &String, file_name: &String) -> Result<Self, Error> {
+        let outfile = gen_outfile_name(Some(&args.outdir), ".fastq.gz", "RUMINA", file_name)?;
+        let io = FastqIO::init_from_args(args, file_path, &outfile)?;
 
         let mut hasher = DefaultHasher::new();
         file_name.hash(&mut hasher);
@@ -32,15 +33,15 @@ impl FileProcess for FastQFileProcess {
         let chunk_processor = Processor::init_from_args(args, seed);
         let separator = args.separator.clone();
 
-        Self {
+        Ok(Self {
             io,
             chunk_processor,
             outfile,
             separator,
-        }
+        })
     }
 
-    fn process(mut self) {
+    fn process(mut self) -> Result<(), Error> {
         let (mut pos, mut key): (i64, ReadKey);
         let mut outreads: Vec<FastqRecord> = Vec::with_capacity(1_000_000);
 
@@ -48,12 +49,12 @@ impl FileProcess for FastQFileProcess {
             read_dict: IndexMap::with_capacity(500),
         };
 
-        let reader = self.io.reader.take().expect("Reader unitialized");
+        let reader = self.io.reader.take().context("Reader unitialized")?;
 
         for record in reader.records().flatten() {
             (pos, key) = record.get_pos_key(self.chunk_processor.group_by_length);
             self.chunk_processor
-                .pull_read(record, pos, key, &mut bottomhash, &self.separator);
+                .pull_read(record, pos, key, &mut bottomhash, &self.separator)?;
         }
 
         outreads.extend(self.chunk_processor.group_reads(
@@ -70,7 +71,10 @@ impl FileProcess for FastQFileProcess {
         drop(self.chunk_processor);
 
         // do final report
-        let mut group_report = Arc::try_unwrap(min_maxes).unwrap().into_inner();
+        let mut group_report = Arc::into_inner(min_maxes)
+            .context("Unable to deref group reports")?
+            .into_inner();
+
         group_report.num_reads_input_file = num_reads_in;
 
         // report on min and max number of reads per group
@@ -81,5 +85,7 @@ impl FileProcess for FastQFileProcess {
             group_report.write_to_report_file(&self.outfile);
             println!("{}\n", group_report);
         }
+
+        Ok(())
     }
 }

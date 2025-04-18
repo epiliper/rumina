@@ -9,6 +9,7 @@ use crate::read_store::BottomHashMap;
 use crate::readkey::ReadKey;
 use crate::record::{BamRecord, Record};
 use crate::utils::{gen_outfile_name, index_bam};
+use anyhow::Error;
 use colored::Colorize;
 use indexmap::IndexMap;
 use indicatif::MultiProgress;
@@ -26,8 +27,8 @@ pub struct BamFileProcess {
 }
 
 impl FileProcess for BamFileProcess {
-    fn init_from_args(args: &Args, file_path: &String, file_name: &String) -> Self {
-        let outfile = gen_outfile_name(Some(&args.outdir), ".bam", "RUMINA", file_name);
+    fn init_from_args(args: &Args, file_path: &String, file_name: &String) -> Result<Self, Error> {
+        let outfile = gen_outfile_name(Some(&args.outdir), ".bam", "RUMINA", file_name)?;
         let bam_io = BamIO::init_from_args(args, file_path, &outfile);
 
         let mut hasher = DefaultHasher::new();
@@ -43,29 +44,29 @@ impl FileProcess for BamFileProcess {
                 min_overlap_bp: args.min_overlap_bp,
                 threads: args.threads,
                 infile: outfile.to_string(),
-                outfile: gen_outfile_name(None, ".bam", "MERGED", &outfile),
+                outfile: gen_outfile_name(None, ".bam", "MERGED", &outfile)?,
                 split_window: args.split_window,
             })
         }
 
         let separator = args.separator.clone();
 
-        Self {
+        Ok(Self {
             io: bam_io,
             chunk_processor,
             outfile,
             pair_merger,
             separator,
-        }
+        })
     }
 
-    fn process(mut self) {
+    fn process(mut self) -> Result<(), Error> {
         let (mut pos, mut key): (i64, ReadKey);
         let mut outreads: Vec<BamRecord> = Vec::with_capacity(1_000_000);
 
         let multiprog = MultiProgress::new();
 
-        while self.io.windowed_reader.next_reference() {
+        while self.io.windowed_reader.next_reference()? {
             let mut window_bar = make_windowbar(self.io.windowed_reader.windows.len() as u64);
             window_bar.set_prefix("WINDOW");
             window_bar = multiprog.add(window_bar);
@@ -89,7 +90,7 @@ impl FileProcess for BamFileProcess {
                         key,
                         &mut bottomhash,
                         &self.separator,
-                    );
+                    )?;
                     window_records += 1;
                 }
 
@@ -145,5 +146,7 @@ impl FileProcess for BamFileProcess {
             index_bam(&pair_merger.outfile, self.io.num_threads).unwrap();
             print!("{merge_report}");
         }
+
+        Ok(())
     }
 }

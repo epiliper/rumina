@@ -127,10 +127,13 @@ impl<'a> GroupHandler<'a> {
                 // TODO: FIX THIS FOR BOTH BAM AND FASTQ RECORDS
                 to_write.iter_mut().for_each(|read| {
                     // TODO; avoid clone
-                    let read_umi = read.get_umi(self.separator);
+                    if let Some(umi) = read.get_umi(self.separator).ok() {
+                        read.mark_group(umi.as_bytes());
+                    } else {
+                        println! {"Unable to retrieve UMI for output read!"}
+                    }
 
                     // add group tag
-                    read.mark_group(read_umi.as_bytes());
                     // read.push_aux(b"UG", Aux::String(str::from_utf8(&ug_tag).unwrap()))
                     //     .unwrap();
 

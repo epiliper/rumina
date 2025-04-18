@@ -87,7 +87,9 @@ impl<'a> Grouper<'a> {
         let mut bktree = NGramBKTree::init_empty(None);
         bktree.count_map = counts.clone();
         self.umis.iter().for_each(|u| {
-            let count = *counts.get(u.as_str()).unwrap();
+            let count = *counts
+                .get(u.as_str())
+                .expect("FATAL ERROR: umi to deduplicate is not found in count map");
             bktree.populate_single(u, count, &self.ngram_maker);
         });
         bktree

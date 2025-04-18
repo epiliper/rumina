@@ -3,7 +3,8 @@ use crate::cli::print_file_info;
 use crate::process::{BamFileProcess, FastQFileProcess, FileProcess};
 use crate::record::Record;
 use crate::utils::get_file_ext;
-use log::error;
+use anyhow::Error;
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs::read_dir;
 use std::path::Path;
@@ -12,57 +13,78 @@ pub trait FileIO<T: Record> {
     fn write_reads(&mut self, outreads: &mut Vec<T>);
 }
 
-pub fn gather_files(input_file: &str) -> HashMap<String, String> {
+pub fn gather_files(input_file: &str) -> Result<HashMap<String, String>, anyhow::Error> {
     let inpath = Path::new(input_file);
 
     if inpath.is_dir() {
-        read_dir(inpath)
+        let entries = read_dir(inpath)
+            .with_context(|| format!("Failed to read directory: {}", input_file))?;
+
+        Ok(entries
             .into_iter()
-            .flatten()
             .filter_map(|entry| {
-                let entry = match entry {
-                    Ok(e) => e,
-                    Err(e) => {
-                        error!("Unable to read file: {}. Won't be used in processing.", e);
+                let entry = entry.ok()?;
+                let path = entry.path();
+
+                if !path.is_dir() {
+                    let ext = get_file_ext(&path);
+
+                    if ext == Some("bam") || ext == Some("gz") {
+                        return Some((
+                            path.to_string_lossy().into_owned(),
+                            entry.file_name().to_string_lossy().into_owned(),
+                        ));
+                    } else {
+                        println! {"Skipping file {:?}; unrecognized extension", entry.file_name()};
                         return None;
                     }
-                };
-                let path = entry.path();
-                if !path.is_dir()
-                    && (get_file_ext(&path) == Some("bam")
-                        || get_file_ext(&path) == Some("fastq.gz"))
-                {
-                    Some((
-                        path.to_string_lossy().into_owned(),
-                        entry.file_name().to_string_lossy().into_owned(),
-                    ))
                 } else {
-                    None
+                    return None;
                 }
+                // if !path.is_dir()
+                //     && (get_file_ext(&path) == Some("bam")
+                //         || get_file_ext(&path) == Some("fastq.gz"))
+                // {
+                //     Some((
+                //         path.to_string_lossy().into_owned(),
+                //         entry.file_name().to_string_lossy().into_owned(),
+                //     ))
+                // } else {
+                //     println!{"File with extension {}"}
+                // }
             })
-            .collect()
+            .collect())
     } else {
-        std::iter::once((
+        if !inpath.exists() {
+            return Err(anyhow::anyhow!("File does not exist: {}", input_file));
+        }
+
+        Ok(std::iter::once((
             inpath.to_string_lossy().into_owned(),
             inpath
                 .file_name()
                 .map(|f| f.to_string_lossy().into_owned())
-                .unwrap_or_default(),
+                .ok_or_else(|| anyhow::anyhow!("Failed to get file name for: {}", input_file))?,
         ))
-        .collect()
+        .collect())
     }
 }
 
-pub fn process_all(args: &Args, file_map: HashMap<String, String>) {
+// Assuming get_file_ext is defined elsewhere, ensure it doesn't panic
+pub fn process_all(args: &Args, file_map: HashMap<String, String>) -> Result<(), Error> {
     let num_files = file_map.len();
     for (i, (file_path, file_name)) in file_map.into_iter().enumerate() {
         print_file_info(&file_name, i + 1, num_files);
         match get_file_ext(Path::new(&file_name)) {
-            Some("bam") => BamFileProcess::init_from_args(args, &file_path, &file_name).process(),
+            Some("bam") => {
+                BamFileProcess::init_from_args(args, &file_path, &file_name)?.process()?
+            }
             Some("fastq.gz") => {
-                FastQFileProcess::init_from_args(args, &file_path, &file_name).process()
+                FastQFileProcess::init_from_args(args, &file_path, &file_name)?.process()?
             }
             _ => (),
         };
     }
+
+    Ok(())
 }

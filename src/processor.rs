@@ -7,6 +7,7 @@ use crate::readkey::ReadKey;
 use crate::record::Record;
 use crate::GroupReport;
 use crate::GroupingMethod;
+use anyhow::Error;
 use indicatif::MultiProgress;
 use log::info;
 use parking_lot::Mutex;
@@ -153,8 +154,9 @@ impl Processor {
         key: ReadKey,
         bottomhash: &mut BottomHashMap<T>,
         separator: &String,
-    ) {
-        bottomhash.update_dict(pos, key.get_key(), read.get_umi(separator), read);
+    ) -> Result<(), Error> {
+        bottomhash.update_dict(pos, key.get_key(), read.get_umi(separator)?, read);
         self.read_counter += 1;
+        Ok(())
     }
 }

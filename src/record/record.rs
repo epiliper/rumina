@@ -1,4 +1,5 @@
 use crate::readkey::ReadKey;
+use anyhow::{Context, Error};
 use bio::io::fastq;
 use core::str;
 use rust_htslib::{bam, bam::ext::BamRecordExtensions, bam::record::Aux};
@@ -9,7 +10,7 @@ use rust_htslib::{bam, bam::ext::BamRecordExtensions, bam::record::Aux};
 pub trait Record {
     fn seq(&self) -> String;
     fn qual(&self) -> &[u8];
-    fn get_umi(&self, separator: &String) -> String;
+    fn get_umi(&self, separator: &String) -> Result<String, Error>;
     fn qname(&self) -> &[u8];
     fn get_pos_key(&self, group_by_length: bool) -> (i64, ReadKey);
     fn mark_group(&mut self, tag: &[u8]);
@@ -23,13 +24,13 @@ impl Record for BamRecord {
         unsafe { String::from_utf8_unchecked(self.seq().encoded.to_vec()) }
     }
 
-    fn get_umi(&self, separator: &String) -> String {
+    fn get_umi(&self, separator: &String) -> Result<String, Error> {
         unsafe {
-            std::str::from_utf8_unchecked(self.qname())
+            Ok(std::str::from_utf8_unchecked(self.qname())
                 .rsplit_once(separator)
-                .expect("ERROR: failed to get UMI from read QNAME. Check --separator. Exiting.")
+                .context("failed to get UMI from read QNAME. Check --separator. Exiting.")?
                 .1
-                .to_string()
+                .to_string())
         }
     }
 
@@ -82,12 +83,13 @@ impl Record for fastq::Record {
         unsafe { String::from_utf8_unchecked(self.seq().to_vec()) }
     }
 
-    fn get_umi(&self, separator: &String) -> String {
-        self.id()
+    fn get_umi(&self, separator: &String) -> Result<String, Error> {
+        Ok(self
+            .id()
             .rsplit_once(separator)
-            .expect("ERROR: failed to get UMI from read QNAME: Check --separator. Exiting.")
+            .context("ERROR: failed to get UMI from read QNAME: Check --separator. Exiting.")?
             .1
-            .to_string()
+            .to_string())
     }
 
     fn qual(&self) -> &[u8] {
