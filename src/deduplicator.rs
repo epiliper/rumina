@@ -1,6 +1,6 @@
 use crate::group_report::GroupReport;
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
-use crate::read_store::ReadsAndCount;
+use crate::read_store::{ReadStore, SeqMap};
 use crate::record::Record;
 use crate::IndexMap;
 use indexmap::IndexSet;
@@ -59,19 +59,10 @@ impl<'a> GroupHandler<'a> {
     // driver function of grouping
     pub fn tag_records<T: Record>(
         &mut self,
-        counts: HashMap<&str, i32>,
-        // grouping_output: Option<Vec<IndexSet<String>>>,
-        grouping_output: impl Iterator<Item = IndexSet<String>>,
-        mut umis_records: IndexMap<String, ReadsAndCount<T>>,
-    ) -> (Option<GroupReport>, Vec<T>) {
-        self.tag_groups(grouping_output, &mut umis_records, counts)
-    }
-    pub fn tag_groups<T: Record>(
-        &mut self,
         // mut final_umis: Vec<Vec<&str>>,
         // final_umis: Vec<IndexSet<String>>,
         final_umis: impl Iterator<Item = IndexSet<String>>,
-        umis_records: &mut IndexMap<String, ReadsAndCount<T>>,
+        umis_records: &mut IndexMap<String, (i32, SeqMap<T>)>,
         counts: HashMap<&str, i32>,
     ) -> (Option<GroupReport>, Vec<T>) {
         // for each UMI within a group, assign the same tag
@@ -114,15 +105,17 @@ impl<'a> GroupHandler<'a> {
                 // since the group has enough reads to be used, count it in the report
                 group_report.num_passing_groups += 1;
 
-                let mut cluster_list: Vec<ReadsAndCount<T>> = Vec::new();
+                let mut top_umi = top_umi.iter();
+                let mut seq_map: SeqMap<T> =
+                    umis_records.swap_remove(top_umi.next().unwrap()).unwrap().1;
 
                 // get all the reads across all the umis in the group
-                for group in &top_umi {
-                    cluster_list.push(umis_records.swap_remove(group).unwrap());
+                for group in top_umi {
+                    seq_map.combine(umis_records.swap_remove(group).unwrap().1);
                 }
 
                 // tag final reads and send for writing to output bam
-                let mut to_write = read_processor(&mut cluster_list);
+                let mut to_write = read_processor(&mut seq_map);
 
                 // TODO: FIX THIS FOR BOTH BAM AND FASTQ RECORDS
                 to_write.iter_mut().for_each(|read| {

@@ -86,57 +86,60 @@ impl Processor {
 
         let outreads = Arc::new(Mutex::new(Vec::new()));
 
-        bottomhash.read_dict.par_drain(..).for_each(|position| {
-            for umi in position.1 {
-                let mut umis_reads = umi.1;
+        bottomhash
+            .read_dict
+            .par_drain(..)
+            .for_each(|(position, mut key_map)| {
+                for (_key, mut umi_read_map) in key_map.drain(..) {
+                    // sort UMIs (stably) by read count in descending order.
+                    umi_read_map.par_sort_by(|_umi1, (count1, _map1), _umi2, (count2, _map2)| {
+                        count2.cmp(&count1)
+                    });
 
-                // sort UMIs (stably) by read count in descending order.
-                umis_reads
-                    .par_sort_by(|_umi1, count1, _umi2, count2| count2.count.cmp(&count1.count));
+                    let umis = umi_read_map
+                        .keys()
+                        .map(|x| x.to_string())
+                        .collect::<Vec<String>>();
 
-                let umis = umis_reads
-                    .keys()
-                    .map(|x| x.to_string())
-                    .collect::<Vec<String>>();
+                    let umi_len = umis.get(0).unwrap().len();
 
-                let umi_len = umis.get(0).unwrap().len();
+                    let grouper = Grouper::new(&umis, self.max_edit, self.percentage, umi_len);
+                    let mut counts: HashMap<&str, i32> = HashMap::with_capacity(umi_read_map.len());
 
-                let grouper = Grouper::new(&umis, self.max_edit, self.percentage, umi_len);
-                let mut counts: HashMap<&str, i32> = HashMap::with_capacity(umis_reads.len());
+                    // get number of reads for each raw UMI
+                    let mut num_umis = 0;
 
-                // get number of reads for each raw UMI
-                let mut num_umis = 0;
+                    for umi in &umis {
+                        counts.entry(umi.as_str()).or_insert(umi_read_map[umi].0);
+                        num_umis += 1;
+                    }
 
-                for umi in &umis {
-                    counts.entry(umi.as_str()).or_insert(umis_reads[umi].count);
-                    num_umis += 1;
+                    let mut group_handler = GroupHandler {
+                        seed: self.seed + position as u64, // make seed unique per position
+                        group_only: self.only_group,
+                        singletons: self.singletons,
+                        separator: &separator,
+                    };
+
+                    // perform UMI clustering per the method specified
+                    let groupies = grouper.cluster(counts.clone(), Arc::clone(&grouping_method));
+                    let tagged_reads =
+                        group_handler.tag_records(groupies, &mut umi_read_map, counts);
+
+                    // update grouping report
+                    let mut out = outreads.lock();
+                    out.extend(tagged_reads.1);
+                    drop(out);
+
+                    if let Some(group_report) = tagged_reads.0 {
+                        let mut min_max = self.min_max.lock();
+                        min_max.update(group_report, num_umis);
+                        drop(min_max)
+                    }
                 }
 
-                let mut group_handler = GroupHandler {
-                    seed: self.seed + position.0 as u64, // make seed unique per position
-                    group_only: self.only_group,
-                    singletons: self.singletons,
-                    separator: &separator,
-                };
-
-                // perform UMI clustering per the method specified
-                let groupies = grouper.cluster(counts.clone(), Arc::clone(&grouping_method));
-                let tagged_reads = group_handler.tag_records(counts, groupies, umis_reads);
-
-                // update grouping report
-                let mut out = outreads.lock();
-                out.extend(tagged_reads.1);
-                drop(out);
-
-                if let Some(group_report) = tagged_reads.0 {
-                    let mut min_max = self.min_max.lock();
-                    min_max.update(group_report, num_umis);
-                    drop(min_max)
-                }
-            }
-
-            coord_bar.inc(1);
-        });
+                coord_bar.inc(1);
+            });
 
         coord_bar.finish_and_clear();
         info!("Outputting final reads for writing...");
@@ -154,8 +157,15 @@ impl Processor {
         key: ReadKey,
         bottomhash: &mut BottomHashMap<T>,
         separator: &String,
+        retain_all: bool,
     ) -> Result<(), Error> {
-        bottomhash.update_dict(pos, key.get_key(), read.get_umi(separator)?, read);
+        bottomhash.update_dict(
+            pos,
+            key.get_key(),
+            read.get_umi(separator)?,
+            read,
+            retain_all,
+        );
         self.read_counter += 1;
         Ok(())
     }

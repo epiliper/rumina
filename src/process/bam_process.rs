@@ -24,6 +24,7 @@ pub struct BamFileProcess {
     outfile: String,
     pair_merger: Option<PairMerger>,
     separator: String,
+    group_reads: bool,
 }
 
 impl FileProcess for BamFileProcess {
@@ -37,6 +38,7 @@ impl FileProcess for BamFileProcess {
 
         let chunk_processor = Processor::init_from_args(args, seed);
         let mut pair_merger: Option<PairMerger> = None;
+        let group_reads = args.only_group;
 
         if let Some(ref ref_fasta) = args.merge_pairs {
             pair_merger = Some(PairMerger {
@@ -57,6 +59,7 @@ impl FileProcess for BamFileProcess {
             outfile,
             pair_merger,
             separator,
+            group_reads,
         })
     }
 
@@ -90,6 +93,7 @@ impl FileProcess for BamFileProcess {
                         key,
                         &mut bottomhash,
                         &self.separator,
+                        self.group_reads,
                     )?;
                     window_records += 1;
                 }

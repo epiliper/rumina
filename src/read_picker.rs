@@ -8,63 +8,34 @@
 * 4. Output one read from the group
 */
 
-use crate::read_store::read_store::ReadsAndCount;
+use crate::read_store::read_store::{ReadStore, SeqMap};
 use crate::record::Record;
-use crate::IndexMap;
 use indexmap::IndexSet;
 use std::collections::HashMap;
 
-pub fn correct_errors<T: Record>(clusters: &mut Vec<ReadsAndCount<T>>) -> Vec<T> {
-    if clusters.len() == 1 && clusters[0].reads.len() == 1 {
-        return vec![clusters.remove(0).reads.remove(0)];
-    }
+pub fn correct_errors<T: Record>(clusters: &mut SeqMap<T>) -> Vec<T> {
+    // sort, in descending order, by:
+    // 1. sequence count, to get majority sequence
+    // 2. summed quality score, to break potential ties from 1).
+    clusters.sort_by(|_seq1, seq_entry1, _seq2, seq_entry2| {
+        seq_entry2
+            .count
+            .cmp(&seq_entry1.count)
+            .then(seq_entry2.qual_sum.cmp(&seq_entry1.qual_sum))
+    });
 
-    let mut sequences: IndexMap<String, (Vec<T>, i32)> = IndexMap::with_capacity(clusters.len());
-
-    let _counts: IndexMap<&Box<[u8]>, i32> = IndexMap::new();
-
-    // group the reads by sequence
-    for cluster in clusters {
-        cluster.reads.drain(..).for_each(|x| {
-            sequences.entry(x.seq()).or_insert((Vec::new(), 0));
-            sequences[&x.seq()].1 += 1;
-            sequences[&x.seq()].0.push(x);
-        });
-    }
-
-    // the sequence with the most reads is at index 0 (can be tied)
-    sequences.sort_by(|a, b, c, d| d.1.cmp(&b.1).then_with(|| a.cmp(c)));
-
-    let mut most_reads_groups: Vec<Vec<T>> = Vec::new();
-    let mut first = true;
-    let mut max = 0;
-
-    // get all sequence groups with the max observed read count (necessary if more than one group
-    // has highest num of reads)
-    for cluster in sequences.drain(..) {
-        if first {
-            max = cluster.1 .1;
-            most_reads_groups.push(cluster.1 .0);
-            first = false;
-        } else if cluster.1 .1 == max {
-            most_reads_groups.push(cluster.1 .0);
-        // once we hit groups with fewer reads, stop searching
-        } else {
-            break;
-        }
-    }
-    // get the group with the best overall phred score
-    // and return the best phred score read from it
-    vec![get_best_phred(most_reads_groups)]
+    // return the first read of the sequence cluster at the top of the sort
+    let (_, mut seq_entry) = clusters.swap_remove_index(0).unwrap();
+    vec![seq_entry.reads.swap_remove(0)]
 }
 
 // used with the --group_only arg to return all reads within a group with a group tag
-pub fn push_all_reads<T: Record>(clusters: &mut Vec<ReadsAndCount<T>>) -> Vec<T> {
+pub fn push_all_reads<T: Record>(clusters: &mut SeqMap<T>) -> Vec<T> {
     let mut reads_to_write: Vec<T> = Vec::with_capacity(clusters.len());
 
     clusters
         .drain(..)
-        .for_each(|read_group| reads_to_write.extend(read_group.reads));
+        .for_each(|(_seq, seq_entry)| reads_to_write.extend(seq_entry.reads));
 
     reads_to_write
 }
@@ -79,72 +50,37 @@ pub fn get_counts(top_umi: &IndexSet<String>, counts: &HashMap<&str, i32>) -> i6
     read_count as i64
 }
 
-pub fn get_best_phred<T: Record>(mut clusters: Vec<Vec<T>>) -> T {
-    // return a single read, since this is per-position and we expect one read per UMI group
-    match clusters.len() {
-        // if just one group, return one read
-        1 => {
-            let mut cluster = clusters.drain(..).next().unwrap();
-            cluster.sort_by(|ra, rb| ra.qname().cmp(rb.qname()));
-            return cluster.remove(0);
-        }
-
-        // if two groups are tied for read majority, pick the one with the best overall phred score
-        _ => {
-            let mut mean_phreds: IndexMap<i32, Vec<T>> = IndexMap::with_capacity(clusters.len());
-
-            for cluster in clusters.drain(..) {
-                let mut avgs: Vec<f32> = Vec::new();
-
-                for read in &cluster {
-                    avgs.push(
-                        read.qual().iter().map(|x| *x as f32).sum::<f32>()
-                            / read.qual().len() as f32,
-                    );
-                }
-
-                let cluster_avg = ((avgs.iter().sum::<f32>() / avgs.len() as f32) * 100.0) as i32;
-                mean_phreds.insert(cluster_avg, cluster);
-            }
-
-            // mean_phreds.par_sort_keys();
-            let x = *mean_phreds.iter_mut().map(|x| x.0).max().unwrap();
-
-            let mut best_phred = mean_phreds.swap_remove(&x).unwrap();
-
-            // remove one read from this group (final read to represent UMI group)
-            best_phred.sort_by(|ra, rb| rb.qname().cmp(&ra.qname()));
-            best_phred.swap_remove(0)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::read_store::read_store::ReadsAndCount;
+    use crate::read_store::read_store::{SeqEntry, SeqMap};
     use rust_htslib::bam::Record;
     use std::collections::HashMap;
 
     #[test]
     fn test_correct_errors_single_read() {
-        let mut clusters: Vec<ReadsAndCount<Record>> = Vec::new();
-        let mut reads = Vec::new();
         let mut record = Record::new();
-        // Simulate a BAM record with some sequence and quality scores
         record.set(b"read1", None, b"ATCG", b"####");
-        reads.push(record);
-        clusters.push(ReadsAndCount { reads, count: 1 });
-        let result = correct_errors(&mut clusters);
+
+        let mut cluster = SeqMap::from([(
+            "ACTG".to_string(),
+            SeqEntry {
+                up_method: SeqEntry::up_group,
+                reads: vec![record],
+                count: 1,
+                qual_sum: 0,
+            },
+        )]);
+        let result = correct_errors(&mut cluster);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].seq().as_bytes(), b"ATCG");
     }
 
     #[test]
     fn test_correct_errors_multiple_reads() {
-        let mut clusters: Vec<ReadsAndCount<Record>> = Vec::new();
-        let mut reads1 = Vec::new();
-        let mut reads2 = Vec::new();
+        let mut cluster: SeqMap<Record> = SeqMap::new();
+        // let mut reads1 = Vec::new();
+        // let mut reads2 = Vec::new();
         let mut record1 = Record::new();
         let mut record2 = Record::new();
         let mut record3 = Record::new();
@@ -152,18 +88,12 @@ mod tests {
         record1.set(b"read1", None, b"ATCG", b"####");
         record2.set(b"read2", None, b"ATCG", b"####");
         record3.set(b"read3", None, b"ATGG", b"####");
-        reads1.push(record1);
-        reads1.push(record2);
-        reads2.push(record3);
-        clusters.push(ReadsAndCount {
-            reads: reads1,
-            count: 2,
-        });
-        clusters.push(ReadsAndCount {
-            reads: reads2,
-            count: 1,
-        });
-        let result = correct_errors(&mut clusters);
+
+        cluster.intake(record1, true);
+        cluster.intake(record2, true);
+        cluster.intake(record3, true);
+
+        let result = correct_errors(&mut cluster);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].seq().as_bytes(), b"ATCG");
     }
@@ -174,63 +104,5 @@ mod tests {
         let counts = HashMap::from([("UMI1", 10), ("UMI2", 5)]);
         let result = get_counts(&top_umi, &counts);
         assert_eq!(result, 15);
-    }
-
-    #[test]
-    fn test_get_best_phred_single_group() {
-        let mut clusters: Vec<Vec<Record>> = Vec::new();
-        let mut reads = Vec::new();
-        let mut record1 = Record::new();
-        let mut record2 = Record::new();
-        // Simulate BAM records with some sequences and quality scores
-        record1.set(b"read1", None, b"ATCG", b"####");
-        record2.set(b"read2", None, b"ATAG", b"##!#");
-        reads.push(record1);
-        reads.push(record2);
-        clusters.push(reads);
-        let result = get_best_phred(clusters);
-        assert_eq!(result.seq().as_bytes(), b"ATCG");
-    }
-
-    #[test]
-    fn test_get_best_phred_multiple_groups() {
-        let mut clusters: Vec<Vec<Record>> = Vec::new();
-        let mut reads1 = Vec::new();
-        let mut reads2 = Vec::new();
-        let mut record1 = Record::new();
-        let mut record2 = Record::new();
-        let mut record3 = Record::new();
-        let mut record4 = Record::new();
-        // Simulate BAM records with some sequences and quality scores
-        record1.set(b"read1", None, b"ATCG", b"####");
-        record2.set(b"read2", None, b"ATCG", b"!!!!");
-        record3.set(b"read3", None, b"ATTG", b"!!!!");
-        record4.set(b"read4", None, b"ATGG", b"!!!!");
-        reads1.push(record1);
-        reads1.push(record2);
-        reads2.push(record3);
-        reads2.push(record4);
-        clusters.push(reads1);
-        clusters.push(reads2);
-        let result = get_best_phred(clusters);
-        assert_eq!(result.seq().as_bytes(), b"ATCG");
-    }
-
-    #[test]
-    fn test_correction_tied_for_majority() {
-        let mut clusters: Vec<Vec<Record>> = Vec::new();
-        let mut reads1 = Vec::new();
-        let mut reads2 = Vec::new();
-        let mut record1 = Record::new();
-        let mut record2 = Record::new();
-        // Simulate BAM records with some sequences and quality scores
-        record1.set(b"read1", None, b"ATCG", b"####");
-        record2.set(b"read2", None, b"ATAG", b"##!#");
-        reads1.push(record1);
-        reads2.push(record2);
-        clusters.push(reads1);
-        clusters.push(reads2);
-        let result = get_best_phred(clusters);
-        assert_eq!(result.seq().as_bytes(), b"ATCG");
     }
 }

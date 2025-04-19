@@ -19,6 +19,7 @@ pub struct FastQFileProcess {
     chunk_processor: Processor,
     outfile: String,
     separator: String,
+    group_reads: bool,
 }
 
 impl FileProcess for FastQFileProcess {
@@ -32,12 +33,14 @@ impl FileProcess for FastQFileProcess {
 
         let chunk_processor = Processor::init_from_args(args, seed);
         let separator = args.separator.clone();
+        let group_reads = args.only_group;
 
         Ok(Self {
             io,
             chunk_processor,
             outfile,
             separator,
+            group_reads,
         })
     }
 
@@ -53,8 +56,14 @@ impl FileProcess for FastQFileProcess {
 
         for record in reader.records().flatten() {
             (pos, key) = record.get_pos_key(self.chunk_processor.group_by_length);
-            self.chunk_processor
-                .pull_read(record, pos, key, &mut bottomhash, &self.separator)?;
+            self.chunk_processor.pull_read(
+                record,
+                pos,
+                key,
+                &mut bottomhash,
+                &self.separator,
+                self.group_reads,
+            )?;
         }
 
         outreads.extend(self.chunk_processor.group_reads(
