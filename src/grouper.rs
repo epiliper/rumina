@@ -106,7 +106,8 @@ impl<'a> Grouper<'a> {
         counts: &HashMap<&'a str, i32>,
         bktree: &mut NGramBKTree,
     ) -> IndexSet<String> {
-        let max_count = (self.percentage * (counts.get(umi).unwrap() + 1) as f32) as i32;
+        let max_count =
+            (self.percentage * (counts.get(umi).expect("Count map invalid") + 1) as f32) as i32;
         bktree.remove_near(umi, k, max_count, &self.ngram_maker)
     }
 

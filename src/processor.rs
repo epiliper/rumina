@@ -123,15 +123,16 @@ impl Processor {
 
                     // perform UMI clustering per the method specified
                     let groupies = grouper.cluster(counts.clone(), Arc::clone(&grouping_method));
-                    let tagged_reads =
-                        group_handler.tag_records(groupies, &mut umi_read_map, counts);
+                    let (group_report, tagged_reads) = group_handler
+                        .tag_records(groupies, &mut umi_read_map, counts)
+                        .unwrap();
 
                     // update grouping report
                     let mut out = outreads.lock();
-                    out.extend(tagged_reads.1);
+                    out.extend(tagged_reads);
                     drop(out);
 
-                    if let Some(group_report) = tagged_reads.0 {
+                    if let Some(group_report) = group_report {
                         let mut min_max = self.min_max.lock();
                         min_max.update(group_report, num_umis);
                         drop(min_max)

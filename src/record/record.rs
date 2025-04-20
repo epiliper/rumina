@@ -11,7 +11,6 @@ pub trait Record {
     fn seq(&self) -> String;
     fn qual(&self) -> &[u8];
     fn get_umi(&self, separator: &String) -> Result<String, Error>;
-    fn qname(&self) -> &[u8];
     fn get_pos_key(&self, group_by_length: bool) -> (i64, ReadKey);
     fn mark_group(&mut self, tag: &[u8]);
 }
@@ -36,10 +35,6 @@ impl Record for BamRecord {
 
     fn qual(&self) -> &[u8] {
         self.qual()
-    }
-
-    fn qname(&self) -> &[u8] {
-        self.qname()
     }
 
     fn get_pos_key(&self, group_by_length: bool) -> (i64, ReadKey) {
@@ -94,10 +89,6 @@ impl Record for fastq::Record {
 
     fn qual(&self) -> &[u8] {
         self.qual()
-    }
-
-    fn qname(&self) -> &[u8] {
-        self.id().as_bytes()
     }
 
     fn get_pos_key(&self, group_by_length: bool) -> (i64, ReadKey) {

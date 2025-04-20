@@ -8,12 +8,13 @@
 * 4. Output one read from the group
 */
 
-use crate::read_store::read_store::{ReadStore, SeqMap};
+use crate::read_store::read_store::SeqMap;
 use crate::record::Record;
 use indexmap::IndexSet;
 use std::collections::HashMap;
 
 pub fn correct_errors<T: Record>(clusters: &mut SeqMap<T>) -> Vec<T> {
+    assert!(!clusters.is_empty());
     // sort, in descending order, by:
     // 1. sequence count, to get majority sequence
     // 2. summed quality score, to break potential ties from 1).
@@ -53,7 +54,7 @@ pub fn get_counts(top_umi: &IndexSet<String>, counts: &HashMap<&str, i32>) -> i6
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::read_store::read_store::{SeqEntry, SeqMap};
+    use crate::read_store::read_store::{ReadStore, SeqEntry, SeqMap};
     use rust_htslib::bam::Record;
     use std::collections::HashMap;
 

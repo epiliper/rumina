@@ -5,6 +5,7 @@ use crate::record::Record;
 use crate::IndexMap;
 use indexmap::IndexSet;
 
+use anyhow::{Context, Error, Result};
 use core::str;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -64,7 +65,7 @@ impl<'a> GroupHandler<'a> {
         final_umis: impl Iterator<Item = IndexSet<String>>,
         umis_records: &mut IndexMap<String, (i32, SeqMap<T>)>,
         counts: HashMap<&str, i32>,
-    ) -> (Option<GroupReport>, Vec<T>) {
+    ) -> Result<(Option<GroupReport>, Vec<T>), Error> {
         // for each UMI within a group, assign the same tag
 
         let mut rng = StdRng::seed_from_u64(self.seed);
@@ -106,8 +107,9 @@ impl<'a> GroupHandler<'a> {
                 group_report.num_passing_groups += 1;
 
                 let mut top_umi = top_umi.iter();
-                let mut seq_map: SeqMap<T> =
-                    umis_records.swap_remove(top_umi.next().unwrap()).unwrap().1;
+                let (_, mut seq_map) = umis_records
+                    .swap_remove(top_umi.next().unwrap())
+                    .context("FATAL: Attempted to remove UMI that was already sent for output")?;
 
                 // get all the reads across all the umis in the group
                 for group in top_umi {
@@ -123,7 +125,7 @@ impl<'a> GroupHandler<'a> {
                     if let Some(umi) = read.get_umi(self.separator).ok() {
                         read.mark_group(umi.as_bytes());
                     } else {
-                        println! {"Unable to retrieve UMI for output read!"}
+                        println! {"Unable to retrieve UMI for output read! Skipping..."}
                     }
 
                     // add group tag
@@ -138,9 +140,9 @@ impl<'a> GroupHandler<'a> {
         }
 
         if group_report.is_blank() {
-            (None, output_list)
+            Ok((None, output_list))
         } else {
-            (Some(group_report), output_list)
+            Ok((Some(group_report), output_list))
         }
     }
 }

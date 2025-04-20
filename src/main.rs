@@ -9,7 +9,7 @@ use indexmap::IndexMap;
 use std::fs::create_dir;
 use std::path::Path;
 
-use anyhow::Error;
+use anyhow::{Context, Error};
 use log::LevelFilter;
 use rayon::ThreadPoolBuilder;
 
@@ -44,21 +44,26 @@ fn main() -> Result<(), Error> {
     ThreadPoolBuilder::new()
         .num_threads(args.threads)
         .build_global()
-        .expect("ERROR: Invalid number of threads specified!");
+        .with_context(|| "Thread pool building failed")?;
 
-    simple_logging::log_to_file("rumina_group.log", LevelFilter::Info)
-        .expect("Failed to create log for grouping command!");
+    simple_logging::log_to_file("rumina_group.log", LevelFilter::Info)?;
 
     if args.merge_pairs.is_some() {
-        simple_logging::log_to_file("rumina_merge.log", LevelFilter::Info)
-            .expect("Failed to create log for merge command!");
+        simple_logging::log_to_file("rumina_merge.log", LevelFilter::Info)?;
     }
 
     if !Path::exists(Path::new(&args.outdir)) {
-        create_dir(&args.outdir).expect("Unable to create output directory!");
+        create_dir(&args.outdir)
+            .with_context(|| format!("Unable to create output directory {}", &args.outdir))?;
     }
 
     let infiles = gather_files(input_file)?;
-    process_all(&args, infiles)?;
+
+    process_all(&args, infiles)
+        .into_iter()
+        .map(|r| r.err())
+        .flatten()
+        .for_each(|e| eprintln! {"{:?}\n--", e});
+
     Ok(())
 }

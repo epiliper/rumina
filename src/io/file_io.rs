@@ -3,8 +3,7 @@ use crate::cli::print_file_info;
 use crate::process::{BamFileProcess, FastQFileProcess, FileProcess};
 use crate::record::Record;
 use crate::utils::get_file_ext;
-use anyhow::Error;
-use anyhow::{Context, Result};
+use anyhow::{Context, Error, Result};
 use std::collections::HashMap;
 use std::fs::read_dir;
 use std::path::Path;
@@ -41,17 +40,6 @@ pub fn gather_files(input_file: &str) -> Result<HashMap<String, String>, anyhow:
                 } else {
                     return None;
                 }
-                // if !path.is_dir()
-                //     && (get_file_ext(&path) == Some("bam")
-                //         || get_file_ext(&path) == Some("fastq.gz"))
-                // {
-                //     Some((
-                //         path.to_string_lossy().into_owned(),
-                //         entry.file_name().to_string_lossy().into_owned(),
-                //     ))
-                // } else {
-                //     println!{"File with extension {}"}
-                // }
             })
             .collect())
     } else {
@@ -71,20 +59,23 @@ pub fn gather_files(input_file: &str) -> Result<HashMap<String, String>, anyhow:
 }
 
 // Assuming get_file_ext is defined elsewhere, ensure it doesn't panic
-pub fn process_all(args: &Args, file_map: HashMap<String, String>) -> Result<(), Error> {
+// pub fn process_all(args: &Args, file_map: HashMap<String, String>) -> Result<(), Error> {
+pub fn process_all(args: &Args, file_map: HashMap<String, String>) -> Vec<Result<(), Error>> {
     let num_files = file_map.len();
+    let mut results = vec![];
+
     for (i, (file_path, file_name)) in file_map.into_iter().enumerate() {
         print_file_info(&file_name, i + 1, num_files);
-        match get_file_ext(Path::new(&file_name)) {
-            Some("bam") => {
-                BamFileProcess::init_from_args(args, &file_path, &file_name)?.process()?
-            }
-            Some("fastq.gz") => {
-                FastQFileProcess::init_from_args(args, &file_path, &file_name)?.process()?
-            }
-            _ => (),
+        let p = match get_file_ext(Path::new(&file_name)) {
+            Some("bam") => BamFileProcess::init_from_args(args, &file_path, &file_name)
+                .and_then(|process| process.process()),
+            Some("fastq.gz") => FastQFileProcess::init_from_args(args, &file_path, &file_name)
+                .and_then(|process| process.process()),
+            _ => Ok(()),
         };
+
+        results.push(p.with_context(|| format!("Failed to process file {}", file_name)));
     }
 
-    Ok(())
+    results
 }

@@ -1,9 +1,11 @@
 use crate::record::Record;
 use indexmap::IndexMap;
 
-pub type PositionKey<T> = IndexMap<i64, KeyUMI<T>>; //every position has a key
+// every position has a key
+pub type PositionKey<T> = IndexMap<i64, KeyUMI<T>>;
+
+// every key has a set of UMIs and associated reads
 pub type KeyUMI<T> = IndexMap<u64, UmiReadMap<T>>;
-// pub type UMIReads<T> = IndexMap<String, SeqEntry<T>>; // every UMI has a set of reads
 
 #[derive(Debug)]
 pub struct ReadsAndCount<T>
@@ -25,7 +27,7 @@ impl<T: Record> ReadsAndCount<T> {
 /// Maps UMIs to associated reads, where reads are stratified further by sequence (see [SeqEntry]).
 pub type UmiReadMap<T> = IndexMap<String, (i32, SeqMap<T>)>;
 
-// pub struct SeqMap<T: Record>(IndexMap<String, SeqEntry<T>>);
+/// Associates all reads sharing a given sequence.
 pub type SeqMap<T> = IndexMap<String, SeqEntry<T>>;
 
 pub trait ReadStore<T: Record> {
@@ -34,6 +36,7 @@ pub trait ReadStore<T: Record> {
 }
 
 impl<T: Record> ReadStore<T> for SeqMap<T> {
+    /// Combine two [SeqMap]s into one
     fn combine(&mut self, mut other: SeqMap<T>) {
         other.drain(..).for_each(|(other_seq, mut seq_entry)| {
             if let Some(mut seq) = self.get_mut(&other_seq) {
@@ -45,6 +48,7 @@ impl<T: Record> ReadStore<T> for SeqMap<T> {
         })
     }
 
+    /// Update [Self] with a new read
     fn intake(&mut self, read: T, retain_all: bool) {
         let mut e = self.entry(read.seq()).or_insert(SeqEntry::new(retain_all));
 
@@ -54,7 +58,7 @@ impl<T: Record> ReadStore<T> for SeqMap<T> {
 }
 
 #[derive(Debug)]
-/// Holds a list of records, intended to store all reads matching in sequence (see [UmiEntry]).
+/// Holds a list of records, intended to store all reads matching in sequence (see [SeqMap]).
 /// [Self::count] tracks all reads with matching sequence, regardless of whether all or one is retained.
 ///
 /// Can hold all reads per sequence, or one read per sequence, in which case the read with the best
