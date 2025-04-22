@@ -1,5 +1,6 @@
 use crate::group::bktree::NGramBKTree;
 use crate::ngram::NgramMaker;
+use crate::processor::UmiHistogram;
 use crate::GroupingMethod;
 use indexmap::IndexSet;
 use smol_str::SmolStr;
@@ -53,7 +54,7 @@ impl<'a> Grouper<'a> {
     /// { a -> b -> c } { d }
     pub fn cluster(
         &'a self,
-        counts: HashMap<&'a str, i32>,
+        mut counts: UmiHistogram<'a>,
         grouping_method: Arc<&GroupingMethod>,
     ) -> Box<dyn Iterator<Item = IndexSet<SmolStr>> + 'a> {
         match *grouping_method {
@@ -62,7 +63,9 @@ impl<'a> Grouper<'a> {
                 Box::new(
                     self.umis
                         .iter()
-                        .map(move |u| self.visit_and_remove_all(u, self.max_edit, &counts, &mut bk))
+                        .map(move |u| {
+                            self.visit_and_remove_all(u, self.max_edit, &mut counts, &mut bk)
+                        })
                         .filter(|o| !o.is_empty()),
                 )
             }
@@ -71,7 +74,7 @@ impl<'a> Grouper<'a> {
                 Box::new(
                     self.umis
                         .iter()
-                        .map(move |u| self.visit_and_remove_immediate(u, 1, &counts, &mut bk))
+                        .map(move |u| self.visit_and_remove_immediate(u, 1, &mut counts, &mut bk))
                         .filter(|o| !o.is_empty()),
                 )
             }
@@ -84,14 +87,14 @@ impl<'a> Grouper<'a> {
         }
     }
 
-    pub fn init_bktree(&self, counts: &HashMap<&'a str, i32>) -> NGramBKTree<'a> {
+    pub fn init_bktree(&self, counts: &UmiHistogram) -> NGramBKTree {
         let mut bktree = NGramBKTree::init_empty(None);
-        bktree.count_map = counts.clone();
+
         self.umis.iter().for_each(|u| {
             let count = *counts
                 .get(u.as_str())
                 .expect("FATAL ERROR: umi to deduplicate is not found in count map");
-            bktree.populate_single(u, count, &self.ngram_maker);
+            bktree.populate_single(u, count.0, &self.ngram_maker);
         });
         bktree
     }
@@ -104,12 +107,12 @@ impl<'a> Grouper<'a> {
         &self,
         umi: &str,
         k: u32,
-        counts: &HashMap<&'a str, i32>,
+        counts: &mut UmiHistogram,
         bktree: &mut NGramBKTree,
     ) -> IndexSet<SmolStr> {
         let max_count =
-            (self.percentage * (counts.get(umi).expect("Count map invalid") + 1) as f32) as i32;
-        bktree.remove_near(umi, k, max_count, &self.ngram_maker)
+            (self.percentage * (counts.get(umi).expect("Count map invalid").0 + 1) as f32) as i32;
+        bktree.remove_near(umi, k, max_count, &self.ngram_maker, counts)
     }
 
     /// for every queried node, cluster its immediate offshoots distant by <= k edits and the given count percentage, then retrieve the
@@ -118,7 +121,7 @@ impl<'a> Grouper<'a> {
         &self,
         umi: &str,
         k: u32,
-        counts: &HashMap<&'a str, i32>,
+        counts: &mut UmiHistogram,
         bktree: &mut NGramBKTree,
     ) -> IndexSet<SmolStr> {
         let mut to_cluster = VecDeque::from([umi.to_string()]);
@@ -127,8 +130,9 @@ impl<'a> Grouper<'a> {
         while let Some(root) = to_cluster.pop_front() {
             // TODO: make percentage adjustable
             let max_count =
-                (self.percentage * (counts.get(root.as_str()).unwrap() + 1) as f32) as i32;
-            let immediate = bktree.remove_near(root.as_str(), k, max_count, &self.ngram_maker);
+                (self.percentage * (counts.get(root.as_str()).unwrap().0 + 1) as f32) as i32;
+            let immediate =
+                bktree.remove_near(root.as_str(), k, max_count, &self.ngram_maker, counts);
 
             // if directional, we limit a umi's cluster to a depth of one maximum
             for c in immediate.iter().filter(|c| **c != root) {

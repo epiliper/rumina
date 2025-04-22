@@ -2,13 +2,15 @@ use crate::args::Args;
 use crate::io::FileIO;
 use crate::record::FastqRecord;
 use anyhow::{Context, Error};
-use bio::io::fastq::{Reader, Writer};
-use flate2::read::GzDecoder;
+use bio::io::fastq::Writer;
+use flate2::{read::GzDecoder, write::GzEncoder, Compression};
+use seq_io::fastq::Reader;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 
+// pub type FastqReaderGz = Reader<BufReader<GzDecoder<File>>>;
 pub type FastqReaderGz = Reader<BufReader<GzDecoder<File>>>;
-pub type FastqWriter = Writer<BufWriter<File>>;
+pub type FastqWriter = GzEncoder<BufWriter<File>>;
 
 pub struct FastqIO {
     pub reader: Option<FastqReaderGz>,
@@ -32,20 +34,26 @@ impl FastqIO {
             false => num_cpus::get(),
         };
 
+        let inf = File::open(infile_name)?;
+        let decoder = GzDecoder::new(inf);
+        let buf_reader = BufReader::with_capacity(8192, decoder);
+
         let _mate_reader = match retrieve_r2s {
-            true => Some(Reader::new(GzDecoder::new(
-                File::open(infile_name).context("Failed to open mate file")?,
-            ))),
+            true => {
+                let inf = File::open(infile_name)?;
+                let decoder = GzDecoder::new(inf);
+                let buf_reader = BufReader::with_capacity(8192, decoder);
+                Some(Reader::new(buf_reader))
+            }
             false => None,
         };
 
-        let reader = Some(Reader::new(GzDecoder::new(
-            File::open(infile_name).context("Failed to open mate file")?,
-        )));
+        // let reader = Some(Reader::from_path(infile_name).context("Failed to create input reader")?);
+        let reader = Some(Reader::new(buf_reader));
 
-        let writer = Writer::new(std::io::BufWriter::new(
-            File::create(outfile_name).context("Failed to create output file!")?,
-        ));
+        let outf = File::create(outfile_name)?;
+        let buf_writer = BufWriter::with_capacity(8192, outf);
+        let writer = GzEncoder::new(buf_writer, Compression::default());
 
         Ok(Self {
             reader,
@@ -75,7 +83,7 @@ impl FastqIO {
 impl FileIO<FastqRecord> for FastqIO {
     fn write_reads(&mut self, outreads: &mut Vec<FastqRecord>) {
         for read in outreads {
-            self.writer.write_record(read).unwrap();
+            // self.writer.write_record(read).unwrap();
         }
     }
 }

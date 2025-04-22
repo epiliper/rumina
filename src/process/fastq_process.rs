@@ -53,21 +53,41 @@ impl FileProcess for FastQFileProcess {
             read_count: 0,
         };
 
-        let reader = self.io.reader.take().context("Reader unitialized")?;
+        let mut reader = self.io.reader.take().context("Reader unitialized")?;
 
-        for record in reader.records().flatten() {
-            (pos, key) = record.get_pos_key(self.chunk_processor.group_by_length);
+        let mut refresh_count = 0;
+        for record in reader.records() {
+            let r = record?;
+            (pos, key) = r.get_pos_key(self.chunk_processor.group_by_length);
             self.chunk_processor.pull_read(
-                record,
+                r,
                 pos,
                 key,
                 &mut bottomhash,
                 &self.separator,
                 self.group_reads,
             )?;
+
+            refresh_count += 1;
+
+            if refresh_count == 1000 {
+                bottomhash.shrink_to_fit();
+                refresh_count = 0;
+            }
         }
 
         println! {"Processing {} reads...", bottomhash.read_count};
+
+        assert_eq!(bottomhash.read_dict.keys().len(), 1);
+        assert_eq!(
+            bottomhash
+                .read_dict
+                .first()
+                .context("Empty read dict")?
+                .1
+                .len(),
+            1
+        );
 
         outreads.extend(self.chunk_processor.group_reads(
             &mut bottomhash,

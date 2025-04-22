@@ -9,7 +9,7 @@ use smol_str::SmolStr;
 /// deduplication portions of the pipeline. The [FastqRecord] and [BamRecord] structs are very thin
 /// wrappers around their original types.
 pub trait Record {
-    fn _seq(&self) -> String;
+    fn seq(&self) -> String;
     fn seq_str(&self) -> &[u8];
     fn qual(&self) -> &[u8];
     fn get_umi(&self, separator: &String) -> Result<SmolStr, Error>;
@@ -21,7 +21,7 @@ pub trait Record {
 pub type BamRecord = bam::Record;
 
 impl Record for BamRecord {
-    fn _seq(&self) -> String {
+    fn seq(&self) -> String {
         unsafe { String::from_utf8_unchecked(self.seq().encoded.to_vec()) }
     }
 
@@ -45,7 +45,7 @@ impl Record for BamRecord {
                     format!(
                         "failed to get UMI with separator {}. QNAME in question:\n{}",
                         separator,
-                        self._seq()
+                        std::str::from_utf8(self.qname()).unwrap()
                     )
                 })?
                 .1;
@@ -92,35 +92,37 @@ impl Record for BamRecord {
 }
 
 /// A wrapper around [bio::io::fastq::Record]
-pub type FastqRecord = fastq::Record;
+// pub type FastqRecord = fastq::Record;
+pub type FastqRecord = seq_io::fastq::OwnedRecord;
 
-impl Record for fastq::Record {
-    fn _seq(&self) -> String {
-        unsafe { String::from_utf8_unchecked(self.seq().to_vec()) }
+impl Record for FastqRecord {
+    fn seq(&self) -> String {
+        unsafe { String::from_utf8_unchecked(self.seq.clone()) }
     }
 
     fn seq_str(&self) -> &[u8] {
-        self.seq()
+        self.seq.as_slice()
     }
 
     fn get_umi(&self, separator: &String) -> Result<SmolStr, Error> {
-        let s = self
-            .id()
-            .rsplit_once(separator)
-            .with_context(|| {
-                format!(
-                    "failed to get UMI with separator {}. QNAME in question:\n{}",
-                    separator,
-                    self._seq()
-                )
-            })?
-            .1;
+        unsafe {
+            let s = std::str::from_utf8_unchecked(&self.head)
+                .rsplit_once(separator)
+                .with_context(|| {
+                    format!(
+                        "failed to get UMI with separator {}. QNAME in question:\n{}",
+                        separator,
+                        self.seq()
+                    )
+                })?
+                .1;
 
-        Ok(SmolStr::from(s))
+            Ok(SmolStr::from(s))
+        }
     }
 
     fn qual(&self) -> &[u8] {
-        self.qual()
+        self.qual.as_slice()
     }
 
     fn get_pos_key(&self, group_by_length: bool) -> (i64, ReadKey) {

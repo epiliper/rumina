@@ -16,6 +16,8 @@ use smol_str::SmolStr;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+pub type UmiHistogram<'a> = HashMap<&'a str, (i32, bool)>;
+
 #[derive(Debug)]
 pub struct Processor {
     pub read_counter: i64,
@@ -105,13 +107,15 @@ impl Processor {
                     let umi_len = umis.get(0).unwrap().len();
 
                     let grouper = Grouper::new(&umis, self.max_edit, self.percentage, umi_len);
-                    let mut counts: HashMap<&str, i32> = HashMap::with_capacity(umi_read_map.len());
+                    let mut counts: UmiHistogram = HashMap::with_capacity(umi_read_map.len());
 
                     // get number of reads for each raw UMI
                     let mut num_umis = 0;
 
                     for umi in &umis {
-                        counts.entry(umi.as_str()).or_insert(umi_read_map[umi].0);
+                        counts
+                            .entry(umi.as_str())
+                            .or_insert((umi_read_map[umi].0, true));
                         num_umis += 1;
                     }
 

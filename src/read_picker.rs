@@ -8,6 +8,7 @@
 * 4. Output one read from the group
 */
 
+use crate::processor::UmiHistogram;
 use crate::read_store::read_store::SeqMap;
 use crate::record::Record;
 use indexmap::IndexSet;
@@ -43,10 +44,10 @@ pub fn push_all_reads<T: Record>(clusters: &mut SeqMap<T>) -> Vec<T> {
 
 // get the number of reads across all UMIs within a group
 // this is useful for setting a threshold for reads observed per UMI group
-pub fn get_counts(top_umi: &IndexSet<smol_str::SmolStr>, counts: &HashMap<&str, i32>) -> i64 {
+pub fn get_counts(top_umi: &IndexSet<smol_str::SmolStr>, counts: &UmiHistogram) -> i64 {
     let mut read_count = 0;
     for umi in top_umi {
-        read_count += counts.get(umi.as_str()).unwrap();
+        read_count += counts.get(umi.as_str()).unwrap().0;
     }
     read_count as i64
 }
@@ -99,7 +100,7 @@ mod tests {
             smol_str::SmolStr::new("UMI1"),
             smol_str::SmolStr::new("UMI2"),
         ]);
-        let counts = HashMap::from([("UMI1", 10), ("UMI2", 5)]);
+        let counts = HashMap::from([("UMI1", (10, true)), ("UMI2", (5, true))]);
         let result = get_counts(&top_umi, &counts);
         assert_eq!(result, 15);
     }

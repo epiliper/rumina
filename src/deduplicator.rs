@@ -1,4 +1,5 @@
 use crate::group_report::GroupReport;
+use crate::processor::UmiHistogram;
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
 use crate::read_store::{ReadStore, SeqMap};
 use crate::record::Record;
@@ -63,7 +64,7 @@ impl<'a> GroupHandler<'a> {
         // mut final_umis: Vec<Vec<&str>>,
         final_umis: impl Iterator<Item = IndexSet<smol_str::SmolStr>>,
         umis_records: &mut IndexMap<smol_str::SmolStr, (i32, SeqMap<T>)>,
-        counts: HashMap<&str, i32>,
+        counts: UmiHistogram,
     ) -> Result<(Option<GroupReport>, Vec<T>), Error> {
         // for each UMI within a group, assign the same tag
 

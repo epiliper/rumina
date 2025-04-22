@@ -45,4 +45,13 @@ impl<T: Record> BottomHashMap<T> {
         *count += 1;
         self.read_count += seq_map.intake(read, retain_all) as u64;
     }
+
+    pub fn shrink_to_fit(&mut self) {
+        self.read_dict.iter_mut().for_each(|(_pos, key_map)| {
+            key_map.shrink_to_fit();
+            key_map.iter_mut().for_each(|(_key, seq_dict)| {
+                seq_dict.shrink_to_fit();
+            })
+        })
+    }
 }

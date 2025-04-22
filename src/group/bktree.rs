@@ -1,6 +1,8 @@
 // #![allow(dead_code)]
 
 use crate::ngram::ngram;
+use crate::processor::UmiHistogram;
+use anyhow::Context;
 use indexmap::IndexSet;
 use smol_str::SmolStr;
 use std::cell::RefCell;
@@ -20,7 +22,7 @@ pub fn hamming(ua: &str, ub: &str) -> usize {
 pub struct Node {
     umi: SmolStr,
     children: HashMap<u32, Rc<RefCell<Node>>>,
-    subtree_exists: bool,
+    exists: bool,
     count: i32,
     min_count: i32,
 }
@@ -58,7 +60,7 @@ impl Default for Node {
         Node {
             umi: SmolStr::from(""),
             children: HashMap::new(),
-            subtree_exists: false,
+            exists: false,
             count: 0,
             min_count: 0,
         }
@@ -82,7 +84,7 @@ impl Node {
 
             self.children.entry(k).insert_entry(c);
 
-            self.subtree_exists = true;
+            self.exists = true;
 
             None
         } else {
@@ -93,12 +95,11 @@ impl Node {
 
 /// Represents a collection of BK-trees, one for each unique ngram of an alphabet.
 /// Each BK-tree is represented as its root node; see [Node] for more information.
-pub struct NGramBKTree<'a> {
+pub struct NGramBKTree {
     pub ngram_tree_map: HashMap<SmolStr, Rc<RefCell<Node>>>,
-    pub count_map: HashMap<&'a str, i32>,
 }
 
-impl std::fmt::Display for NGramBKTree<'_> {
+impl std::fmt::Display for NGramBKTree {
     fn fmt(&self, _formatter: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         for (ngram, bktree) in &self.ngram_tree_map {
             println!("ngram: {ngram}\n{}", bktree.borrow())
@@ -107,16 +108,15 @@ impl std::fmt::Display for NGramBKTree<'_> {
     }
 }
 
-impl<'a> NGramBKTree<'a> {
+impl NGramBKTree {
     pub fn init_empty(cap: Option<usize>) -> Self {
         Self {
             ngram_tree_map: HashMap::with_capacity(cap.unwrap_or(100)),
-            count_map: HashMap::with_capacity(cap.unwrap_or(100)),
         }
     }
 
-    pub fn contains(&self, s: &str) -> bool {
-        self.count_map.contains_key(s)
+    pub fn contains(&self, s: &str, c: &mut UmiHistogram) -> bool {
+        c.get_mut(s).unwrap().1
     }
 
     /// Traverses a B-tree node-by-node until finding a node without a child at the given edit
@@ -152,22 +152,27 @@ impl<'a> NGramBKTree<'a> {
         k: u32,
         max_count: i32,
         ngm: &ngram::NgramMaker,
+        c: &mut UmiHistogram,
     ) -> IndexSet<SmolStr> {
         let mut found = IndexSet::new();
         for ngram in ngm.ngrams(umi).iter() {
             if let Some(node) = self.ngram_tree_map.get(ngram) {
-                self.remove_near_stack(node.clone(), umi, 0, i32::MAX, &mut found);
-                self.remove_near_stack(node.clone(), umi, k, max_count, &mut found);
+                self.remove_near_stack(node.clone(), umi, 0, i32::MAX, c, &mut found);
+                self.remove_near_stack(node.clone(), umi, k, max_count, c, &mut found);
             }
         }
 
-        self.prune(&found);
+        self.prune(c, &found);
         found
     }
 
-    pub fn prune(&mut self, to_remove: &IndexSet<SmolStr>) {
+    pub fn prune(&mut self, c: &mut UmiHistogram, to_remove: &IndexSet<SmolStr>) {
         for n in to_remove {
-            self.count_map.remove(n.as_str());
+            // self.count_map.remove(n.as_str());
+            c.get_mut(n.as_str())
+                .context("Attempted to prune nonexistent node")
+                .unwrap()
+                .1 = false;
         }
     }
 
@@ -177,6 +182,7 @@ impl<'a> NGramBKTree<'a> {
         umi: &str,
         k: u32,
         max_count: i32,
+        c: &mut UmiHistogram,
         output: &mut IndexSet<SmolStr>,
     ) {
         let mut visited: VecDeque<Rc<RefCell<Node>>> = VecDeque::from([node.clone()]);
@@ -196,7 +202,7 @@ impl<'a> NGramBKTree<'a> {
             }
 
             // also add the current node if it's within k edits
-            if dist <= k && node.count <= max_count && self.contains(node.umi.as_str()) {
+            if dist <= k && node.count <= max_count && self.contains(node.umi.as_str(), c) {
                 output.insert(node.umi.clone());
             }
         }
@@ -226,31 +232,35 @@ mod tests {
         let umi_a = "ACT";
         let umi_b = "ATT";
 
-        let mut counts: HashMap<&str, i32> = HashMap::new();
-        counts.insert(umi_a, 10);
-        counts.insert(umi_b, 5);
+        let mut counts: HashMap<&str, (i32, bool)> = HashMap::new();
+        counts.insert(umi_a, (10, true));
+        counts.insert(umi_b, (5, true));
 
         let ngram_maker = ngram::NgramMaker::new(2, umi_a.len());
 
         let mut bktree = NGramBKTree::init_empty(None);
-        bktree.count_map = counts.clone();
+
+        let mut counts: HashMap<&str, (i32, bool)> = HashMap::new();
+        counts.insert(umi_a, (10, true));
+        counts.insert(umi_b, (5, true));
 
         // Populate BK-tree directly to avoid IndexMap/neighbor issues
-        for (umi, count) in &counts {
+        for (umi, count) in &mut counts {
             for ngram in ngram_maker.ngrams(umi).iter() {
                 if !bktree.ngram_tree_map.contains_key(ngram) {
-                    bktree
-                        .ngram_tree_map
-                        .insert(ngram.clone(), Rc::new(RefCell::new(Node::new(umi, *count))));
+                    bktree.ngram_tree_map.insert(
+                        ngram.clone(),
+                        Rc::new(RefCell::new(Node::new(umi, count.0))),
+                    );
                 }
                 let node = bktree.ngram_tree_map.get(ngram).unwrap().clone();
                 if *umi != node.borrow().umi {
-                    bktree.insert_raw_string(node.clone(), umi, *count);
+                    bktree.insert_raw_string(node.clone(), umi, count.0);
                 }
             }
         }
 
-        let res = bktree.remove_near(umi_a, 1, 10, &ngram_maker);
+        let res = bktree.remove_near(umi_a, 1, 10, &ngram_maker, &mut counts);
 
         // umi_b should be found, even though it shares no n-grams with umi_a's n-gram root.
         assert!(res.contains(umi_a), "Expected to find umi_a");
@@ -272,24 +282,29 @@ mod tests {
         let ngram_maker = ngram::NgramMaker::new(2, umi_a.len());
 
         let mut bktree = NGramBKTree::init_empty(None);
-        bktree.count_map = counts.clone();
+
+        let mut counts: HashMap<&str, (i32, bool)> = HashMap::new();
+        counts.insert(umi_a, (10, true));
+        counts.insert(umi_b, (5, true));
+        counts.insert(umi_c, (7, true));
 
         // Populate BK-tree directly (same as above)
         for (umi, count) in &counts {
             for ngram in ngram_maker.ngrams(umi).iter() {
                 if !bktree.ngram_tree_map.contains_key(ngram) {
-                    bktree
-                        .ngram_tree_map
-                        .insert(ngram.clone(), Rc::new(RefCell::new(Node::new(umi, *count))));
+                    bktree.ngram_tree_map.insert(
+                        ngram.clone(),
+                        Rc::new(RefCell::new(Node::new(umi, count.0))),
+                    );
                 }
                 let node = bktree.ngram_tree_map.get(ngram).unwrap().clone();
                 if *umi != node.borrow().umi {
-                    bktree.insert_raw_string(node.clone(), umi, *count);
+                    bktree.insert_raw_string(node.clone(), umi, count.0);
                 }
             }
         }
 
-        let res = bktree.remove_near(umi_a, 1, 10, &ngram_maker);
+        let res = bktree.remove_near(umi_a, 1, 10, &ngram_maker, &mut counts);
 
         assert!(res.contains(umi_a), "Expected to find umi_a");
         assert!(res.contains(umi_b), "Expected to find umi_b");
