@@ -12,6 +12,7 @@ use indicatif::MultiProgress;
 use log::info;
 use parking_lot::Mutex;
 use rayon::prelude::*;
+use smol_str::SmolStr;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -98,8 +99,8 @@ impl Processor {
 
                     let umis = umi_read_map
                         .keys()
-                        .map(|x| x.to_string())
-                        .collect::<Vec<String>>();
+                        .map(|x| x.clone())
+                        .collect::<Vec<SmolStr>>();
 
                     let umi_len = umis.get(0).unwrap().len();
 

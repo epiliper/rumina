@@ -1,3 +1,4 @@
+use smol_str::SmolStr;
 use std::cell::{RefCell, RefMut};
 
 #[derive(Debug, Default)]
@@ -9,7 +10,7 @@ use std::cell::{RefCell, RefMut};
 pub struct NgramMaker {
     chunk_size: usize,
     string_len: usize,
-    out_vec: RefCell<Vec<String>>,
+    out_vec: RefCell<Vec<SmolStr>>,
 }
 
 impl NgramMaker {
@@ -20,7 +21,7 @@ impl NgramMaker {
             chunk_size += 1;
         }
 
-        let out_vec = RefCell::new(vec!["NILL".to_string(); num_chunks]);
+        let out_vec = RefCell::new(vec![SmolStr::new("NILL"); num_chunks]);
 
         Self {
             chunk_size,
@@ -29,18 +30,18 @@ impl NgramMaker {
         }
     }
 
-    pub fn ngrams(&self, s: &str) -> RefMut<Vec<String>> {
+    pub fn ngrams(&self, s: &str) -> RefMut<Vec<SmolStr>> {
         self.ngrams_to_ref(s, self.out_vec.borrow_mut());
         self.out_vec.borrow_mut()
     }
 
-    fn ngrams_to_ref(&self, string: &str, mut out_vec: RefMut<Vec<String>>) {
+    fn ngrams_to_ref(&self, string: &str, mut out_vec: RefMut<Vec<SmolStr>>) {
         let mut start = 0;
 
         let mut cur_idx = 0;
         while start < self.string_len {
             let end = (start + self.chunk_size).min(self.string_len);
-            out_vec[cur_idx] = string[start..end].to_string();
+            out_vec[cur_idx] = SmolStr::new(&string[start..end]);
             start = end;
             cur_idx += 1;
         }

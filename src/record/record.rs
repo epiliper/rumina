@@ -3,6 +3,7 @@ use anyhow::{Context, Error};
 use bio::io::fastq;
 use core::str;
 use rust_htslib::{bam, bam::ext::BamRecordExtensions, bam::record::Aux};
+use smol_str::SmolStr;
 
 /// The record interface serves to allow using FASTQ and BAM records with the clustering and
 /// deduplication portions of the pipeline. The [FastqRecord] and [BamRecord] structs are very thin
@@ -11,7 +12,7 @@ pub trait Record {
     fn _seq(&self) -> String;
     fn seq_str(&self) -> &[u8];
     fn qual(&self) -> &[u8];
-    fn get_umi(&self, separator: &String) -> Result<String, Error>;
+    fn get_umi(&self, separator: &String) -> Result<SmolStr, Error>;
     fn get_pos_key(&self, group_by_length: bool) -> (i64, ReadKey);
     fn mark_group(&mut self, tag: &[u8]);
 }
@@ -28,13 +29,28 @@ impl Record for BamRecord {
         self.seq().encoded
     }
 
-    fn get_umi(&self, separator: &String) -> Result<String, Error> {
+    fn get_umi(&self, separator: &String) -> Result<SmolStr, Error> {
+        // unsafe {
+        //     Ok(std::str::from_utf8_unchecked(self.qname())
+        //         .rsplit_once(separator)
+        //         .context("failed to get UMI from read QNAME. Check --separator. Exiting.")?
+        //         .1
+        //         .to_string())
+        // }
+        //
         unsafe {
-            Ok(std::str::from_utf8_unchecked(self.qname())
+            let s = std::str::from_utf8_unchecked(self.qname())
                 .rsplit_once(separator)
-                .context("failed to get UMI from read QNAME. Check --separator. Exiting.")?
-                .1
-                .to_string())
+                .with_context(|| {
+                    format!(
+                        "failed to get UMI with separator {}. QNAME in question:\n{}",
+                        separator,
+                        self._seq()
+                    )
+                })?
+                .1;
+
+            Ok(SmolStr::from(s))
         }
     }
 
@@ -87,13 +103,20 @@ impl Record for fastq::Record {
         self.seq()
     }
 
-    fn get_umi(&self, separator: &String) -> Result<String, Error> {
-        Ok(self
+    fn get_umi(&self, separator: &String) -> Result<SmolStr, Error> {
+        let s = self
             .id()
             .rsplit_once(separator)
-            .context("ERROR: failed to get UMI from read QNAME: Check --separator. Exiting.")?
-            .1
-            .to_string())
+            .with_context(|| {
+                format!(
+                    "failed to get UMI with separator {}. QNAME in question:\n{}",
+                    separator,
+                    self._seq()
+                )
+            })?
+            .1;
+
+        Ok(SmolStr::from(s))
     }
 
     fn qual(&self) -> &[u8] {

@@ -1,3 +1,4 @@
+use smol_str::SmolStr;
 use std::hash::{Hash, Hasher};
 
 use crate::record::Record;
@@ -27,7 +28,7 @@ impl<T: Record> ReadsAndCount<T> {
 }
 
 /// Maps UMIs to associated reads, where reads are stratified further by sequence (see [SeqEntry]).
-pub type UmiReadMap<T> = IndexMap<String, (i32, SeqMap<T>)>;
+pub type UmiReadMap<T> = IndexMap<SmolStr, (i32, SeqMap<T>)>;
 
 /// Associates all reads sharing a given sequence.
 pub type SeqMap<T> = IndexMap<u64, SeqEntry<T>>;

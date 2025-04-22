@@ -2,6 +2,7 @@
 
 use crate::ngram::ngram;
 use indexmap::IndexSet;
+use smol_str::SmolStr;
 use std::cell::RefCell;
 use std::cmp;
 use std::collections::HashMap;
@@ -17,7 +18,7 @@ pub fn hamming(ua: &str, ub: &str) -> usize {
 /// has been invalidated. The minimum frequency of all child strings is also tracked.
 #[derive(Debug)]
 pub struct Node {
-    umi: String,
+    umi: SmolStr,
     children: HashMap<u32, Rc<RefCell<Node>>>,
     subtree_exists: bool,
     count: i32,
@@ -55,7 +56,7 @@ impl std::fmt::Display for Node {
 impl Default for Node {
     fn default() -> Node {
         Node {
-            umi: "".to_string(),
+            umi: SmolStr::from(""),
             children: HashMap::new(),
             subtree_exists: false,
             count: 0,
@@ -67,7 +68,7 @@ impl Default for Node {
 impl Node {
     pub fn new(umi: &str, count: i32) -> Self {
         let mut s = Self::default();
-        s.umi = umi.to_string();
+        s.umi = SmolStr::new(umi);
         s.count = count;
         s.min_count = count;
         s
@@ -93,7 +94,7 @@ impl Node {
 /// Represents a collection of BK-trees, one for each unique ngram of an alphabet.
 /// Each BK-tree is represented as its root node; see [Node] for more information.
 pub struct NGramBKTree<'a> {
-    pub ngram_tree_map: HashMap<String, Rc<RefCell<Node>>>,
+    pub ngram_tree_map: HashMap<SmolStr, Rc<RefCell<Node>>>,
     pub count_map: HashMap<&'a str, i32>,
 }
 
@@ -151,7 +152,7 @@ impl<'a> NGramBKTree<'a> {
         k: u32,
         max_count: i32,
         ngm: &ngram::NgramMaker,
-    ) -> IndexSet<String> {
+    ) -> IndexSet<SmolStr> {
         let mut found = IndexSet::new();
         for ngram in ngm.ngrams(umi).iter() {
             if let Some(node) = self.ngram_tree_map.get(ngram) {
@@ -164,7 +165,7 @@ impl<'a> NGramBKTree<'a> {
         found
     }
 
-    pub fn prune(&mut self, to_remove: &IndexSet<String>) {
+    pub fn prune(&mut self, to_remove: &IndexSet<SmolStr>) {
         for n in to_remove {
             self.count_map.remove(n.as_str());
         }
@@ -176,7 +177,7 @@ impl<'a> NGramBKTree<'a> {
         umi: &str,
         k: u32,
         max_count: i32,
-        output: &mut IndexSet<String>,
+        output: &mut IndexSet<SmolStr>,
     ) {
         let mut visited: VecDeque<Rc<RefCell<Node>>> = VecDeque::from([node.clone()]);
 
@@ -236,14 +237,13 @@ mod tests {
 
         // Populate BK-tree directly to avoid IndexMap/neighbor issues
         for (umi, count) in &counts {
-            for ngram_str in ngram_maker.ngrams(umi).iter() {
-                let ngram = ngram_str.to_string();
-                if !bktree.ngram_tree_map.contains_key(&ngram) {
+            for ngram in ngram_maker.ngrams(umi).iter() {
+                if !bktree.ngram_tree_map.contains_key(ngram) {
                     bktree
                         .ngram_tree_map
                         .insert(ngram.clone(), Rc::new(RefCell::new(Node::new(umi, *count))));
                 }
-                let node = bktree.ngram_tree_map.get(&ngram).unwrap().clone();
+                let node = bktree.ngram_tree_map.get(ngram).unwrap().clone();
                 if *umi != node.borrow().umi {
                     bktree.insert_raw_string(node.clone(), umi, *count);
                 }
@@ -276,14 +276,13 @@ mod tests {
 
         // Populate BK-tree directly (same as above)
         for (umi, count) in &counts {
-            for ngram_str in ngram_maker.ngrams(umi).iter() {
-                let ngram = ngram_str.to_string();
-                if !bktree.ngram_tree_map.contains_key(&ngram) {
+            for ngram in ngram_maker.ngrams(umi).iter() {
+                if !bktree.ngram_tree_map.contains_key(ngram) {
                     bktree
                         .ngram_tree_map
                         .insert(ngram.clone(), Rc::new(RefCell::new(Node::new(umi, *count))));
                 }
-                let node = bktree.ngram_tree_map.get(&ngram).unwrap().clone();
+                let node = bktree.ngram_tree_map.get(ngram).unwrap().clone();
                 if *umi != node.borrow().umi {
                     bktree.insert_raw_string(node.clone(), umi, *count);
                 }

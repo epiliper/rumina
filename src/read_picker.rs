@@ -43,7 +43,7 @@ pub fn push_all_reads<T: Record>(clusters: &mut SeqMap<T>) -> Vec<T> {
 
 // get the number of reads across all UMIs within a group
 // this is useful for setting a threshold for reads observed per UMI group
-pub fn get_counts(top_umi: &IndexSet<String>, counts: &HashMap<&str, i32>) -> i64 {
+pub fn get_counts(top_umi: &IndexSet<smol_str::SmolStr>, counts: &HashMap<&str, i32>) -> i64 {
     let mut read_count = 0;
     for umi in top_umi {
         read_count += counts.get(umi.as_str()).unwrap();
@@ -79,7 +79,6 @@ mod tests {
         let mut record1 = Record::new();
         let mut record2 = Record::new();
         let mut record3 = Record::new();
-        let mut h = std::hash::DefaultHasher::new();
         // Simulate BAM records with some sequences and quality scores
         record1.set(b"read1", None, b"ATCG", b"####");
         record2.set(b"read2", None, b"ATCG", b"####");
@@ -96,7 +95,10 @@ mod tests {
 
     #[test]
     fn test_get_counts() {
-        let top_umi = IndexSet::from(["UMI1".to_string(), "UMI2".to_string()]);
+        let top_umi = IndexSet::from([
+            smol_str::SmolStr::new("UMI1"),
+            smol_str::SmolStr::new("UMI2"),
+        ]);
         let counts = HashMap::from([("UMI1", 10), ("UMI2", 5)]);
         let result = get_counts(&top_umi, &counts);
         assert_eq!(result, 15);

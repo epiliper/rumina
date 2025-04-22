@@ -61,9 +61,8 @@ impl<'a> GroupHandler<'a> {
     pub fn tag_records<T: Record>(
         &mut self,
         // mut final_umis: Vec<Vec<&str>>,
-        // final_umis: Vec<IndexSet<String>>,
-        final_umis: impl Iterator<Item = IndexSet<String>>,
-        umis_records: &mut IndexMap<String, (i32, SeqMap<T>)>,
+        final_umis: impl Iterator<Item = IndexSet<smol_str::SmolStr>>,
+        umis_records: &mut IndexMap<smol_str::SmolStr, (i32, SeqMap<T>)>,
         counts: HashMap<&str, i32>,
     ) -> Result<(Option<GroupReport>, Vec<T>), Error> {
         // for each UMI within a group, assign the same tag

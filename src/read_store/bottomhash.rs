@@ -1,6 +1,7 @@
 use crate::read_store::read_store::*;
 use crate::record::Record;
 use indexmap::IndexMap;
+use smol_str::SmolStr;
 
 /* When main function executes, this struct is populated with
 * all information necessary for grouping/deduplicating.
@@ -24,7 +25,14 @@ pub struct BottomHashMap<T: Record> {
 }
 
 impl<T: Record> BottomHashMap<T> {
-    pub fn update_dict(&mut self, position: i64, key: u64, umi: String, read: T, retain_all: bool) {
+    pub fn update_dict(
+        &mut self,
+        position: i64,
+        key: u64,
+        umi: SmolStr,
+        read: T,
+        retain_all: bool,
+    ) {
         let (count, seq_map) = self
             .read_dict
             .entry(position)

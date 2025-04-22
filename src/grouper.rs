@@ -2,18 +2,19 @@ use crate::group::bktree::NGramBKTree;
 use crate::ngram::NgramMaker;
 use crate::GroupingMethod;
 use indexmap::IndexSet;
+use smol_str::SmolStr;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
 pub struct Grouper<'a> {
-    pub umis: &'a Vec<String>,
+    pub umis: &'a Vec<SmolStr>,
     pub ngram_maker: NgramMaker,
     percentage: f32,
     max_edit: u32,
 }
 
 impl<'a> Grouper<'a> {
-    pub fn new(umis: &'a Vec<String>, max_edit: u32, percentage: f32, umi_len: usize) -> Self {
+    pub fn new(umis: &'a Vec<SmolStr>, max_edit: u32, percentage: f32, umi_len: usize) -> Self {
         assert!(percentage > 0.0 && percentage <= 1.0);
         let ngram_maker = NgramMaker::new(
             (max_edit + 1)
@@ -54,7 +55,7 @@ impl<'a> Grouper<'a> {
         &'a self,
         counts: HashMap<&'a str, i32>,
         grouping_method: Arc<&GroupingMethod>,
-    ) -> Box<dyn Iterator<Item = IndexSet<String>> + 'a> {
+    ) -> Box<dyn Iterator<Item = IndexSet<SmolStr>> + 'a> {
         match *grouping_method {
             GroupingMethod::Directional => {
                 let mut bk = self.init_bktree(&counts);
@@ -95,8 +96,8 @@ impl<'a> Grouper<'a> {
         bktree
     }
 
-    pub fn remove_single(&self, umi: &str) -> IndexSet<String> {
-        IndexSet::from([umi.to_string()])
+    pub fn remove_single(&self, umi: &str) -> IndexSet<SmolStr> {
+        IndexSet::from([SmolStr::from(umi)])
     }
 
     pub fn visit_and_remove_immediate(
@@ -105,7 +106,7 @@ impl<'a> Grouper<'a> {
         k: u32,
         counts: &HashMap<&'a str, i32>,
         bktree: &mut NGramBKTree,
-    ) -> IndexSet<String> {
+    ) -> IndexSet<SmolStr> {
         let max_count =
             (self.percentage * (counts.get(umi).expect("Count map invalid") + 1) as f32) as i32;
         bktree.remove_near(umi, k, max_count, &self.ngram_maker)
@@ -119,7 +120,7 @@ impl<'a> Grouper<'a> {
         k: u32,
         counts: &HashMap<&'a str, i32>,
         bktree: &mut NGramBKTree,
-    ) -> IndexSet<String> {
+    ) -> IndexSet<SmolStr> {
         let mut to_cluster = VecDeque::from([umi.to_string()]);
         let mut out = IndexSet::new();
 
