@@ -1,5 +1,4 @@
 use crate::read_store::read_store::*;
-// use rust_htslib::bam::Record;
 use crate::record::Record;
 use indexmap::IndexMap;
 
@@ -20,7 +19,7 @@ use indexmap::IndexMap;
 */
 pub struct BottomHashMap<T: Record> {
     pub read_dict: PositionKey<T>,
-    pub hasher: std::hash::DefaultHasher,
+    pub read_count: u64,
     // pub update_method: fn(read: T),
 }
 
@@ -36,6 +35,6 @@ impl<T: Record> BottomHashMap<T> {
             .or_insert_with(|| (0, SeqMap::new()));
 
         *count += 1;
-        seq_map.intake(read, &mut self.hasher, retain_all);
+        self.read_count += seq_map.intake(read, retain_all) as u64;
     }
 }

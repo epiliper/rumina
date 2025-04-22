@@ -62,10 +62,9 @@ mod tests {
     fn test_correct_errors_single_read() {
         let mut record = Record::new();
         record.set(b"read1", None, b"ATCG", b"####");
-        let mut h = std::hash::DefaultHasher::new();
 
         let mut cluster = SeqMap::new();
-        cluster.intake(record, &mut h, true);
+        cluster.intake(record, true);
 
         let result = correct_errors(&mut cluster);
         assert_eq!(result.len(), 1);
@@ -86,9 +85,9 @@ mod tests {
         record2.set(b"read2", None, b"ATCG", b"####");
         record3.set(b"read3", None, b"ATGG", b"####");
 
-        cluster.intake(record1, &mut h, true);
-        cluster.intake(record2, &mut h, true);
-        cluster.intake(record3, &mut h, true);
+        cluster.intake(record1, true);
+        cluster.intake(record2, true);
+        cluster.intake(record3, true);
 
         let result = correct_errors(&mut cluster);
         assert_eq!(result.len(), 1);

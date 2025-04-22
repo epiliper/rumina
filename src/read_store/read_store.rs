@@ -34,7 +34,7 @@ pub type SeqMap<T> = IndexMap<u64, SeqEntry<T>>;
 
 pub trait ReadStore<T: Record> {
     fn combine(&mut self, other: SeqMap<T>);
-    fn intake(&mut self, read: T, hasher: &mut std::hash::DefaultHasher, retain_all: bool);
+    fn intake(&mut self, read: T, retain_all: bool) -> u8;
 }
 
 impl<T: Record> ReadStore<T> for SeqMap<T> {
@@ -42,23 +42,21 @@ impl<T: Record> ReadStore<T> for SeqMap<T> {
     fn combine(&mut self, mut other: SeqMap<T>) {
         other.drain(..).for_each(|(other_seq, mut seq_entry)| {
             if let Some(mut seq) = self.get_mut(&other_seq) {
-                seq_entry
-                    .reads
-                    .drain(..)
-                    .for_each(|read| (seq.up_method)(&mut seq, read))
+                seq_entry.reads.drain(..).for_each(|read| {
+                    (seq.up_method)(&mut seq, read);
+                })
             };
         })
     }
 
     /// Update [Self] with a new read
-    fn intake(&mut self, read: T, hasher: &mut std::hash::DefaultHasher, retain_all: bool) {
-        read.seq_str().hash(hasher);
-        let mut e = self
-            .entry(hasher.finish())
-            .or_insert(SeqEntry::new(retain_all));
+    fn intake(&mut self, read: T, retain_all: bool) -> u8 {
+        let mut h = std::hash::DefaultHasher::new();
+        read.seq_str().hash(&mut h);
+        let mut e = self.entry(h.finish()).or_insert(SeqEntry::new(retain_all));
 
         e.count += 1;
-        (e.up_method)(&mut e, read);
+        (e.up_method)(&mut e, read)
     }
 }
 
@@ -76,13 +74,18 @@ where
     pub reads: Vec<T>,
     pub count: i32,
     pub qual_sum: u32,
-    pub up_method: for<'a> fn(&'a mut Self, read: T),
+    pub up_method: for<'a> fn(&'a mut Self, read: T) -> u8,
 }
 
 impl<T: Record> SeqEntry<T> {
     /// only keep one read per sequence
-    pub fn up_keep_single(&mut self, read: T) {
+    pub fn up_keep_single(&mut self, read: T) -> u8 {
         let s: u32 = read.qual().iter().map(|a| u32::try_from(*a).unwrap()).sum();
+
+        let ret = match self.reads.is_empty() {
+            true => 1,
+            false => 0,
+        };
         if s > self.qual_sum {
             self.reads = vec![read];
             self.qual_sum = s;
@@ -90,12 +93,15 @@ impl<T: Record> SeqEntry<T> {
 
         assert_eq!(self.reads.len(), 1);
         self.count += 1;
+
+        ret
     }
 
     /// keep all
-    pub fn up_group(&mut self, read: T) {
+    pub fn up_group(&mut self, read: T) -> u8 {
         self.reads.push(read);
         self.count += 1;
+        1
     }
 
     pub fn new(group: bool) -> Self {

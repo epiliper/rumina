@@ -69,7 +69,7 @@ pub fn process_all(args: &Args, file_map: HashMap<String, String>) -> Vec<Result
         let p = match get_file_ext(Path::new(&file_name)) {
             Some("bam") => BamFileProcess::init_from_args(args, &file_path, &file_name)
                 .and_then(|process| process.process()),
-            Some("fastq.gz") => FastQFileProcess::init_from_args(args, &file_path, &file_name)
+            Some("gz") => FastQFileProcess::init_from_args(args, &file_path, &file_name)
                 .and_then(|process| process.process()),
             _ => Ok(()),
         };

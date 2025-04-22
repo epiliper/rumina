@@ -50,7 +50,7 @@ impl FileProcess for FastQFileProcess {
 
         let mut bottomhash: BottomHashMap<FastqRecord> = BottomHashMap {
             read_dict: IndexMap::with_capacity(500),
-            hasher: std::hash::DefaultHasher::new(),
+            read_count: 0,
         };
 
         let reader = self.io.reader.take().context("Reader unitialized")?;
@@ -66,6 +66,8 @@ impl FileProcess for FastQFileProcess {
                 self.group_reads,
             )?;
         }
+
+        println! {"Processing {} reads...", bottomhash.read_count};
 
         outreads.extend(self.chunk_processor.group_reads(
             &mut bottomhash,
