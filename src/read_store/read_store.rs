@@ -1,3 +1,5 @@
+use std::hash::{Hash, Hasher};
+
 use crate::record::Record;
 use indexmap::IndexMap;
 
@@ -28,11 +30,11 @@ impl<T: Record> ReadsAndCount<T> {
 pub type UmiReadMap<T> = IndexMap<String, (i32, SeqMap<T>)>;
 
 /// Associates all reads sharing a given sequence.
-pub type SeqMap<T> = IndexMap<String, SeqEntry<T>>;
+pub type SeqMap<T> = IndexMap<u64, SeqEntry<T>>;
 
 pub trait ReadStore<T: Record> {
     fn combine(&mut self, other: SeqMap<T>);
-    fn intake(&mut self, read: T, retain_all: bool);
+    fn intake(&mut self, read: T, hasher: &mut std::hash::DefaultHasher, retain_all: bool);
 }
 
 impl<T: Record> ReadStore<T> for SeqMap<T> {
@@ -49,8 +51,11 @@ impl<T: Record> ReadStore<T> for SeqMap<T> {
     }
 
     /// Update [Self] with a new read
-    fn intake(&mut self, read: T, retain_all: bool) {
-        let mut e = self.entry(read.seq()).or_insert(SeqEntry::new(retain_all));
+    fn intake(&mut self, read: T, hasher: &mut std::hash::DefaultHasher, retain_all: bool) {
+        read.seq_str().hash(hasher);
+        let mut e = self
+            .entry(hasher.finish())
+            .or_insert(SeqEntry::new(retain_all));
 
         e.count += 1;
         (e.up_method)(&mut e, read);

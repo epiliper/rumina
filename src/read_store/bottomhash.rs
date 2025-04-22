@@ -20,6 +20,7 @@ use indexmap::IndexMap;
 */
 pub struct BottomHashMap<T: Record> {
     pub read_dict: PositionKey<T>,
+    pub hasher: std::hash::DefaultHasher,
     // pub update_method: fn(read: T),
 }
 
@@ -35,6 +36,6 @@ impl<T: Record> BottomHashMap<T> {
             .or_insert_with(|| (0, SeqMap::new()));
 
         *count += 1;
-        seq_map.intake(read, retain_all);
+        seq_map.intake(read, &mut self.hasher, retain_all);
     }
 }

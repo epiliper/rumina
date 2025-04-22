@@ -77,6 +77,7 @@ impl FileProcess for BamFileProcess {
             while self.io.windowed_reader.next_window() {
                 let mut bottomhash = BottomHashMap {
                     read_dict: IndexMap::with_capacity(500),
+                    hasher: std::hash::DefaultHasher::new(),
                 };
 
                 let mut window_records = 0;

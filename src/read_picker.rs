@@ -54,7 +54,7 @@ pub fn get_counts(top_umi: &IndexSet<String>, counts: &HashMap<&str, i32>) -> i6
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::read_store::read_store::{ReadStore, SeqEntry, SeqMap};
+    use crate::read_store::read_store::{ReadStore, SeqMap};
     use rust_htslib::bam::Record;
     use std::collections::HashMap;
 
@@ -62,16 +62,11 @@ mod tests {
     fn test_correct_errors_single_read() {
         let mut record = Record::new();
         record.set(b"read1", None, b"ATCG", b"####");
+        let mut h = std::hash::DefaultHasher::new();
 
-        let mut cluster = SeqMap::from([(
-            "ACTG".to_string(),
-            SeqEntry {
-                up_method: SeqEntry::up_group,
-                reads: vec![record],
-                count: 1,
-                qual_sum: 0,
-            },
-        )]);
+        let mut cluster = SeqMap::new();
+        cluster.intake(record, &mut h, true);
+
         let result = correct_errors(&mut cluster);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].seq().as_bytes(), b"ATCG");
@@ -85,14 +80,15 @@ mod tests {
         let mut record1 = Record::new();
         let mut record2 = Record::new();
         let mut record3 = Record::new();
+        let mut h = std::hash::DefaultHasher::new();
         // Simulate BAM records with some sequences and quality scores
         record1.set(b"read1", None, b"ATCG", b"####");
         record2.set(b"read2", None, b"ATCG", b"####");
         record3.set(b"read3", None, b"ATGG", b"####");
 
-        cluster.intake(record1, true);
-        cluster.intake(record2, true);
-        cluster.intake(record3, true);
+        cluster.intake(record1, &mut h, true);
+        cluster.intake(record2, &mut h, true);
+        cluster.intake(record3, &mut h, true);
 
         let result = correct_errors(&mut cluster);
         assert_eq!(result.len(), 1);

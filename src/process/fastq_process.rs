@@ -50,6 +50,7 @@ impl FileProcess for FastQFileProcess {
 
         let mut bottomhash: BottomHashMap<FastqRecord> = BottomHashMap {
             read_dict: IndexMap::with_capacity(500),
+            hasher: std::hash::DefaultHasher::new(),
         };
 
         let reader = self.io.reader.take().context("Reader unitialized")?;

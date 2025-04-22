@@ -8,7 +8,8 @@ use rust_htslib::{bam, bam::ext::BamRecordExtensions, bam::record::Aux};
 /// deduplication portions of the pipeline. The [FastqRecord] and [BamRecord] structs are very thin
 /// wrappers around their original types.
 pub trait Record {
-    fn seq(&self) -> String;
+    fn _seq(&self) -> String;
+    fn seq_str(&self) -> &[u8];
     fn qual(&self) -> &[u8];
     fn get_umi(&self, separator: &String) -> Result<String, Error>;
     fn get_pos_key(&self, group_by_length: bool) -> (i64, ReadKey);
@@ -19,8 +20,12 @@ pub trait Record {
 pub type BamRecord = bam::Record;
 
 impl Record for BamRecord {
-    fn seq(&self) -> String {
+    fn _seq(&self) -> String {
         unsafe { String::from_utf8_unchecked(self.seq().encoded.to_vec()) }
+    }
+
+    fn seq_str(&self) -> &[u8] {
+        self.seq().encoded
     }
 
     fn get_umi(&self, separator: &String) -> Result<String, Error> {
@@ -74,8 +79,12 @@ impl Record for BamRecord {
 pub type FastqRecord = fastq::Record;
 
 impl Record for fastq::Record {
-    fn seq(&self) -> String {
+    fn _seq(&self) -> String {
         unsafe { String::from_utf8_unchecked(self.seq().to_vec()) }
+    }
+
+    fn seq_str(&self) -> &[u8] {
+        self.seq()
     }
 
     fn get_umi(&self, separator: &String) -> Result<String, Error> {
