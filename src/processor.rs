@@ -1,14 +1,13 @@
 use crate::args::Args;
 use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
-use crate::progbars::*;
 use crate::read_store::bottomhash::BottomHashMap;
 use crate::readkey::ReadKey;
 use crate::record::Record;
 use crate::GroupReport;
 use crate::GroupingMethod;
 use anyhow::Error;
-use indicatif::MultiProgress;
+use indicatif::ProgressBar;
 use log::info;
 use parking_lot::Mutex;
 use rayon::prelude::*;
@@ -77,15 +76,13 @@ impl Processor {
     pub fn group_reads<T: Record + Send + std::fmt::Debug>(
         &mut self,
         bottomhash: &mut BottomHashMap<T>,
-        multiprog: &MultiProgress,
+        coord_bar: &mut ProgressBar,
         separator: &String,
     ) -> Vec<T> {
         let grouping_method = Arc::new(&self.grouping_method);
 
-        let mut coord_bar = make_coordbar(bottomhash.read_dict.len() as u64);
-        coord_bar = multiprog.add(coord_bar);
-
-        coord_bar.set_prefix("REFERENCE COORDINATE");
+        coord_bar.set_length(bottomhash.read_dict.len() as u64);
+        coord_bar.inc(1);
 
         let outreads = Arc::new(Mutex::new(Vec::new()));
 
@@ -143,11 +140,10 @@ impl Processor {
                         drop(min_max)
                     }
                 }
-
                 coord_bar.inc(1);
             });
+        // coord_bar.finish_and_clear();
 
-        coord_bar.finish_and_clear();
         info!("Outputting final reads for writing...");
         info!("\n{:?}", self.min_max);
 

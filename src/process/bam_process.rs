@@ -4,7 +4,7 @@ use crate::io::FileIO;
 use crate::pair_merger::PairMerger;
 use crate::process::file_process::FileProcess;
 use crate::processor::Processor;
-use crate::progbars::make_windowbar;
+use crate::progbars::ProgressTracker;
 use crate::read_store::BottomHashMap;
 use crate::readkey::ReadKey;
 use crate::record::{BamRecord, Record};
@@ -12,7 +12,6 @@ use crate::utils::{gen_outfile_name, index_bam};
 use anyhow::Error;
 use colored::Colorize;
 use indexmap::IndexMap;
-use indicatif::MultiProgress;
 use log::info;
 use std::fs::remove_file;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -67,13 +66,11 @@ impl FileProcess for BamFileProcess {
         let (mut pos, mut key): (i64, ReadKey);
         let mut outreads: Vec<BamRecord> = Vec::with_capacity(1_000_000);
 
-        let multiprog = MultiProgress::new();
+        let mut pt =
+            ProgressTracker::initialize_main(self.io.windowed_reader.meta_header.target_count());
 
         while self.io.windowed_reader.next_reference()? {
-            let mut window_bar = make_windowbar(self.io.windowed_reader.windows.len() as u64);
-            window_bar.set_prefix("WINDOW");
-            window_bar = multiprog.add(window_bar);
-
+            pt.initialize_windows(self.io.windowed_reader.windows.len());
             while self.io.windowed_reader.next_window() {
                 let mut bottomhash = BottomHashMap {
                     read_dict: IndexMap::with_capacity(500),
@@ -81,6 +78,7 @@ impl FileProcess for BamFileProcess {
                 };
 
                 let mut window_records = 0;
+                pt.intake_reads_msg();
 
                 for record in self.io.windowed_reader.window_records() {
                     if !record.is_first_in_template() && self.chunk_processor.r1_only {
@@ -100,13 +98,12 @@ impl FileProcess for BamFileProcess {
                 }
 
                 info!("{} reads pulled from window", window_records);
-                window_bar.set_message(format!("{window_records} reads in window"));
-                window_bar.inc(1);
+                pt.update_window_reads(window_records);
 
                 outreads.extend(Processor::group_reads(
                     &mut self.chunk_processor,
                     &mut bottomhash,
-                    &multiprog,
+                    &mut pt.coord_bar,
                     &self.separator,
                 ));
 
@@ -116,10 +113,12 @@ impl FileProcess for BamFileProcess {
                     "Processed {} total reads...",
                     self.chunk_processor.read_counter
                 );
+                pt.next_window()
             }
-            multiprog.remove(&window_bar);
-            window_bar.finish();
+            pt.next_ref();
         }
+
+        pt.finish();
 
         let num_reads_in = self.chunk_processor.read_counter;
         let min_maxes = self.chunk_processor.min_max.clone();

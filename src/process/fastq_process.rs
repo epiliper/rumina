@@ -3,6 +3,7 @@ use crate::io::FastqIO;
 use crate::io::FileIO;
 use crate::process::file_process::FileProcess;
 use crate::processor::Processor;
+use crate::progbars::ProgressTracker;
 use crate::read_store::BottomHashMap;
 use crate::readkey::ReadKey;
 use crate::record::{FastqRecord, Record};
@@ -10,7 +11,6 @@ use crate::utils::gen_outfile_name;
 use anyhow::{Context, Error};
 use colored::Colorize;
 use indexmap::IndexMap;
-use indicatif::MultiProgress;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 
@@ -54,8 +54,11 @@ impl FileProcess for FastQFileProcess {
         };
 
         let mut reader = self.io.reader.take().context("Reader unitialized")?;
+        let mut pt = ProgressTracker::initialize_main(1);
 
         let mut refresh_count = 0;
+        pt.initialize_windows(1);
+        pt.intake_reads_msg();
         for record in reader.records() {
             let r = record?;
             (pos, key) = r.get_pos_key(self.chunk_processor.group_by_length);
@@ -76,7 +79,8 @@ impl FileProcess for FastQFileProcess {
             }
         }
 
-        println! {"Processing {} reads...", bottomhash.read_count};
+        pt.update_window_reads(bottomhash.read_count);
+        // println! {"Processing {} reads...", bottomhash.read_count};
 
         assert_eq!(bottomhash.read_dict.keys().len(), 1);
         assert_eq!(
@@ -91,7 +95,7 @@ impl FileProcess for FastQFileProcess {
 
         outreads.extend(self.chunk_processor.group_reads(
             &mut bottomhash,
-            &MultiProgress::new(),
+            &mut pt.coord_bar,
             &self.separator,
         ));
 
@@ -109,6 +113,7 @@ impl FileProcess for FastQFileProcess {
 
         group_report.num_reads_input_file = num_reads_in;
 
+        pt.finish();
         // report on min and max number of reads per group
         // this creates minmax.txt
         if !group_report.is_blank() {
