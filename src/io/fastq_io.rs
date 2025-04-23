@@ -1,14 +1,12 @@
 use crate::args::Args;
 use crate::io::FileIO;
 use crate::record::FastqRecord;
-use anyhow::{Context, Error};
-use bio::io::fastq::Writer;
+use anyhow::Error;
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
-use seq_io::fastq::Reader;
+use seq_io::fastq::{write_to, Reader, Record};
 use std::fs::File;
-use std::io::{BufReader, BufWriter};
+use std::io::{BufReader, BufWriter, Write};
 
-// pub type FastqReaderGz = Reader<BufReader<GzDecoder<File>>>;
 pub type FastqReaderGz = Reader<BufReader<GzDecoder<File>>>;
 pub type FastqWriter = GzEncoder<BufWriter<File>>;
 
@@ -48,7 +46,6 @@ impl FastqIO {
             false => None,
         };
 
-        // let reader = Some(Reader::from_path(infile_name).context("Failed to create input reader")?);
         let reader = Some(Reader::new(buf_reader));
 
         let outf = File::create(outfile_name)?;
@@ -78,12 +75,24 @@ impl FastqIO {
             args.separator.clone(),
         )
     }
+
+    pub fn write_record(&mut self, record: FastqRecord) -> Result<(), Error> {
+        self.writer.write_all(b"@")?;
+        self.writer.write_all(&record.head)?;
+        self.writer.write_all(b"\n")?;
+        self.writer.write_all(&record.seq)?;
+        self.writer.write_all(b"\n+\n")?;
+        self.writer.write_all(&record.qual)?;
+        self.writer.write_all(b"\n")?;
+
+        Ok(())
+    }
 }
 
 impl FileIO<FastqRecord> for FastqIO {
     fn write_reads(&mut self, outreads: &mut Vec<FastqRecord>) {
-        for read in outreads {
-            // self.writer.write_record(read).unwrap();
+        for read in outreads.drain(..) {
+            self.write_record(read).unwrap()
         }
     }
 }

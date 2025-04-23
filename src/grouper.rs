@@ -4,7 +4,7 @@ use crate::processor::UmiHistogram;
 use crate::GroupingMethod;
 use indexmap::IndexSet;
 use smol_str::SmolStr;
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::sync::Arc;
 
 pub struct Grouper<'a> {
@@ -55,36 +55,28 @@ impl<'a> Grouper<'a> {
     pub fn cluster(
         &'a self,
         mut counts: UmiHistogram<'a>,
-        grouping_method: Arc<&GroupingMethod>,
-    ) -> Box<dyn Iterator<Item = IndexSet<SmolStr>> + 'a> {
-        match *grouping_method {
-            GroupingMethod::Directional => {
-                let mut bk = self.init_bktree(&counts);
-                Box::new(
-                    self.umis
-                        .iter()
-                        .map(move |u| {
-                            self.visit_and_remove_all(u, self.max_edit, &mut counts, &mut bk)
-                        })
-                        .filter(|o| !o.is_empty()),
-                )
+        grouping_method: Arc<&'a GroupingMethod>,
+    ) -> impl Iterator<Item = IndexSet<SmolStr>> + 'a {
+        let mut bk = match *grouping_method {
+            GroupingMethod::Directional | GroupingMethod::Acyclic => {
+                Some(self.init_bktree(&counts))
             }
-            GroupingMethod::Acyclic => {
-                let mut bk = self.init_bktree(&counts);
-                Box::new(
-                    self.umis
-                        .iter()
-                        .map(move |u| self.visit_and_remove_immediate(u, 1, &mut counts, &mut bk))
-                        .filter(|o| !o.is_empty()),
-                )
+            GroupingMethod::Raw => None,
+        };
+
+        let process = move |u: &'a SmolStr| -> IndexSet<SmolStr> {
+            match *grouping_method {
+                GroupingMethod::Directional => {
+                    self.visit_and_remove_all(u, self.max_edit, &mut counts, bk.as_mut().unwrap())
+                }
+                GroupingMethod::Acyclic => {
+                    self.visit_and_remove_immediate(u, 1, &mut counts, bk.as_mut().unwrap())
+                }
+                GroupingMethod::Raw => self.remove_single(u),
             }
-            GroupingMethod::Raw => Box::new(
-                self.umis
-                    .iter()
-                    .map(|u| self.remove_single(u))
-                    .filter(|o| !o.is_empty()),
-            ),
-        }
+        };
+
+        self.umis.iter().map(process).filter(|o| !o.is_empty())
     }
 
     pub fn init_bktree(&self, counts: &UmiHistogram) -> NGramBKTree {

@@ -12,7 +12,6 @@ use crate::processor::UmiHistogram;
 use crate::read_store::read_store::SeqMap;
 use crate::record::Record;
 use indexmap::IndexSet;
-use std::collections::HashMap;
 
 pub fn correct_errors<T: Record>(clusters: &mut SeqMap<T>) -> Vec<T> {
     assert!(!clusters.is_empty());

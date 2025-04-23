@@ -7,10 +7,8 @@ use crate::IndexMap;
 use indexmap::IndexSet;
 
 use anyhow::{Context, Error, Result};
-use core::str;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use std::collections::HashMap;
 use std::collections::HashSet;
 
 const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
