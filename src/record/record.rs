@@ -1,15 +1,33 @@
 use crate::readkey::ReadKey;
 use anyhow::{Context, Error};
-use bio::io::fastq;
 use core::str;
 use rust_htslib::{bam, bam::ext::BamRecordExtensions, bam::record::Aux};
+use seq_io::fastq::Record as _;
 use smol_str::SmolStr;
+
+pub fn extract_umi_from_header<'a>(header: &'a str, separator: &String) -> Result<&'a str, Error> {
+    let (_rest, past_sep) = header.rsplit_once(separator).with_context(|| {
+        format!(
+            "failed to get UMI with separator '{}'. Header in question:\n{}",
+            separator, header
+        )
+    })?;
+
+    // check if we have r1/r2 extensions, e.g:
+    // <REST_OF_HEADER>_<UMI>/1
+    // if we don't remove that, we'll over-stratify read groups.
+    if let Some((umi, _mate_info)) = past_sep.rsplit_once("/") {
+        Ok(umi)
+    } else {
+        Ok(past_sep)
+    }
+}
 
 /// The record interface serves to allow using FASTQ and BAM records with the clustering and
 /// deduplication portions of the pipeline. The [FastqRecord] and [BamRecord] structs are very thin
 /// wrappers around their original types.
 pub trait Record {
-    fn seq(&self) -> String;
+    fn _seq(&self) -> String;
     fn seq_str(&self) -> &[u8];
     fn qual(&self) -> &[u8];
     fn get_umi(&self, separator: &String) -> Result<SmolStr, Error>;
@@ -21,7 +39,7 @@ pub trait Record {
 pub type BamRecord = bam::Record;
 
 impl Record for BamRecord {
-    fn seq(&self) -> String {
+    fn _seq(&self) -> String {
         unsafe { String::from_utf8_unchecked(self.seq().encoded.to_vec()) }
     }
 
@@ -30,27 +48,9 @@ impl Record for BamRecord {
     }
 
     fn get_umi(&self, separator: &String) -> Result<SmolStr, Error> {
-        // unsafe {
-        //     Ok(std::str::from_utf8_unchecked(self.qname())
-        //         .rsplit_once(separator)
-        //         .context("failed to get UMI from read QNAME. Check --separator. Exiting.")?
-        //         .1
-        //         .to_string())
-        // }
-        //
         unsafe {
-            let s = std::str::from_utf8_unchecked(self.qname())
-                .rsplit_once(separator)
-                .with_context(|| {
-                    format!(
-                        "failed to get UMI with separator {}. QNAME in question:\n{}",
-                        separator,
-                        std::str::from_utf8(self.qname()).unwrap()
-                    )
-                })?
-                .1;
-
-            Ok(SmolStr::from(s))
+            let s = std::str::from_utf8_unchecked(self.qname());
+            Ok(SmolStr::from(extract_umi_from_header(s, separator)?))
         }
     }
 
@@ -96,7 +96,7 @@ impl Record for BamRecord {
 pub type FastqRecord = seq_io::fastq::OwnedRecord;
 
 impl Record for FastqRecord {
-    fn seq(&self) -> String {
+    fn _seq(&self) -> String {
         unsafe { String::from_utf8_unchecked(self.seq.clone()) }
     }
 
@@ -105,20 +105,10 @@ impl Record for FastqRecord {
     }
 
     fn get_umi(&self, separator: &String) -> Result<SmolStr, Error> {
-        unsafe {
-            let s = std::str::from_utf8_unchecked(&self.head)
-                .rsplit_once(separator)
-                .with_context(|| {
-                    format!(
-                        "failed to get UMI with separator {}. QNAME in question:\n{}",
-                        separator,
-                        self.seq()
-                    )
-                })?
-                .1;
-
-            Ok(SmolStr::from(s))
-        }
+        Ok(SmolStr::from(extract_umi_from_header(
+            self.id()?,
+            separator,
+        )?))
     }
 
     fn qual(&self) -> &[u8] {
@@ -128,7 +118,7 @@ impl Record for FastqRecord {
     fn get_pos_key(&self, group_by_length: bool) -> (i64, ReadKey) {
         let pos = 1;
         let key = ReadKey {
-            length: self.seq().len() & group_by_length as usize,
+            length: self.seq_str().len() & group_by_length as usize,
             reverse: false,
             chr: 1,
         };
