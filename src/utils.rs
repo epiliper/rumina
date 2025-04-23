@@ -2,8 +2,29 @@ use anyhow::{Context, Error};
 use rust_htslib::bam::{index, Header, IndexedReader, Read, Writer};
 use std::path::Path;
 
-pub fn get_file_ext(path: &Path) -> Option<&str> {
-    path.extension().and_then(|ext| ext.to_str())
+pub struct RecordFile {
+    pub fname: String,
+    pub fpath: String,
+}
+
+pub enum FileType {
+    BamFile(RecordFile),
+    FastqFile(RecordFile),
+}
+
+pub fn identify_file_type(path: &Path) -> Option<FileType> {
+    let fname = path.file_name()?.to_str()?.to_string();
+    let fpath = path.to_str()?.to_string();
+
+    if fname.ends_with(".fastq.gz") {
+        return Some(FileType::FastqFile(RecordFile { fname, fpath }));
+    }
+
+    if fname.ends_with(".bam") {
+        return Some(FileType::BamFile(RecordFile { fname, fpath }));
+    }
+
+    return None;
 }
 
 pub fn gen_outfile_name(
@@ -17,7 +38,7 @@ pub fn gen_outfile_name(
         .context("Unable to split file")?
         .0
         .to_string()
-        + &format!("_{suffix}.{split}");
+        + &format!("_{suffix}{split}");
     if let Some(outdir) = outdir {
         Ok(Path::new(outdir)
             .join(Path::new(&outf))

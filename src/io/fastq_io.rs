@@ -3,7 +3,7 @@ use crate::io::FileIO;
 use crate::record::FastqRecord;
 use anyhow::Error;
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
-use seq_io::fastq::{write_to, Reader, Record};
+use seq_io::fastq::Reader;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 

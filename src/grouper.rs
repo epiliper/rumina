@@ -120,13 +120,11 @@ impl<'a> Grouper<'a> {
         let mut out = IndexSet::new();
 
         while let Some(root) = to_cluster.pop_front() {
-            // TODO: make percentage adjustable
             let max_count =
                 (self.percentage * (counts.get(root.as_str()).unwrap().0 + 1) as f32) as i32;
             let immediate =
                 bktree.remove_near(root.as_str(), k, max_count, &self.ngram_maker, counts);
 
-            // if directional, we limit a umi's cluster to a depth of one maximum
             for c in immediate.iter().filter(|c| **c != root) {
                 to_cluster.push_back(c.to_string());
             }
