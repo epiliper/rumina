@@ -87,7 +87,10 @@ impl<T: Record> SeqEntry<T> {
             true => 1,
             false => 0,
         };
-        if s > self.qual_sum {
+
+        // using >= here in case a read is Q of 0 (though such crap reads should be filtered out
+        // first)
+        if s >= self.qual_sum {
             self.reads = vec![read];
             self.qual_sum = s;
         }
