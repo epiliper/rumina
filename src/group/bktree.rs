@@ -12,7 +12,7 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 
 pub fn hamming(ua: &str, ub: &str) -> usize {
-    strsim::hamming(ua, ub).unwrap()
+    strsim::hamming(ua, ub).unwrap_or(usize::MAX)
 }
 
 /// Represents a Node of a BK-tree; each node contains its given string,
