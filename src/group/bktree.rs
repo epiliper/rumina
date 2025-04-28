@@ -2,6 +2,7 @@
 
 use crate::ngram::ngram;
 use crate::processor::UmiHistogram;
+use crate::record::record::reverse_complement;
 use anyhow::Context;
 use indexmap::IndexSet;
 use smol_str::SmolStr;
@@ -153,6 +154,7 @@ impl NGramBKTree {
         max_count: i32,
         ngm: &ngram::NgramMaker,
         c: &mut UmiHistogram,
+        search_rev: bool,
     ) -> IndexSet<SmolStr> {
         let mut found = IndexSet::new();
         for ngram in ngm.ngrams(umi).iter() {
@@ -162,7 +164,18 @@ impl NGramBKTree {
             }
         }
 
+        if search_rev {
+            let rev = reverse_complement(umi);
+            for ngram in ngm.ngrams(&rev).iter() {
+                if let Some(node) = self.ngram_tree_map.get(ngram) {
+                    self.remove_near_stack(node.clone(), &rev, 0, i32::MAX, c, &mut found);
+                    self.remove_near_stack(node.clone(), &rev, k, max_count, c, &mut found);
+                }
+            }
+        }
+
         self.prune(c, &found);
+
         found
     }
 
@@ -260,7 +273,7 @@ mod tests {
             }
         }
 
-        let res = bktree.remove_near(umi_a, 1, 10, &ngram_maker, &mut counts);
+        let res = bktree.remove_near(umi_a, 1, 10, &ngram_maker, &mut counts, false);
 
         // umi_b should be found, even though it shares no n-grams with umi_a's n-gram root.
         assert!(res.contains(umi_a), "Expected to find umi_a");
@@ -304,7 +317,7 @@ mod tests {
             }
         }
 
-        let res = bktree.remove_near(umi_a, 1, 10, &ngram_maker, &mut counts);
+        let res = bktree.remove_near(umi_a, 1, 10, &ngram_maker, &mut counts, false);
 
         assert!(res.contains(umi_a), "Expected to find umi_a");
         assert!(res.contains(umi_b), "Expected to find umi_b");

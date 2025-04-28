@@ -36,6 +36,11 @@ pub struct Args {
     /// This option is overwritten by [--singletons], if enabled.
     pub min_cluster_depth: usize,
 
+    #[arg(long = "rev")]
+    /// Search for the reverse complement of a UMI when clustering. This is useful when input data
+    /// was basecalled without correcting for read orientation.
+    pub cluster_rev: bool,
+
     #[arg(value_parser = clap::value_parser!(i64).range(1..), short = 'x', long = "split_window")]
     /// BAM file splitting strategy. Not using this arg or passing in 0 will have all BAM
     /// coordinates processed at once, which may be faster but also incur significant memory usage

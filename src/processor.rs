@@ -29,6 +29,7 @@ pub struct Processor {
     pub r1_only: bool,
     percentage: f32,
     max_edit: u32,
+    cluster_rev: bool,
 }
 
 impl Processor {
@@ -41,6 +42,7 @@ impl Processor {
         r1_only: bool,
         percentage: f32,
         max_edit: u32,
+        cluster_rev: bool,
     ) -> Self {
         assert!(percentage > 0.0 && percentage <= 1.0);
         Processor {
@@ -54,6 +56,7 @@ impl Processor {
             r1_only,
             percentage,
             max_edit,
+            cluster_rev,
         }
     }
 
@@ -75,6 +78,7 @@ impl Processor {
             args.r1_only,
             args.percentage,
             args.max_edit,
+            args.cluster_rev,
         )
     }
 
@@ -111,7 +115,13 @@ impl Processor {
 
                     let umi_len = umis.get(0).unwrap().len();
 
-                    let grouper = Grouper::new(&umis, self.max_edit, self.percentage, umi_len);
+                    let grouper = Grouper::new(
+                        &umis,
+                        self.max_edit,
+                        self.percentage,
+                        umi_len,
+                        self.cluster_rev,
+                    );
                     let mut counts: UmiHistogram = HashMap::with_capacity(umi_read_map.len());
 
                     // get number of reads for each raw UMI

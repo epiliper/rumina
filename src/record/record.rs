@@ -23,6 +23,27 @@ pub fn extract_umi_from_header<'a>(header: &'a str, separator: &String) -> Resul
     }
 }
 
+pub fn reverse_complement(s: &str) -> SmolStr {
+    let mut out: Vec<u8> = Vec::with_capacity(s.len());
+    for c in s.bytes().rev() {
+        let r = match c.to_ascii_uppercase() {
+            b'A' => b'T',
+            b'G' => b'C',
+            b'C' => b'G',
+            b'T' => b'A',
+            b'N' => b'N',
+            _ => panic!(),
+        };
+
+        out.push(r);
+    }
+
+    unsafe {
+        let out = std::str::from_utf8_unchecked(&out);
+        SmolStr::new(&out)
+    }
+}
+
 /// The record interface serves to allow using FASTQ and BAM records with the clustering and
 /// deduplication portions of the pipeline. The [FastqRecord] and [BamRecord] structs are very thin
 /// wrappers around their original types.
@@ -127,4 +148,11 @@ impl Record for FastqRecord {
     }
 
     fn mark_group(&mut self, _tag: &[u8]) {}
+}
+
+#[test]
+fn test_rev1() {
+    let o = "GTCTATATA";
+    assert_eq!(reverse_complement(o), "TATATAGAC");
+    assert_eq!(reverse_complement(&reverse_complement(o)), o);
 }

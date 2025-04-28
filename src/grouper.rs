@@ -12,10 +12,17 @@ pub struct Grouper<'a> {
     pub ngram_maker: NgramMaker,
     percentage: f32,
     max_edit: u32,
+    search_reverse: bool,
 }
 
 impl<'a> Grouper<'a> {
-    pub fn new(umis: &'a Vec<SmolStr>, max_edit: u32, percentage: f32, umi_len: usize) -> Self {
+    pub fn new(
+        umis: &'a Vec<SmolStr>,
+        max_edit: u32,
+        percentage: f32,
+        umi_len: usize,
+        search_reverse: bool,
+    ) -> Self {
         assert!(percentage > 0.0 && percentage <= 1.0);
         let ngram_maker = NgramMaker::new(
             (max_edit + 1)
@@ -29,6 +36,7 @@ impl<'a> Grouper<'a> {
             ngram_maker,
             percentage,
             max_edit,
+            search_reverse,
         }
     }
 
@@ -104,7 +112,14 @@ impl<'a> Grouper<'a> {
     ) -> IndexSet<SmolStr> {
         let max_count =
             (self.percentage * (counts.get(umi).expect("Count map invalid").0 + 1) as f32) as i32;
-        bktree.remove_near(umi, k, max_count, &self.ngram_maker, counts)
+        bktree.remove_near(
+            umi,
+            k,
+            max_count,
+            &self.ngram_maker,
+            counts,
+            self.search_reverse,
+        )
     }
 
     /// for every queried node, cluster its immediate offshoots distant by <= k edits and the given count percentage, then retrieve the
@@ -122,8 +137,14 @@ impl<'a> Grouper<'a> {
         while let Some(root) = to_cluster.pop_front() {
             let max_count =
                 (self.percentage * (counts.get(root.as_str()).unwrap().0 + 1) as f32) as i32;
-            let immediate =
-                bktree.remove_near(root.as_str(), k, max_count, &self.ngram_maker, counts);
+            let immediate = bktree.remove_near(
+                root.as_str(),
+                k,
+                max_count,
+                &self.ngram_maker,
+                counts,
+                self.search_reverse,
+            );
 
             for c in immediate.iter().filter(|c| **c != root) {
                 to_cluster.push_back(c.to_string());
