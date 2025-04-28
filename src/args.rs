@@ -1,3 +1,4 @@
+use anyhow::Error;
 use clap::{Parser, ValueEnum};
 use colored::Colorize;
 
@@ -30,6 +31,11 @@ pub struct Args {
     /// directory (relative to parent dir of input file) in which to store output files. Will be created if it doesn't exist
     pub outdir: String,
 
+    #[arg(short = 'd', long = "min_depth", default_value = "3")]
+    /// the minimum number of reads a cluster must contain for that cluster to be included in output.
+    /// This option is overwritten by [--singletons], if enabled.
+    pub min_cluster_depth: usize,
+
     #[arg(value_parser = clap::value_parser!(i64).range(1..), short = 'x', long = "split_window")]
     /// BAM file splitting strategy. Not using this arg or passing in 0 will have all BAM
     /// coordinates processed at once, which may be faster but also incur significant memory usage
@@ -55,7 +61,7 @@ pub struct Args {
 
     #[arg(long = "singletons")]
     /// if used, singleton groups (1-2 read UMI clusters) will be processed like other groups,
-    /// instead of discarded.
+    /// instead of discarded. This is the same as the argument --min_depth 1.
     pub singletons: bool,
 
     #[arg(long = "halve_pairs", conflicts_with = "merge_pairs")]
@@ -137,13 +143,13 @@ impl std::fmt::Display for Args {
     }
 }
 
-pub fn parse_args() -> Args {
+pub fn parse_args() -> Result<Args, Error> {
     let args = Args::parse();
     if args.percentage < 0.01 || args.percentage > 1.0 {
-        panic!(
+        anyhow::bail!(
             "Invalid value {} for -p/--percentage! Choose a value between (inclusive) 0.01 and 1.0",
             args.percentage
-        );
+        )
     }
-    args
+    Ok(args)
 }

@@ -26,7 +26,7 @@ const UMI_TAG_LEN: usize = 8;
 pub struct GroupHandler<'a> {
     pub seed: u64,
     pub group_only: bool,
-    pub singletons: bool,
+    pub min_depth: usize,
     pub separator: &'a String,
 }
 
@@ -79,15 +79,17 @@ impl<'a> GroupHandler<'a> {
         // to report min and max observed reads per group
         let mut group_report = GroupReport::new();
 
-        let read_count_thres = match self.singletons {
-            true => 0,
-            false => 3, // groups should have 3+ reads for reliable majority rule
-        };
+        // let read_count_thres = match self.min_depth {
+        //     true => 0,
+        //     false => 3, // groups should have 3+ reads for reliable majority rule
+        // };
+        //
+        let read_count_thres = self.min_depth;
 
         for top_umi in final_umis {
             let num_reads_in_group = get_counts(&top_umi, &counts);
             group_report.num_groups += 1;
-            if num_reads_in_group >= read_count_thres {
+            if num_reads_in_group >= read_count_thres as i64 {
                 let ug_tag = generate_tag(&mut rng, &mut used_tags);
 
                 // check if number of reads per group is new minimum or maximum

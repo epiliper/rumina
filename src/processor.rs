@@ -25,7 +25,7 @@ pub struct Processor {
     pub group_by_length: bool,
     pub seed: u64,
     pub only_group: bool,
-    pub singletons: bool,
+    pub min_depth: usize,
     pub r1_only: bool,
     percentage: f32,
     max_edit: u32,
@@ -37,7 +37,7 @@ impl Processor {
         group_by_length: bool,
         seed: u64,
         only_group: bool,
-        singletons: bool,
+        min_depth: usize,
         r1_only: bool,
         percentage: f32,
         max_edit: u32,
@@ -50,7 +50,7 @@ impl Processor {
             group_by_length,
             seed,
             only_group,
-            singletons,
+            min_depth,
             r1_only,
             percentage,
             max_edit,
@@ -58,12 +58,20 @@ impl Processor {
     }
 
     pub fn init_from_args(args: &Args, seed: u64) -> Self {
+        let min_depth;
+
+        if args.singletons {
+            min_depth = 1;
+        } else {
+            min_depth = args.min_cluster_depth;
+        }
+
         Self::new(
             &args.grouping_method,
             args.length,
             seed,
             args.only_group,
-            args.singletons,
+            min_depth,
             args.r1_only,
             args.percentage,
             args.max_edit,
@@ -119,7 +127,7 @@ impl Processor {
                     let mut group_handler = GroupHandler {
                         seed: self.seed + position as u64, // make seed unique per position
                         group_only: self.only_group,
-                        singletons: self.singletons,
+                        min_depth: self.min_depth,
                         separator: &separator,
                     };
 

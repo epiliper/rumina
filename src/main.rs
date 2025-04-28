@@ -35,7 +35,7 @@ mod record;
 mod utils;
 
 fn main() -> Result<(), Error> {
-    let args = parse_args();
+    let args = parse_args()?;
     let input_file = &args.input;
 
     print_logo();
