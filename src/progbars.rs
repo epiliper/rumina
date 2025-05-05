@@ -1,69 +1,96 @@
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 pub struct ProgressTracker {
-    _prog: MultiProgress,
-    ref_bar: ProgressBar,
-    window_bar: ProgressBar,
+    _prog: Option<MultiProgress>,
+    ref_bar: Option<ProgressBar>,
+    window_bar: Option<ProgressBar>,
     pub coord_bar: ProgressBar,
 }
 
 impl ProgressTracker {
-    pub fn initialize_main(num_references: u32) -> Self {
-        let _prog = MultiProgress::new();
+    pub fn initialize_main(num_references: u32, show: bool) -> Self {
+        if !show {
+            Self {
+                _prog: None,
+                ref_bar: None,
+                window_bar: None,
+                coord_bar: ProgressBar::hidden(),
+            }
+        } else {
+            let _prog = MultiProgress::new();
+            _prog.clear().ok();
+            let ref_bar = _prog.add(make_reference_bar(num_references as u64));
+            ref_bar.set_prefix("REFERENCE");
+            ref_bar.tick();
 
-        _prog.clear().ok();
-        let ref_bar = _prog.add(make_reference_bar(num_references as u64));
-        ref_bar.set_prefix("REFERENCE");
-        ref_bar.tick();
+            let ref_bar = Some(ref_bar);
 
-        let window_bar = _prog.add(make_windowbar(0)); // Length set in initialize_windows
-        window_bar.set_prefix("WINDOW");
-        window_bar.tick();
+            let window_bar = _prog.add(make_windowbar(0)); // Length set in initialize_windows
+            window_bar.set_prefix("WINDOW");
+            window_bar.tick();
 
-        let coord_bar = _prog.add(make_coordbar(1));
-        coord_bar.set_prefix("COORDINATES");
-        coord_bar.tick();
+            let window_bar = Some(window_bar);
 
-        Self {
-            _prog,
-            ref_bar,
-            window_bar,
-            coord_bar,
+            let coord_bar = _prog.add(make_coordbar(1));
+            coord_bar.set_prefix("COORDINATES");
+            coord_bar.tick();
+
+            let coord_bar = coord_bar;
+
+            let _prog = Some(_prog);
+
+            Self {
+                _prog,
+                ref_bar,
+                window_bar,
+                coord_bar,
+            }
         }
     }
 
     pub fn initialize_windows(&mut self, num_windows: usize) {
-        self.window_bar.reset();
-        self.window_bar.set_length(num_windows as u64);
-        self.window_bar.tick();
+        if let Some(window_bar) = &self.window_bar {
+            window_bar.reset();
+            window_bar.set_length(num_windows as u64);
+            window_bar.tick();
+        }
     }
 
     pub fn intake_reads_msg(&mut self) {
-        self.window_bar.set_message("Intaking reads...");
+        if let Some(window_bar) = &self.window_bar {
+            window_bar.set_message("Intaking reads...");
+        }
     }
 
     pub fn update_window_reads(&mut self, num_reads: u64) {
-        self.window_bar
-            .set_message(format!("{} reads in window", num_reads));
-        self.window_bar.tick();
+        if let Some(window_bar) = &self.window_bar {
+            window_bar.set_message(format!("{} reads in window", num_reads));
+            window_bar.tick();
+        }
     }
 
     pub fn next_ref(&mut self) {
-        self.ref_bar.inc(1);
-        self.window_bar.reset();
-        self.ref_bar.tick();
+        if let (Some(ref_bar), Some(window_bar)) = (&self.ref_bar, &self.window_bar) {
+            ref_bar.inc(1);
+            window_bar.reset();
+            ref_bar.tick();
+        }
     }
 
     pub fn next_window(&mut self) {
-        self.window_bar.inc(1);
-        self.window_bar.tick();
-        self.coord_bar.reset();
+        if let Some(window_bar) = &self.window_bar {
+            window_bar.inc(1);
+            window_bar.tick();
+            self.coord_bar.reset();
+        }
     }
 
     pub fn finish(&self) {
-        self.ref_bar.finish_with_message("DONE");
-        self.window_bar.finish_with_message("DONE");
-        self.coord_bar.finish_and_clear();
+        if let (Some(window_bar), Some(ref_bar)) = (&self.window_bar, &self.ref_bar) {
+            ref_bar.finish_with_message("DONE");
+            window_bar.finish_with_message("DONE");
+            self.coord_bar.finish_and_clear();
+        }
     }
 }
 

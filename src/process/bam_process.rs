@@ -1,6 +1,6 @@
 use crate::args::Args;
+use crate::io::file_io::FileIO;
 use crate::io::BamIO;
-use crate::io::FileIO;
 use crate::pair_merger::PairMerger;
 use crate::process::file_process::FileProcess;
 use crate::processor::Processor;
@@ -24,6 +24,7 @@ pub struct BamFileProcess {
     pair_merger: Option<PairMerger>,
     separator: String,
     group_reads: bool,
+    progress: bool,
 }
 
 impl FileProcess for BamFileProcess {
@@ -51,6 +52,7 @@ impl FileProcess for BamFileProcess {
         }
 
         let separator = args.separator.clone();
+        let progress = args.progress;
 
         Ok(Self {
             io: bam_io,
@@ -59,6 +61,7 @@ impl FileProcess for BamFileProcess {
             pair_merger,
             separator,
             group_reads,
+            progress,
         })
     }
 
@@ -66,11 +69,14 @@ impl FileProcess for BamFileProcess {
         let (mut pos, mut key): (i64, ReadKey);
         let mut outreads: Vec<BamRecord> = Vec::with_capacity(1_000_000);
 
-        let mut pt =
-            ProgressTracker::initialize_main(self.io.windowed_reader.meta_header.target_count());
+        let mut pt = ProgressTracker::initialize_main(
+            self.io.windowed_reader.meta_header.target_count(),
+            self.progress,
+        );
 
         while self.io.windowed_reader.next_reference()? {
             pt.initialize_windows(self.io.windowed_reader.windows.len());
+
             while self.io.windowed_reader.next_window() {
                 let mut bottomhash = BottomHashMap {
                     read_dict: IndexMap::with_capacity(500),

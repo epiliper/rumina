@@ -89,6 +89,10 @@ pub struct Args {
     /// --max_edit.
     pub percentage: f32,
 
+    #[arg(long = "progress", default_value_t = false)]
+    /// Show progress bars for clustering/read information.
+    pub progress: bool,
+
     #[arg(short = 'm', long = "max_edit", default_value_t = 1, value_parser = clap::value_parser!(u32).range(0..))]
     /// The maximum hamming distance difference between two UMIs for one to be considered an
     /// offshoot of the other.

@@ -20,6 +20,7 @@ pub struct FastQFileProcess {
     outfile: String,
     separator: String,
     group_reads: bool,
+    progress: bool,
 }
 
 impl FileProcess for FastQFileProcess {
@@ -34,6 +35,7 @@ impl FileProcess for FastQFileProcess {
         let chunk_processor = Processor::init_from_args(args, seed);
         let separator = args.separator.clone();
         let group_reads = args.only_group;
+        let progress = args.progress;
 
         Ok(Self {
             io,
@@ -41,6 +43,7 @@ impl FileProcess for FastQFileProcess {
             outfile,
             separator,
             group_reads,
+            progress,
         })
     }
 
@@ -54,7 +57,7 @@ impl FileProcess for FastQFileProcess {
         };
 
         let mut reader = self.io.reader.take().context("Reader unitialized")?;
-        let mut pt = ProgressTracker::initialize_main(1);
+        let mut pt = ProgressTracker::initialize_main(1, self.progress);
 
         let mut refresh_count = 0;
         pt.initialize_windows(1);
