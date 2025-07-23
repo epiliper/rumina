@@ -21,7 +21,6 @@ impl ProgressTracker {
             _prog.clear().ok();
             let ref_bar = _prog.add(make_reference_bar(num_references as u64));
             ref_bar.set_prefix("REFERENCE");
-            ref_bar.tick();
 
             let ref_bar = Some(ref_bar);
 

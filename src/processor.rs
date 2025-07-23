@@ -94,7 +94,6 @@ impl Processor {
         let grouping_method = Arc::new(&self.grouping_method);
 
         coord_bar.set_length(bottomhash.read_dict.len() as u64);
-        coord_bar.inc(1);
 
         let outreads = Arc::new(Mutex::new(Vec::new()));
 
