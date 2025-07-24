@@ -54,20 +54,22 @@ impl PairMerger {
 
         let ref_count = reader.header().clone().target_count();
         let mut read_count = 0;
+
+        let writer = make_bam_writer(&self.outfile, header.clone(), self.threads);
+        let (so, r): (Sender<Record>, Receiver<Record>) = unbounded();
+        let writer_handle = spawn_writer_thread(writer, r);
+
         for tid in 0..ref_count {
             let max_pos = reader.header().target_len(tid).unwrap() as i64;
             let windows = get_windows(self.split_window, max_pos);
             reader.fetch((tid, 0, u32::MAX)).unwrap();
             let mut next_window_reads: Vec<Record> = Vec::with_capacity(100);
 
+            let s = so.clone();
             for window_chunk in windows.chunks(3) {
                 let mut bundles = PairBundles {
                     read_dict: IndexMap::new(),
                 };
-
-                let writer = make_bam_writer(&self.outfile, header.clone(), self.threads);
-                let (s, r): (Sender<Record>, Receiver<Record>) = unbounded();
-                let writer_handle = spawn_writer_thread(writer, r);
 
                 for window in window_chunk {
                     let start = window.start;
@@ -102,11 +104,12 @@ impl PairMerger {
                 for res in merge_results {
                     merge_report.count(res);
                 }
-
-                drop(s);
-                num_writes += writer_handle.join().expect("Writer thread panicked");
             }
+            drop(s);
         }
+
+        drop(so);
+        num_writes += writer_handle.join().expect("Writer thread panicked");
 
         merge_report.num_inreads = read_count;
         merge_report.num_outreads = num_writes;
