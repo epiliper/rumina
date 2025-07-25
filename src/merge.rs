@@ -16,7 +16,7 @@ pub fn handle_dupes(
     mapper: ReMapper,
     ref_fasta: &Vec<u8>,
     min_overlap_bp: usize,
-    sender: crossbeam::channel::Sender<BamRecord>,
+    sender: crossbeam::channel::Sender<Option<BamRecord>>,
 ) -> Vec<MergeResult> {
     let results: Arc<Mutex<Vec<MergeResult>>> = Arc::new(Mutex::new(Vec::new()));
 
@@ -27,7 +27,9 @@ pub fn handle_dupes(
             let mut reads = reads_and_count.reads;
             match reads.len() {
                 1 => {
-                    reads.drain(..).for_each(|read| sender.send(read).unwrap());
+                    reads
+                        .drain(..)
+                        .for_each(|read| sender.send(Some(read)).unwrap());
                 }
                 _ => {
                     debug!("MERGING: number of reads with same umi: {}", reads.len());
@@ -54,7 +56,7 @@ pub fn handle_dupes(
                             }
 
                             MergeResult::NoMerge(_) => {
-                                sender.send(read).unwrap();
+                                sender.send(Some(read)).unwrap();
                                 merge_results.push(result);
                             }
                             MergeResult::Merge(merged_bases) => {
@@ -66,7 +68,7 @@ pub fn handle_dupes(
                                     &mut mapper.clone(),
                                     &ref_fasta,
                                 );
-                                sender.send(merged_read).unwrap();
+                                sender.send(Some(merged_read)).unwrap();
                                 merge_results.push(MergeResult::Merge(None));
                             }
                         }
@@ -281,7 +283,7 @@ mod tests {
     fn test_handle_dupes() {
         let mut umis_reads: IndexMap<String, ReadsAndCount<BamRecord>> = IndexMap::new();
         let mut merge_report = MergeReport::new();
-        let (s, r): (Sender<Record>, Receiver<Record>) = bounded(10);
+        let (s, r): (Sender<Option<Record>>, Receiver<Option<Record>>) = bounded(10);
         umis_reads.insert(
             "umi1".to_string(),
             ReadsAndCount {
@@ -301,7 +303,7 @@ mod tests {
         for res in results {
             merge_report.count(res);
         }
-        let out_read = r.recv().unwrap();
+        let out_read = r.recv().unwrap().unwrap();
         println!("{}", merge_report);
         println!("{:?}", out_read.cigar().to_string());
         println!("{:?}", out_read.seq().as_bytes());

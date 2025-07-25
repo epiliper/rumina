@@ -11,15 +11,15 @@ use std::{thread, thread::JoinHandle};
 
 use rust_htslib::bam::Record;
 
-pub fn spawn_writer_thread(mut bam_writer: Writer, r: Receiver<Record>) -> JoinHandle<i32> {
+pub fn spawn_writer_thread(mut bam_writer: Writer, r: Receiver<Option<Record>>) -> JoinHandle<i32> {
     thread::spawn(move || {
         let mut buffer: Vec<Record> = Vec::with_capacity(1_000_000);
         let mut num_writes = 0;
 
         loop {
             match r.recv() {
-                Ok(read) => buffer.push(read),
-                Err(_) => {
+                Ok(Some(read)) => buffer.push(read),
+                Ok(None) | Err(_) => {
                     buffer.sort_by(|ra, rb| ra.pos().cmp(&rb.pos()));
                     for read in buffer.drain(..) {
                         bam_writer.write(&read).expect("unable to write read");
@@ -56,7 +56,7 @@ impl PairMerger {
         let mut read_count = 0;
 
         let writer = make_bam_writer(&self.outfile, header.clone(), self.threads);
-        let (so, r): (Sender<Record>, Receiver<Record>) = unbounded();
+        let (so, r): (Sender<Option<Record>>, Receiver<Option<Record>>) = unbounded();
         let writer_handle = spawn_writer_thread(writer, r);
 
         for tid in 0..ref_count {
@@ -105,6 +105,7 @@ impl PairMerger {
                     merge_report.count(res);
                 }
             }
+            s.send(None).unwrap();
             drop(s);
         }
 
