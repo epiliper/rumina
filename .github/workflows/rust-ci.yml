@@ -12,14 +12,14 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         rust:
-          - stable
+          - nightly
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: ${{ matrix.rust }}
 
@@ -40,13 +40,13 @@ jobs:
     strategy:
       matrix:
         rust:
-          - stable
+          - nightly
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: ${{ matrix.rust }}
           components: rustfmt

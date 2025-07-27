@@ -79,6 +79,7 @@ jobs:
           mkdir -p "${PKG_BASENAME}"
           mv README.md LICENSE cov_reporter.py "${PKG_BASENAME}"
           mv target/${{ matrix.job.target }}/release/rumina "${PKG_BASENAME}/"
+          mv *.nix "${PKG_BASENAME}/"
           zip -r "${PKG_NAME}" "${PKG_BASENAME}"
           echo "ASSET=${PKG_NAME}" >> $GITHUB_ENV
       - name: Release
