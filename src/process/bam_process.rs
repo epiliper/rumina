@@ -9,7 +9,7 @@ use crate::read_store::BottomHashMap;
 use crate::readkey::ReadKey;
 use crate::record::{BamRecord, Record};
 use crate::utils::{gen_outfile_name, index_bam};
-use anyhow::Error;
+use anyhow::{Error, Context};
 use colored::Colorize;
 use indexmap::IndexMap;
 use log::info;
@@ -91,6 +91,10 @@ impl FileProcess for BamFileProcess {
                         continue;
                     }
 
+                    if record.is_mate_unmapped() {
+                        continue;
+                    }
+
                     (pos, key) = record.get_pos_key(self.chunk_processor.group_by_length);
                     self.chunk_processor.pull_read(
                         record,
@@ -145,7 +149,7 @@ impl FileProcess for BamFileProcess {
         }
 
         drop(self.io.writer); // dropping to avoid vague samtools warning
-        let idx = index_bam(&self.outfile, self.io.num_threads).expect("Failed to index bam");
+        let idx = index_bam(&self.outfile, self.io.num_threads).context("Note: failed to index bam due to unsorted order. The output file should be manually sorted with samtools sort. Exiting early...")?;
 
         if let Some(mut pair_merger) = self.pair_merger {
             info!("{:?}", pair_merger);
