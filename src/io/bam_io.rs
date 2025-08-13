@@ -56,7 +56,7 @@ impl BamIO {
         Self::new(
             infile_path,
             outfile_path,
-            args.r1_only,
+            args.paired,
             args.threads,
             args.strict_threads,
             args.split_window,

@@ -9,7 +9,7 @@ use crate::read_store::BottomHashMap;
 use crate::readkey::ReadKey;
 use crate::record::{BamRecord, Record};
 use crate::utils::{gen_outfile_name, index_bam};
-use anyhow::{Error, Context};
+use anyhow::{Context, Error};
 use colored::Colorize;
 use indexmap::IndexMap;
 use log::info;
@@ -87,11 +87,16 @@ impl FileProcess for BamFileProcess {
                 pt.intake_reads_msg();
 
                 for record in self.io.windowed_reader.window_records() {
-                    if !record.is_first_in_template() && self.chunk_processor.r1_only {
+
+                    if record.is_unmapped() {
                         continue;
                     }
 
-                    if record.is_mate_unmapped() {
+                    if !record.is_first_in_template() {
+                        continue;
+                    }
+
+                    if record.is_mate_unmapped() && self.chunk_processor.paired {
                         continue;
                     }
 

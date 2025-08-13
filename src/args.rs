@@ -82,7 +82,7 @@ pub struct Args {
         number of reference coordinates of a given BAM to process at a time [no limit]; a starting value of 100 is recommended if memory is limited"})]
     pub split_window: Option<i64>,
 
-    #[arg(short = 'm', long = "merge_pairs", conflicts_with = "halve_pairs", help_heading = "PAIRED-END OPTIONS", help = indoc!{"
+    #[arg(short = 'm', long = "merge_pairs", conflicts_with = "paired", help_heading = "PAIRED-END OPTIONS", help = indoc!{"
         Use the supplied reference fasta to merge overlapping forward/reverse read pairs with the same UMI. Only supports single-fasta files currently. For an alternative paired-end strategy, see --halve_pairs.
         "})]
     pub merge_pairs: Option<String>,
@@ -92,10 +92,10 @@ pub struct Args {
         ", default = DEFAULT_MIN_DEPTH})]
     pub min_overlap_bp: i64,
 
-    #[arg(short = 'l', long = "halve_pairs", conflicts_with = "merge_pairs", help_heading = "PAIRED-END OPTIONS", help = indoc!{"
+    #[arg(short = 'l', long = "paired", conflicts_with = "merge_pairs", help_heading = "PAIRED-END OPTIONS", help = indoc!{"
         Use only R1 for deduplication, and pair R1 with deduplicated R2 for output, similar to UMI-tools
         "})]
-    pub r1_only: bool,
+    pub paired: bool,
 
     #[arg(short = 't', long = "threads", default_value_t = *DEFAULT_THREADS, hide_default_value = true, help_heading = "PERFORMANCE OPTIONS", help = formatdoc! {"
         Number of threads to use for parallel processing of coordinates. Will default to all if not specified [{}].
@@ -152,7 +152,7 @@ impl std::fmt::Display for Args {
             "Keep singletons".purple(),
             self.singletons,
             "Halve pairs".purple(),
-            self.r1_only,
+            self.paired,
             "Percentage".purple(),
             self.percentage,
             "Max edit distance".purple(),
