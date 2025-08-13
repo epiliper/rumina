@@ -113,7 +113,7 @@ impl<'a> GroupHandler<'a> {
 
                 // get all the reads across all the umis in the group
                 for group in top_umi {
-                    seq_map.combine(umis_records.swap_remove(group).unwrap().1);
+                    seq_map.combine(umis_records.swap_remove(group).unwrap().1, self.group_only);
                 }
 
                 // tag final reads and send for writing to output bam

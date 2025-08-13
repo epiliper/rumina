@@ -34,20 +34,24 @@ pub type UmiReadMap<T> = IndexMap<SmolStr, (i32, SeqMap<T>)>;
 pub type SeqMap<T> = IndexMap<u64, SeqEntry<T>>;
 
 pub trait ReadStore<T: Record> {
-    fn combine(&mut self, other: SeqMap<T>);
+    fn combine(&mut self, other: SeqMap<T>, retain_all: bool);
     fn intake(&mut self, read: T, retain_all: bool) -> u8;
 }
 
 impl<T: Record> ReadStore<T> for SeqMap<T> {
     /// Combine two [SeqMap]s into one
-    fn combine(&mut self, mut other: SeqMap<T>) {
+    fn combine(&mut self, mut other: SeqMap<T>, retain_all: bool) {
         other.drain(..).for_each(|(other_seq, mut seq_entry)| {
-            if let Some(mut seq) = self.get_mut(&other_seq) {
-                seq_entry.reads.drain(..).for_each(|read| {
-                    (seq.up_method)(&mut seq, read);
-                })
-            };
-        })
+            let mut e = self.entry(other_seq).or_insert(SeqEntry::new(retain_all));
+            seq_entry
+                .reads
+                .drain(..)
+                .for_each(|read| {((e.up_method)(&mut e, read));})
+            // if let Some(mut seq) = self.get_mut(&other_seq) {
+            //     seq_entry.reads.drain(..).for_each(|read| {
+            //         (seq.up_method)(&mut seq, read);
+            //     })
+        });
     }
 
     /// Update [Self] with a new read
