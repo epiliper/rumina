@@ -46,10 +46,6 @@ impl<T: Record> ReadStore<T> for SeqMap<T> {
             seq_entry.reads.drain(..).for_each(|read| {
                 ((e.up_method)(&mut e, read));
             })
-            // if let Some(mut seq) = self.get_mut(&other_seq) {
-            //     seq_entry.reads.drain(..).for_each(|read| {
-            //         (seq.up_method)(&mut seq, read);
-            //     })
         });
     }
 
@@ -59,7 +55,6 @@ impl<T: Record> ReadStore<T> for SeqMap<T> {
         read.seq_str().hash(&mut h);
         let mut e = self.entry(h.finish()).or_insert(SeqEntry::new(retain_all));
 
-        // e.count += 1;
         (e.up_method)(&mut e, read)
     }
 }

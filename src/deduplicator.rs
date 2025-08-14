@@ -106,12 +106,15 @@ impl<'a> GroupHandler<'a> {
                 // since the group has enough reads to be used, count it in the report
                 group_report.num_passing_groups += 1;
 
+                let top_group = top_umi.get_index(0).unwrap();
+
                 let mut top_umi = top_umi.iter();
                 let (_, mut seq_map) = umis_records
                     .swap_remove(top_umi.next().unwrap())
                     .context("FATAL: Attempted to remove UMI that was already sent for output")?;
 
                 // get all the reads across all the umis in the group
+
                 for group in top_umi {
                     seq_map.combine(umis_records.swap_remove(group).unwrap().1, self.group_only);
                 }
@@ -119,18 +122,9 @@ impl<'a> GroupHandler<'a> {
                 // tag final reads and send for writing to output bam
                 let mut to_write = read_processor(&mut seq_map);
 
-                // TODO: FIX THIS FOR BOTH BAM AND FASTQ RECORDS
+                // TODO: figure out how to mark groups for FASTQ records
                 to_write.iter_mut().for_each(|read| {
-                    // TODO; avoid clone
-                    if let Some(umi) = read.get_umi(self.separator).ok() {
-                        read.mark_group(umi.as_bytes());
-                    } else {
-                        println! {"Unable to retrieve UMI for output read! Skipping..."}
-                    }
-
-                    // add group tag
-                    // read.push_aux(b"UG", Aux::String(str::from_utf8(&ug_tag).unwrap()))
-                    //     .unwrap();
+                    read.mark_group(top_group.as_bytes());
 
                     group_report.num_reads_output_file += 1;
                 });

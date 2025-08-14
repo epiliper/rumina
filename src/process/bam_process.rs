@@ -87,7 +87,7 @@ impl FileProcess for BamFileProcess {
                 pt.intake_reads_msg();
 
                 for record in self.io.windowed_reader.window_records() {
-                    if !record.is_first_in_template() && self.pair_merger.is_none() {
+                    if record.is_last_in_template() && self.pair_merger.is_none() {
                         continue;
                     }
 
