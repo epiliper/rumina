@@ -89,7 +89,6 @@ impl Processor {
         &mut self,
         bottomhash: &mut BottomHashMap<T>,
         coord_bar: &mut ProgressBar,
-        separator: &String,
     ) -> Vec<T> {
         let grouping_method = Arc::new(&self.grouping_method);
 
@@ -137,7 +136,6 @@ impl Processor {
                         seed: self.seed + position as u64, // make seed unique per position
                         group_only: self.only_group,
                         min_depth: self.min_depth,
-                        separator: &separator,
                     };
 
                     // perform UMI clustering per the method specified

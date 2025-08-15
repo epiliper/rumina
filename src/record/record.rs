@@ -53,7 +53,7 @@ pub trait Record {
     fn qual(&self) -> &[u8];
     fn get_umi(&self, separator: &String) -> Result<SmolStr, Error>;
     fn get_pos_key(&self, group_by_length: bool) -> (i64, ReadKey);
-    fn mark_group(&mut self, tag: &[u8]);
+    fn mark_group(&mut self, umi: &[u8], group_tag: &[u8]);
 }
 
 /// A wrapper around [rust_htslib::bam::Record]
@@ -87,7 +87,7 @@ impl Record for BamRecord {
             // set end pos as start to group with forward-selfs covering same region
             pos = self.reference_end();
             pos += self.cigar().trailing_softclips(); // pad with right-side soft clip
-             
+
             key = ReadKey {
                 // using seq_len_from_cigar to consider soft-clipped bases, essentially getting
                 // the entire read length. Not going to consider hard-clipping for now.
@@ -109,8 +109,10 @@ impl Record for BamRecord {
         }
     }
 
-    fn mark_group(&mut self, tag: &[u8]) {
-        self.push_aux(b"BX", Aux::String(str::from_utf8(tag).unwrap()))
+    fn mark_group(&mut self, umi: &[u8], group_tag: &[u8]) {
+        self.push_aux(b"BX", Aux::String(str::from_utf8(umi).unwrap()))
+            .unwrap();
+        self.push_aux(b"UG", Aux::String(str::from_utf8(group_tag).unwrap()))
             .unwrap();
     }
 }
@@ -150,7 +152,7 @@ impl Record for FastqRecord {
         (pos, key)
     }
 
-    fn mark_group(&mut self, _tag: &[u8]) {}
+    fn mark_group(&mut self, _tag: &[u8], _group_tag: &[u8]) {}
 }
 
 #[test]

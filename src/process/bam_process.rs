@@ -114,7 +114,6 @@ impl FileProcess for BamFileProcess {
                     &mut self.chunk_processor,
                     &mut bottomhash,
                     &mut pt.coord_bar,
-                    &self.separator,
                 ));
 
                 self.io.write_reads(&mut outreads);

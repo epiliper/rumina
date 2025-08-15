@@ -23,11 +23,10 @@ const UMI_TAG_LEN: usize = 8;
 // 3. output all reads in group
 //
 // remaining reads will be assigned a group-specific "UG" tag.
-pub struct GroupHandler<'a> {
+pub struct GroupHandler {
     pub seed: u64,
     pub group_only: bool,
     pub min_depth: usize,
-    pub separator: &'a String,
 }
 
 pub fn generate_tag(
@@ -51,7 +50,7 @@ pub fn generate_tag(
     }
 }
 
-impl<'a> GroupHandler<'a> {
+impl GroupHandler {
     // remove the reads associated with each UMI from the bundle
     // deduplicate and tag, or just tag them
     // push them to a list of tagged records awaiting writing to an output bamfile
@@ -124,7 +123,7 @@ impl<'a> GroupHandler<'a> {
 
                 // TODO: figure out how to mark groups for FASTQ records
                 to_write.iter_mut().for_each(|read| {
-                    read.mark_group(top_group.as_bytes());
+                    read.mark_group(top_group.as_bytes(), &ug_tag);
 
                     group_report.num_reads_output_file += 1;
                 });

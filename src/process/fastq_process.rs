@@ -99,7 +99,6 @@ impl FileProcess for FastQFileProcess {
         outreads.extend(self.chunk_processor.group_reads(
             &mut bottomhash,
             &mut pt.coord_bar,
-            &self.separator,
         ));
 
         self.io.write_reads(&mut outreads);
