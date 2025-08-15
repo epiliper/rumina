@@ -100,7 +100,7 @@ impl Processor {
             .read_dict
             .par_drain(..)
             .for_each(|(position, mut key_map)| {
-                for (_key, mut umi_read_map) in key_map.drain(..) {
+                for (key, mut umi_read_map) in key_map.drain(..) {
                     // sort UMIs (stably) by read count in descending order.
                     umi_read_map.par_sort_by(|_umi1, (count1, _map1), _umi2, (count2, _map2)| {
                         count2.cmp(&count1)
@@ -133,7 +133,8 @@ impl Processor {
                     }
 
                     let mut group_handler = GroupHandler {
-                        seed: self.seed + position as u64, // make seed unique per position
+                        // make seed for tag unique per position and key
+                        seed: self.seed + position as u64 + key,
                         group_only: self.only_group,
                         min_depth: self.min_depth,
                     };
