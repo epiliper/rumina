@@ -87,8 +87,11 @@ impl Record for BamRecord {
             // set end pos as start to group with forward-selfs covering same region
             pos = self.reference_end();
             pos += self.cigar().trailing_softclips(); // pad with right-side soft clip
+             
             key = ReadKey {
-                length: self.seq_len() * group_by_length as usize,
+                // using seq_len_from_cigar to consider soft-clipped bases, essentially getting
+                // the entire read length. Not going to consider hard-clipping for now.
+                length: self.seq_len_from_cigar(false) * group_by_length as usize,
                 reverse: true,
                 chr: self.tid() as usize,
             };
@@ -98,7 +101,7 @@ impl Record for BamRecord {
             pos -= self.cigar().leading_softclips(); // pad with left-side soft clip
 
             key = ReadKey {
-                length: self.seq_len() * group_by_length as usize,
+                length: self.seq_len_from_cigar(false) * group_by_length as usize,
                 reverse: false,
                 chr: self.tid() as usize,
             };
