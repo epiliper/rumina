@@ -25,6 +25,7 @@ pub struct BamFileProcess {
     separator: String,
     group_reads: bool,
     progress: bool,
+    ensure_sorted: bool,
 }
 
 impl FileProcess for BamFileProcess {
@@ -51,6 +52,12 @@ impl FileProcess for BamFileProcess {
             })
         }
 
+        let ensure_sorted = if args.ensure_sorted && args.split_window.is_some() {
+            true
+        } else {
+            false
+        };
+
         let separator = args.separator.clone();
         let progress = args.progress;
 
@@ -62,6 +69,7 @@ impl FileProcess for BamFileProcess {
             separator,
             group_reads,
             progress,
+            ensure_sorted,
         })
     }
 
@@ -116,7 +124,9 @@ impl FileProcess for BamFileProcess {
                     &mut pt.coord_bar,
                 ));
 
-                self.io.write_reads(&mut outreads);
+                if !self.ensure_sorted {
+                    self.io.write_reads(&mut outreads)
+                };
 
                 info!(
                     "Processed {} total reads...",
@@ -128,6 +138,8 @@ impl FileProcess for BamFileProcess {
         }
 
         pt.finish();
+
+        self.io.write_reads(&mut outreads);
 
         let num_reads_in = self.chunk_processor.read_counter;
         let min_maxes = self.chunk_processor.min_max.clone();

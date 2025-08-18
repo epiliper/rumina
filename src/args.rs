@@ -78,6 +78,11 @@ pub struct Args {
         "})]
     pub outdir: String,
 
+    #[arg(long = "sort", help_heading = "MISC OPTIONS", help = indoc!{"
+        Ensure output is sorted. This is only relevant when using -x / --split_window. This will use more memory.
+        "})]
+    pub ensure_sorted: bool,
+
     #[arg(value_parser = clap::value_parser!(i64).range(1..), short = 'x', long = "split_window", help_heading = "PERFORMANCE OPTIONS", help = indoc!{"
         number of reference coordinates of a given BAM to process at a time [no limit]; a starting value of 100 is recommended if memory is limited"})]
     pub split_window: Option<i64>,
