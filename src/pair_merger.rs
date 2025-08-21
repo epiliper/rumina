@@ -20,7 +20,7 @@ pub fn spawn_writer_thread(mut bam_writer: Writer, r: Receiver<Option<Record>>) 
             match r.recv() {
                 Ok(Some(read)) => buffer.push(read),
                 Ok(None) | Err(_) => {
-                    buffer.sort_by(|ra, rb| ra.pos().cmp(&rb.pos()));
+                    buffer.sort_by_key(|ra| ra.pos());
                     for read in buffer.drain(..) {
                         bam_writer.write(&read).expect("unable to write read");
                         num_writes += 1;

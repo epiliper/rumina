@@ -61,8 +61,7 @@ fn main() -> Result<(), Error> {
 
     process_all(&args, infiles)
         .into_iter()
-        .map(|r| r.err())
-        .flatten()
+        .filter_map(|r| r.err())
         .for_each(|e| eprintln! {"{:?}\n--", e});
 
     Ok(())

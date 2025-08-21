@@ -7,7 +7,7 @@ const DEFAULT_PERCENT: f32 = 0.5;
 const DEFAULT_MIN_DEPTH: usize = 3;
 const DEFAULT_MAX_EDIT: u32 = 1;
 const DEFAULT_MIN_OVERLAP: i64 = 3;
-static DEFAULT_THREADS: std::sync::LazyLock<usize> = std::sync::LazyLock::new(|| num_cpus::get());
+static DEFAULT_THREADS: std::sync::LazyLock<usize> = std::sync::LazyLock::new(num_cpus::get);
 
 #[derive(ValueEnum, Debug, Clone)]
 pub enum GroupingMethod {

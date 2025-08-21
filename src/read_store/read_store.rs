@@ -42,9 +42,9 @@ impl<T: Record> ReadStore<T> for SeqMap<T> {
     /// Combine two [SeqMap]s into one
     fn combine(&mut self, mut other: SeqMap<T>, retain_all: bool) {
         other.drain(..).for_each(|(other_seq, mut seq_entry)| {
-            let mut e = self.entry(other_seq).or_insert(SeqEntry::new(retain_all));
+            let e = self.entry(other_seq).or_insert(SeqEntry::new(retain_all));
             seq_entry.reads.drain(..).for_each(|read| {
-                ((e.up_method)(&mut e, read));
+                ((e.up_method)(e, read));
             })
         });
     }
@@ -53,9 +53,9 @@ impl<T: Record> ReadStore<T> for SeqMap<T> {
     fn intake(&mut self, read: T, retain_all: bool) -> u8 {
         let mut h = std::hash::DefaultHasher::new();
         read.seq_str().hash(&mut h);
-        let mut e = self.entry(h.finish()).or_insert(SeqEntry::new(retain_all));
+        let e = self.entry(h.finish()).or_insert(SeqEntry::new(retain_all));
 
-        (e.up_method)(&mut e, read)
+        (e.up_method)(e, read)
     }
 }
 
@@ -79,7 +79,7 @@ where
 impl<T: Record> SeqEntry<T> {
     /// only keep one read per sequence
     pub fn up_keep_single(&mut self, read: T) -> u8 {
-        let s: u32 = read.qual().iter().map(|a| u32::try_from(*a).unwrap()).sum();
+        let s: u32 = read.qual().iter().map(|a| u32::from(*a)).sum();
 
         let ret = match self.reads.is_empty() {
             true => 1,

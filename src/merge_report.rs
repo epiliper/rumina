@@ -43,28 +43,20 @@ impl fmt::Debug for MergeReport {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "\n{}\n\
-            {}\n\
-            {}: {}\n\
-            {}: {}\n\
-            {}: {}\n\
-            {}: {}\n\
-            {}: {}\n\
-            {}\n\
+            "\nPAIR MERGER\n\
+            =============================\n\
+            Discordant read pairs: {}\n\
+            Unmerged reads: {}\n\
+            Merged read pairs: {}\n\
+            Reads in: {}\n\
+            Reads out: {}\n\
+            =============================\n\
             ",
-            "PAIR MERGER",
-            "=============================",
-            "Discordant read pairs",
             self.num_discordant.to_formatted_string(&LOCALE),
-            "Unmerged reads",
             self.num_unmerged.to_formatted_string(&LOCALE),
-            "Merged read pairs",
             self.num_merged.to_formatted_string(&LOCALE),
-            "Reads in",
             self.num_inreads.to_formatted_string(&LOCALE),
-            "Reads out",
             self.num_outreads.to_formatted_string(&LOCALE),
-            "=============================",
         )
     }
 }

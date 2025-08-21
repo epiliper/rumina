@@ -33,7 +33,7 @@ pub fn gather_files(input_file: &str) -> Result<Vec<FileType>, anyhow::Error> {
                     }
                 } else {
                     println! {"Skipping folder {:?}", entry.file_name()};
-                    return None;
+                    None
                 }
             })
             .collect())
@@ -43,7 +43,7 @@ pub fn gather_files(input_file: &str) -> Result<Vec<FileType>, anyhow::Error> {
         }
 
         Ok(std::iter::once(
-            identify_file_type(&inpath)
+            identify_file_type(inpath)
                 .ok_or_else(|| anyhow::anyhow!("Unrecognized file extension: {}", input_file)),
         )
         .flatten()

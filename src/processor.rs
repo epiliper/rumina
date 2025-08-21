@@ -103,15 +103,14 @@ impl Processor {
                 for (key, mut umi_read_map) in key_map.drain(..) {
                     // sort UMIs (stably) by read count in descending order.
                     umi_read_map.par_sort_by(|_umi1, (count1, _map1), _umi2, (count2, _map2)| {
-                        count2.cmp(&count1)
+                        count2.cmp(count1)
                     });
 
                     let umis = umi_read_map
-                        .keys()
-                        .map(|x| x.clone())
+                        .keys().cloned()
                         .collect::<Vec<SmolStr>>();
 
-                    let umi_len = umis.get(0).unwrap().len();
+                    let umi_len = umis.first().unwrap().len();
 
                     let grouper = Grouper::new(
                         &umis,

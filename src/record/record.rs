@@ -40,7 +40,7 @@ pub fn reverse_complement(s: &str) -> SmolStr {
 
     unsafe {
         let out = std::str::from_utf8_unchecked(&out);
-        SmolStr::new(&out)
+        SmolStr::new(out)
     }
 }
 

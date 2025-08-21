@@ -24,7 +24,7 @@ pub fn identify_file_type(path: &Path) -> Option<FileType> {
         return Some(FileType::BamFile(RecordFile { fname, fpath }));
     }
 
-    return None;
+    None
 }
 
 pub fn gen_outfile_name(
@@ -85,12 +85,12 @@ pub fn get_windows(window_size: Option<i64>, max_pos: i64) -> Vec<Window> {
             end: max_pos + 1,
         });
 
-        return ranges;
+        ranges
     } else {
-        return vec![Window {
+        vec![Window {
             start: 0,
             end: i64::MAX,
-        }];
+        }]
     }
 }
 
@@ -123,7 +123,7 @@ pub fn index_bam(
     );
 
     match res {
-        Ok(_) => return Ok(idx_name),
-        Err(e) => return Err(e),
+        Ok(_) => Ok(idx_name),
+        Err(e) => Err(e),
     }
 }

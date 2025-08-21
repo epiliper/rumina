@@ -44,13 +44,13 @@ impl Eq for Node {}
 
 impl std::fmt::Display for Node {
     fn fmt(&self, _formatter: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        println!("Node with count {}: {}", self.count, self.umi);
-        println!("Children:");
+        writeln!(_formatter, "Node with count {}: {}", self.count, self.umi)?;
+        writeln!(_formatter, "Children:")?;
         for (k, node) in &self.children {
-            println!("K: {k};\t{:?}", node)
+            writeln!(_formatter, "K: {k};\t{:?}", node)?
         }
 
-        println!("--------------------------");
+        writeln!(_formatter, "--------------------------")?;
 
         Ok(())
     }
@@ -80,7 +80,7 @@ impl Node {
     /// attempt to add a string as a child to a node, unless a child with the same edit distance exists for
     /// the given node. Return the child if it exists.
     pub fn append_child(&mut self, k: u32, umi: &str, count: i32) -> Option<Rc<RefCell<Node>>> {
-        if self.children.get(&k).is_none() {
+        if !self.children.contains_key(&k) {
             let c = Rc::new(RefCell::new(Node::new(umi, count)));
 
             self.children.entry(k).insert_entry(c);
@@ -103,7 +103,7 @@ pub struct NGramBKTree {
 impl std::fmt::Display for NGramBKTree {
     fn fmt(&self, _formatter: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         for (ngram, bktree) in &self.ngram_tree_map {
-            println!("ngram: {ngram}\n{}", bktree.borrow())
+            writeln!(_formatter, "ngram: {ngram}\n{}", bktree.borrow())?
         }
         Ok(())
     }
@@ -130,7 +130,7 @@ impl NGramBKTree {
         loop {
             {
                 let mut curr = curr.borrow_mut();
-                k = hamming(&umi, &curr.umi) as u32;
+                k = hamming(umi, &curr.umi) as u32;
                 if k == 0 {
                     // umi already in tree
                     break;
@@ -147,9 +147,9 @@ impl NGramBKTree {
         }
     }
 
-    pub fn remove_near<'b>(
+    pub fn remove_near(
         &mut self,
-        umi: &'b str,
+        umi: &str,
         k: u32,
         max_count: i32,
         ngm: &ngram::NgramMaker,

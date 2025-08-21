@@ -113,26 +113,19 @@ impl fmt::Debug for GroupReport {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{}: {}\n\
-            {}: {}\n\
-            {}: {}\n\
-            {}: {}\n\
-            {}: {}\n\
-            {}: {}\n\
-            {}: {}",
-            "Minimum reads per group",
+            "Minimum reads per group: {}\n\
+            Maximum reads per group: {}\n\
+            Total UMI groups: {}\n\
+            Groups passing singleton filtering: {}\n\
+            Total UMIs considered: {}\n\
+            Input reads (mapped): {}\n\
+            Output reads: {}",
             self.min_reads_per_group.to_formatted_string(&LOCALE),
-            "Maximum reads per group",
             self.max_reads_per_group.to_formatted_string(&LOCALE),
-            "Total UMI groups",
             self.num_groups.to_formatted_string(&LOCALE),
-            "Groups passing singleton filtering",
             self.num_passing_groups.to_formatted_string(&LOCALE),
-            "Total UMIs considered",
             self.num_umis.to_formatted_string(&LOCALE),
-            "Input reads (mapped)",
             self.num_reads_input_file.to_formatted_string(&LOCALE),
-            "Output reads",
             self.num_reads_output_file.to_formatted_string(&LOCALE)
         )
     }

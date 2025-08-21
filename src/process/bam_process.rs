@@ -52,11 +52,7 @@ impl FileProcess for BamFileProcess {
             })
         }
 
-        let ensure_sorted = if args.ensure_sorted && args.split_window.is_some() {
-            true
-        } else {
-            false
-        };
+        let ensure_sorted = args.ensure_sorted && args.split_window.is_some();
 
         let separator = args.separator.clone();
         let progress = args.progress;

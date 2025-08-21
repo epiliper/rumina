@@ -1,6 +1,5 @@
 use crate::read_store::read_store::*;
 use crate::record::Record;
-use indexmap::IndexMap;
 use smol_str::SmolStr;
 
 /* When main function executes, this struct is populated with
@@ -38,7 +37,7 @@ impl<T: Record> BottomHashMap<T> {
             .entry(position)
             .or_default()
             .entry(key)
-            .or_insert_with(|| IndexMap::new())
+            .or_default()
             .entry(umi)
             .or_insert_with(|| (0, SeqMap::new()));
 

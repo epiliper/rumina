@@ -40,7 +40,7 @@ pub fn handle_dupes(
                     reads.sort_by(|ra, rb| {
                         ra.tid()
                             .cmp(&rb.tid())
-                            .then_with(|| ra.qname().cmp(&rb.qname()))
+                            .then_with(|| ra.qname().cmp(rb.qname()))
                             .then_with(|| ra.is_reverse().cmp(&!rb.is_reverse()))
                             .then_with(|| ra.pos().cmp(&rb.pos()))
                     });
@@ -66,7 +66,7 @@ pub fn handle_dupes(
                                     &read,
                                     merged_seq,
                                     &mut mapper.clone(),
-                                    &ref_fasta,
+                                    ref_fasta,
                                 );
                                 sender.send(Some(merged_read)).unwrap();
                                 merge_results.push(MergeResult::Merge(None));
@@ -103,8 +103,8 @@ pub fn find_merges(
     min_overlap_bp: usize,
 ) -> MergeResult {
     for (i, other_read) in reads.iter().enumerate() {
-        if is_opp_orientation(&read, other_read) && is_overlap(&read, other_read) {
-            let merge_result = attempt_merge(&read, other_read, min_overlap_bp);
+        if is_opp_orientation(read, other_read) && is_overlap(read, other_read) {
+            let merge_result = attempt_merge(read, other_read, min_overlap_bp);
 
             match merge_result {
                 MergeResult::Discordant(_) => {
@@ -147,18 +147,18 @@ pub fn construct_read(
 ) -> BamRecord {
     let mut new_rec = original_read.clone();
 
-    let (start, _end, cigar) = align_to_ref(mapper, &new_seq, &ref_seq);
+    let (start, _end, cigar) = align_to_ref(mapper, &new_seq, ref_seq);
 
     let qname = [new_rec.qname(), b":MERGED"].concat();
     new_rec.set(
         &qname,
         Some(&cigar),
         new_seq.as_slice(),
-        vec![255; new_seq.len() as usize].as_slice(),
+        vec![255; new_seq.len()].as_slice(),
     );
 
     new_rec.set_pos(start as i64);
-    return new_rec;
+    new_rec
 }
 
 // with two overlapping reads, attempt to merge the reads
