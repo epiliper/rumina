@@ -29,7 +29,7 @@ pub struct BamFileProcess {
 }
 
 impl FileProcess for BamFileProcess {
-    fn init_from_args(args: &Args, file_path: &String, file_name: &String) -> Result<Self, Error> {
+    fn init_from_args(args: &Args, file_path: &str, file_name: &str) -> Result<Self, Error> {
         let outfile = gen_outfile_name(Some(&args.outdir), ".bam", "RUMINA", file_name)?;
         let bam_io = BamIO::init_from_args(args, file_path, &outfile);
 

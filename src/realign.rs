@@ -21,8 +21,8 @@ pub fn init_remapper(ref_fasta_file: &String) -> (ReMapper, Vec<u8>) {
 
 pub fn align_to_ref(
     aligner: &mut ReMapper,
-    record_seq: &Vec<u8>,
-    ref_seq: &Vec<u8>,
+    record_seq: &[u8],
+    ref_seq: &[u8],
 ) -> (usize, usize, CigarString) {
     let aln = aligner.semiglobal(record_seq, ref_seq);
 

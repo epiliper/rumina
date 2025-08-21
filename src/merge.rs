@@ -14,7 +14,7 @@ use crate::realign::{align_to_ref, ReMapper};
 pub fn handle_dupes(
     umis_reads: &mut IndexMap<String, ReadsAndCount<BamRecord>>,
     mapper: ReMapper,
-    ref_fasta: &Vec<u8>,
+    ref_fasta: &[u8],
     min_overlap_bp: usize,
     sender: crossbeam::channel::Sender<Option<BamRecord>>,
 ) -> Vec<MergeResult> {
@@ -122,7 +122,7 @@ pub fn find_merges(
     MergeResult::NoMerge(())
 }
 
-pub fn construct_sequence<'a>(mut read_blueprint: IndexMap<i64, u8>) -> (i64, Vec<u8>) {
+pub fn construct_sequence(mut read_blueprint: IndexMap<i64, u8>) -> (i64, Vec<u8>) {
     let mut new_seq = Vec::new();
 
     read_blueprint.sort_unstable_keys();
@@ -143,7 +143,7 @@ pub fn construct_read(
     original_read: &BamRecord,
     new_seq: Vec<u8>,
     mapper: &mut ReMapper,
-    ref_seq: &Vec<u8>,
+    ref_seq: &[u8],
 ) -> BamRecord {
     let mut new_rec = original_read.clone();
 

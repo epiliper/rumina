@@ -61,13 +61,11 @@ impl Processor {
     }
 
     pub fn init_from_args(args: &Args, seed: u64) -> Self {
-        let min_depth;
-
-        if args.singletons {
-            min_depth = 1;
+        let min_depth = if args.singletons {
+            1
         } else {
-            min_depth = args.min_cluster_depth;
-        }
+            args.min_cluster_depth
+        };
 
         Self::new(
             &args.grouping_method,
@@ -106,9 +104,7 @@ impl Processor {
                         count2.cmp(count1)
                     });
 
-                    let umis = umi_read_map
-                        .keys().cloned()
-                        .collect::<Vec<SmolStr>>();
+                    let umis = umi_read_map.keys().cloned().collect::<Vec<SmolStr>>();
 
                     let umi_len = umis.first().unwrap().len();
 
@@ -139,7 +135,7 @@ impl Processor {
                     };
 
                     // perform UMI clustering per the method specified
-                    let groupies = grouper.cluster(counts.clone(), Arc::clone(&grouping_method));
+                    let groupies = grouper.cluster(counts.clone(), &grouping_method);
                     let (group_report, tagged_reads) = group_handler
                         .tag_records(groupies, &mut umi_read_map, counts)
                         .unwrap();
@@ -173,7 +169,7 @@ impl Processor {
         pos: i64,
         key: ReadKey,
         bottomhash: &mut BottomHashMap<T>,
-        separator: &String,
+        separator: &str,
         retain_all: bool,
     ) -> Result<(), Error> {
         bottomhash.update_dict(

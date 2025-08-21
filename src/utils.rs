@@ -94,14 +94,14 @@ pub fn get_windows(window_size: Option<i64>, max_pos: i64) -> Vec<Window> {
     }
 }
 
-pub fn make_bam_writer(file_name: &String, header: Header, num_threads: usize) -> Writer {
+pub fn make_bam_writer(file_name: &str, header: Header, num_threads: usize) -> Writer {
     let mut bam_writer =
         Writer::from_path(file_name, &header, rust_htslib::bam::Format::Bam).unwrap();
     bam_writer.set_threads(num_threads).unwrap();
     bam_writer
 }
 
-pub fn make_bam_reader(input_file: &String, num_threads: usize) -> (Header, IndexedReader) {
+pub fn make_bam_reader(input_file: &str, num_threads: usize) -> (Header, IndexedReader) {
     let mut bam_reader = IndexedReader::from_path(input_file).unwrap();
     bam_reader.set_threads(num_threads).unwrap();
     let header = Header::from_template(bam_reader.header());

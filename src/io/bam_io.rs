@@ -19,8 +19,8 @@ pub struct BamIO {
 
 impl BamIO {
     pub fn new(
-        infile_name: &String,
-        outfile_name: &String,
+        infile_name: &str,
+        outfile_name: &str,
         retrieve_r2s: bool,
         num_threads: usize,
         strict_threads: bool,
@@ -52,7 +52,7 @@ impl BamIO {
         }
     }
 
-    pub fn init_from_args(args: &Args, infile_path: &String, outfile_path: &String) -> Self {
+    pub fn init_from_args(args: &Args, infile_path: &str, outfile_path: &str) -> Self {
         Self::new(
             infile_path,
             outfile_path,

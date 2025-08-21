@@ -5,7 +5,6 @@ use crate::GroupingMethod;
 use indexmap::IndexSet;
 use smol_str::SmolStr;
 use std::collections::VecDeque;
-use std::sync::Arc;
 
 pub struct Grouper<'a> {
     pub umis: &'a Vec<SmolStr>,
@@ -63,7 +62,7 @@ impl<'a> Grouper<'a> {
     pub fn cluster(
         &'a self,
         mut counts: UmiHistogram<'a>,
-        grouping_method: Arc<&'a GroupingMethod>,
+        grouping_method: &'a GroupingMethod,
     ) -> impl Iterator<Item = IndexSet<SmolStr>> + 'a {
         let mut bk = match *grouping_method {
             GroupingMethod::Directional | GroupingMethod::Acyclic => {

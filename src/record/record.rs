@@ -5,7 +5,7 @@ use rust_htslib::{bam, bam::ext::BamRecordExtensions, bam::record::Aux};
 use seq_io::fastq::Record as _;
 use smol_str::SmolStr;
 
-pub fn extract_umi_from_header<'a>(header: &'a str, separator: &String) -> Result<&'a str, Error> {
+pub fn extract_umi_from_header<'a>(header: &'a str, separator: &str) -> Result<&'a str, Error> {
     let (_rest, past_sep) = header.rsplit_once(separator).with_context(|| {
         format!(
             "failed to get UMI with separator '{}'. Header in question:\n{}",
@@ -51,7 +51,7 @@ pub trait Record {
     fn _seq(&self) -> String;
     fn seq_str(&self) -> &[u8];
     fn qual(&self) -> &[u8];
-    fn get_umi(&self, separator: &String) -> Result<SmolStr, Error>;
+    fn get_umi(&self, separator: &str) -> Result<SmolStr, Error>;
     fn get_pos_key(&self, group_by_length: bool) -> (i64, ReadKey);
     fn mark_group(&mut self, umi: &[u8], group_tag: &[u8]);
 }
@@ -68,7 +68,7 @@ impl Record for BamRecord {
         self.seq().encoded
     }
 
-    fn get_umi(&self, separator: &String) -> Result<SmolStr, Error> {
+    fn get_umi(&self, separator: &str) -> Result<SmolStr, Error> {
         unsafe {
             let s = std::str::from_utf8_unchecked(self.qname());
             Ok(SmolStr::from(extract_umi_from_header(s, separator)?))
@@ -130,7 +130,7 @@ impl Record for FastqRecord {
         self.seq.as_slice()
     }
 
-    fn get_umi(&self, separator: &String) -> Result<SmolStr, Error> {
+    fn get_umi(&self, separator: &str) -> Result<SmolStr, Error> {
         Ok(SmolStr::from(extract_umi_from_header(
             self.id()?,
             separator,

@@ -64,7 +64,7 @@ impl GroupReport {
 
     // once deduplication of the file is complete, only list UMIs that were observed more than
     // once.
-    pub fn write_to_report_file(&mut self, output_file: &String) {
+    pub fn write_to_report_file(&mut self, output_file: &str) {
         let outname = output_file.split_once(".").unwrap().0;
         let report_file = format!("{}_rumina_report.tsv", outname);
 

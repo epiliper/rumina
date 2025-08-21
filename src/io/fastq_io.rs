@@ -20,8 +20,8 @@ pub struct FastqIO {
 
 impl FastqIO {
     pub fn new(
-        infile_name: &String,
-        outfile_name: &String,
+        infile_name: &str,
+        outfile_name: &str,
         retrieve_r2s: bool,
         num_threads: usize,
         strict_threads: bool,
@@ -63,8 +63,8 @@ impl FastqIO {
 
     pub fn init_from_args(
         args: &Args,
-        infile_path: &String,
-        outfile_path: &String,
+        infile_path: &str,
+        outfile_path: &str,
     ) -> Result<Self, Error> {
         Self::new(
             infile_path,

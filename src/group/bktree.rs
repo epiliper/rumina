@@ -70,11 +70,13 @@ impl Default for Node {
 
 impl Node {
     pub fn new(umi: &str, count: i32) -> Self {
-        let mut s = Self::default();
-        s.umi = SmolStr::new(umi);
-        s.count = count;
-        s.min_count = count;
-        s
+        Node {
+            umi: SmolStr::new(umi),
+            count,
+            min_count: 0,
+            exists: false,
+            children: HashMap::new(),
+        }
     }
 
     /// attempt to add a string as a child to a node, unless a child with the same edit distance exists for

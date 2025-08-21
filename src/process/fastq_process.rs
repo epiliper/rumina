@@ -24,7 +24,7 @@ pub struct FastQFileProcess {
 }
 
 impl FileProcess for FastQFileProcess {
-    fn init_from_args(args: &Args, file_path: &String, file_name: &String) -> Result<Self, Error> {
+    fn init_from_args(args: &Args, file_path: &str, file_name: &str) -> Result<Self, Error> {
         let outfile = gen_outfile_name(Some(&args.outdir), ".fastq.gz", "RUMINA", file_name)?;
         let io = FastqIO::init_from_args(args, file_path, &outfile)?;
 
@@ -96,10 +96,10 @@ impl FileProcess for FastQFileProcess {
             1
         );
 
-        outreads.extend(self.chunk_processor.group_reads(
-            &mut bottomhash,
-            &mut pt.coord_bar,
-        ));
+        outreads.extend(
+            self.chunk_processor
+                .group_reads(&mut bottomhash, &mut pt.coord_bar),
+        );
 
         self.io.write_reads(&mut outreads);
 

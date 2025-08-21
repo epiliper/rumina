@@ -24,7 +24,7 @@ pub struct WindowedBamReader {
 }
 
 impl WindowedBamReader {
-    pub fn new(file_name: &String, num_threads: usize, window_size: Option<i64>) -> Self {
+    pub fn new(file_name: &str, num_threads: usize, window_size: Option<i64>) -> Self {
         let (raw_header, reader) = make_bam_reader(file_name, num_threads);
         let meta_header = reader.header().clone();
         let cur_ref = UNINIT_U32;
