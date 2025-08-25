@@ -33,7 +33,7 @@ impl NgramMaker {
         }
     }
 
-    pub fn ngrams(&self, s: &str) -> RefMut<Vec<SmolStr>> {
+    pub fn ngrams(&self, s: &str) -> RefMut<'_, Vec<SmolStr>> {
         self.ngrams_to_ref(s, self.out_vec.borrow_mut());
         self.out_vec.borrow_mut()
     }

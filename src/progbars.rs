@@ -1,4 +1,4 @@
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 
 pub struct ProgressTracker {
     _prog: Option<MultiProgress>,
@@ -17,11 +17,12 @@ impl ProgressTracker {
                 coord_bar: ProgressBar::hidden(),
             }
         } else {
-            let _prog = MultiProgress::new();
+            let _prog = MultiProgress::with_draw_target(ProgressDrawTarget::stdout());
             _prog.clear().ok();
             let ref_bar = _prog.add(make_reference_bar(num_references as u64));
             ref_bar.set_prefix("REFERENCE");
 
+            ref_bar.tick();
             let ref_bar = Some(ref_bar);
 
             let window_bar = _prog.add(make_windowbar(0)); // Length set in initialize_windows
@@ -94,7 +95,7 @@ impl ProgressTracker {
 }
 
 pub fn make_reference_bar(num_refs: u64) -> ProgressBar {
-    let pb = ProgressBar::new(num_refs);
+    let pb = ProgressBar::with_draw_target(Some(num_refs), ProgressDrawTarget::stdout());
     pb.set_style(
         ProgressStyle::with_template(
             "{prefix:<15} {human_pos:>3}/{human_len:<3} {msg:<15} {spinner}",
@@ -107,7 +108,7 @@ pub fn make_reference_bar(num_refs: u64) -> ProgressBar {
 }
 
 pub fn make_windowbar(num_windows: u64) -> ProgressBar {
-    let pb = ProgressBar::new(num_windows);
+    let pb = ProgressBar::with_draw_target(Some(num_windows), ProgressDrawTarget::stdout());
     pb.set_style(
         ProgressStyle::with_template(
             "{prefix:<15} {human_pos:>3}/{human_len:<3} {msg:<15} {spinner}",
@@ -120,7 +121,7 @@ pub fn make_windowbar(num_windows: u64) -> ProgressBar {
 }
 
 pub fn make_coordbar(num_coords: u64) -> ProgressBar {
-    let pb = ProgressBar::new(num_coords);
+    let pb = ProgressBar::with_draw_target(Some(num_coords), ProgressDrawTarget::stdout());
     pb.set_style(
         ProgressStyle::with_template(
             "{prefix:<15} {human_pos:>3}/{human_len:<3} {bar:40.cyan/blue}",
