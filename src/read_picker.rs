@@ -10,10 +10,10 @@
 
 use crate::processor::UmiHistogram;
 use crate::read_store::read_store::SeqMap;
-use crate::record::Record;
+use crate::record::SequenceRecord;
 use indexmap::IndexSet;
 
-pub fn correct_errors<T: Record>(clusters: &mut SeqMap<T>) -> Vec<T> {
+pub fn correct_errors<T: SequenceRecord>(clusters: &mut SeqMap<T>) -> Vec<T> {
     assert!(!clusters.is_empty());
     // sort, in descending order, by:
     // 1. sequence count, to get majority sequence
@@ -31,7 +31,7 @@ pub fn correct_errors<T: Record>(clusters: &mut SeqMap<T>) -> Vec<T> {
 }
 
 // used with the --group_only arg to return all reads within a group with a group tag
-pub fn push_all_reads<T: Record>(clusters: &mut SeqMap<T>) -> Vec<T> {
+pub fn push_all_reads<T: SequenceRecord>(clusters: &mut SeqMap<T>) -> Vec<T> {
     let mut reads_to_write: Vec<T> = Vec::with_capacity(clusters.len());
 
     clusters

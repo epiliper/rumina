@@ -1,13 +1,13 @@
 use crate::args::Args;
 use crate::cli::print_file_info;
 use crate::process::{BamFileProcess, FastQFileProcess, FileProcess};
-use crate::record::Record;
+use crate::record::SequenceRecord;
 use crate::utils::{identify_file_type, FileType};
 use anyhow::{Context, Error, Result};
 use std::fs::read_dir;
 use std::path::Path;
 
-pub trait FileIO<T: Record> {
+pub trait FileIO<T: SequenceRecord> {
     fn write_reads(&mut self, outreads: &mut Vec<T>);
 }
 

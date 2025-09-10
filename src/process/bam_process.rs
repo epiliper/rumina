@@ -1,13 +1,13 @@
 use crate::args::Args;
+use crate::io::bam_io::BamIO;
 use crate::io::file_io::FileIO;
-use crate::io::BamIO;
 use crate::pair_merger::PairMerger;
 use crate::process::file_process::FileProcess;
 use crate::processor::Processor;
 use crate::progbars::ProgressTracker;
 use crate::read_store::BottomHashMap;
 use crate::readkey::ReadKey;
-use crate::record::{BamRecord, Record};
+use crate::record::{BamRecord, SequenceRecord};
 use crate::utils::{gen_outfile_name, index_bam};
 use anyhow::{Context, Error};
 use colored::Colorize;

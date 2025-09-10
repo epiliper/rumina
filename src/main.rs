@@ -4,7 +4,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 use crate::args::{parse_args, GroupingMethod};
 use crate::cli::*;
 use crate::group_report::GroupReport;
-use crate::io::{gather_files, process_all};
+use crate::io::file_io::{gather_files, process_all};
 use indexmap::IndexMap;
 use std::fs::create_dir;
 use std::path::Path;

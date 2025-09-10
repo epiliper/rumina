@@ -31,11 +31,11 @@ bio = "2.0.3"
 log = "0.4.25"
 num_cpus = "1.16.0"
 simple-logging = "2.0.2"
-flate2 = "1.1.1"
 anyhow = "1.0.98"
 smol_str = "0.3.2"
-seq_io = "0.3.4"
 indoc = "2.0.6"
+gzp = "1.0.1"
+flate2 = "1.1.2"
  
 [profile.release]
 codegen-units = 1

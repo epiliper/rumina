@@ -1,8 +1,8 @@
+use crate::io::fastqio::FastqRecord;
 use crate::readkey::ReadKey;
 use anyhow::{Context, Error};
 use core::str;
 use rust_htslib::{bam, bam::ext::BamRecordExtensions, bam::record::Aux};
-use seq_io::fastq::Record as _;
 use smol_str::SmolStr;
 
 pub fn extract_umi_from_header<'a>(header: &'a str, separator: &str) -> Result<&'a str, Error> {
@@ -47,21 +47,26 @@ pub fn reverse_complement(s: &str) -> SmolStr {
 /// The record interface serves to allow using FASTQ and BAM records with the clustering and
 /// deduplication portions of the pipeline. The [FastqRecord] and [BamRecord] structs are very thin
 /// wrappers around their original types.
-pub trait Record {
+pub trait SequenceRecord {
     fn _seq(&self) -> String;
     fn seq_str(&self) -> &[u8];
     fn qual(&self) -> &[u8];
     fn get_umi(&self, separator: &str) -> Result<SmolStr, Error>;
     fn get_pos_key(&self, group_by_length: bool) -> (i64, ReadKey);
     fn mark_group(&mut self, umi: &[u8], group_tag: &[u8]);
+    fn qname(&self) -> &[u8];
 }
 
 /// A wrapper around [rust_htslib::bam::Record]
 pub type BamRecord = bam::Record;
 
-impl Record for BamRecord {
+impl SequenceRecord for BamRecord {
     fn _seq(&self) -> String {
         unsafe { String::from_utf8_unchecked(self.seq().encoded.to_vec()) }
+    }
+
+    fn qname(&self) -> &[u8] {
+        self.qname()
     }
 
     fn seq_str(&self) -> &[u8] {
@@ -119,26 +124,29 @@ impl Record for BamRecord {
 
 /// A wrapper around [bio::io::fastq::Record]
 // pub type FastqRecord = fastq::Record;
-pub type FastqRecord = seq_io::fastq::OwnedRecord;
-
-impl Record for FastqRecord {
+impl SequenceRecord for FastqRecord {
     fn _seq(&self) -> String {
-        unsafe { String::from_utf8_unchecked(self.seq.clone()) }
+        unsafe { std::str::from_utf8_unchecked(self.seq()).to_string() }
     }
 
     fn seq_str(&self) -> &[u8] {
-        self.seq.as_slice()
+        self.seq()
     }
 
     fn get_umi(&self, separator: &str) -> Result<SmolStr, Error> {
         Ok(SmolStr::from(extract_umi_from_header(
-            self.id()?,
+            // self.id()?,
+            self.id(),
             separator,
         )?))
     }
 
     fn qual(&self) -> &[u8] {
-        self.qual.as_slice()
+        self.qual()
+    }
+
+    fn qname(&self) -> &[u8] {
+        self.id().as_bytes()
     }
 
     fn get_pos_key(&self, group_by_length: bool) -> (i64, ReadKey) {

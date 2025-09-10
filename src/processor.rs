@@ -3,7 +3,7 @@ use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::read_store::bottomhash::BottomHashMap;
 use crate::readkey::ReadKey;
-use crate::record::Record;
+use crate::record::SequenceRecord;
 use crate::GroupReport;
 use crate::GroupingMethod;
 use anyhow::Error;
@@ -83,7 +83,7 @@ impl Processor {
     // run grouping on pulled reads
     // add tags to Records
     // output them to list for writing to bam
-    pub fn group_reads<T: Record + Send + std::fmt::Debug>(
+    pub fn group_reads<T: SequenceRecord + Send + std::fmt::Debug>(
         &mut self,
         bottomhash: &mut BottomHashMap<T>,
         coord_bar: &mut ProgressBar,
@@ -163,7 +163,7 @@ impl Processor {
             .into_inner()
     }
     // organize reads in bottomhash based on position
-    pub fn pull_read<T: Record>(
+    pub fn pull_read<T: SequenceRecord>(
         &mut self,
         read: T,
         pos: i64,

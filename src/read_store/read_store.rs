@@ -1,7 +1,7 @@
 use smol_str::SmolStr;
 use std::hash::{Hash, Hasher};
 
-use crate::record::Record;
+use crate::record::SequenceRecord;
 use indexmap::IndexMap;
 
 // every position has a key
@@ -13,14 +13,14 @@ pub type KeyUMI<T> = IndexMap<u64, UmiReadMap<T>>;
 #[derive(Debug)]
 pub struct ReadsAndCount<T>
 where
-    T: Record,
+    T: SequenceRecord,
 {
     pub reads: Vec<T>,
     pub count: i32,
 }
 
 // when a read is added to ReadsAndCount, increase the read count at x umi
-impl<T: Record> ReadsAndCount<T> {
+impl<T: SequenceRecord> ReadsAndCount<T> {
     pub fn up(&mut self, read: T) {
         self.count += 1;
         self.reads.push(read);
@@ -33,12 +33,12 @@ pub type UmiReadMap<T> = IndexMap<SmolStr, (i32, SeqMap<T>)>;
 /// Associates all reads sharing a given sequence.
 pub type SeqMap<T> = IndexMap<u64, SeqEntry<T>>;
 
-pub trait ReadStore<T: Record> {
+pub trait ReadStore<T: SequenceRecord> {
     fn combine(&mut self, other: SeqMap<T>, retain_all: bool);
     fn intake(&mut self, read: T, retain_all: bool) -> u8;
 }
 
-impl<T: Record> ReadStore<T> for SeqMap<T> {
+impl<T: SequenceRecord> ReadStore<T> for SeqMap<T> {
     /// Combine two [SeqMap]s into one
     fn combine(&mut self, mut other: SeqMap<T>, retain_all: bool) {
         other.drain(..).for_each(|(other_seq, mut seq_entry)| {
@@ -67,7 +67,7 @@ impl<T: Record> ReadStore<T> for SeqMap<T> {
 /// sequence quality is retained per sequence.
 pub struct SeqEntry<T>
 where
-    T: Record,
+    T: SequenceRecord,
 {
     // making this an array for iteration
     pub reads: Vec<T>,
@@ -76,7 +76,7 @@ where
     pub up_method: for<'a> fn(&'a mut Self, read: T) -> u8,
 }
 
-impl<T: Record> SeqEntry<T> {
+impl<T: SequenceRecord> SeqEntry<T> {
     /// only keep one read per sequence
     pub fn up_keep_single(&mut self, read: T) -> u8 {
         let s: u32 = read.qual().iter().map(|a| u32::from(*a)).sum();
@@ -88,7 +88,7 @@ impl<T: Record> SeqEntry<T> {
 
         // using >= here in case a read is Q of 0 (though such crap reads should be filtered out
         // first)
-        if s >= self.qual_sum {
+        if s > self.qual_sum {
             self.reads = vec![read];
             self.qual_sum = s;
         }

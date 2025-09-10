@@ -1,12 +1,13 @@
 use crate::args::Args;
-use crate::io::FastqIO;
+use crate::io::fastq_dedup_io::FastqIO;
+use crate::io::fastqio::FastqRecord;
 use crate::io::FileIO;
 use crate::process::file_process::FileProcess;
 use crate::processor::Processor;
 use crate::progbars::ProgressTracker;
 use crate::read_store::BottomHashMap;
 use crate::readkey::ReadKey;
-use crate::record::{FastqRecord, Record};
+use crate::record::SequenceRecord;
 use crate::utils::gen_outfile_name;
 use anyhow::{Context, Error};
 use colored::Colorize;
@@ -62,7 +63,7 @@ impl FileProcess for FastQFileProcess {
         let mut refresh_count = 0;
         pt.initialize_windows(1);
         pt.intake_reads_msg();
-        for record in reader.records() {
+        while let Some(record) = reader.records.next_record() {
             let r = record?;
             (pos, key) = r.get_pos_key(self.chunk_processor.group_by_length);
             self.chunk_processor.pull_read(

@@ -1,2 +1,2 @@
 pub mod record;
-pub use crate::record::record::{BamRecord, FastqRecord, Record};
+pub use crate::record::record::{BamRecord, SequenceRecord};

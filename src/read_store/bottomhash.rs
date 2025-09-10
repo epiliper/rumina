@@ -1,5 +1,5 @@
 use crate::read_store::read_store::*;
-use crate::record::Record;
+use crate::record::SequenceRecord;
 use smol_str::SmolStr;
 
 /* When main function executes, this struct is populated with
@@ -17,13 +17,13 @@ use smol_str::SmolStr;
 *               }
 * }
 */
-pub struct BottomHashMap<T: Record> {
+pub struct BottomHashMap<T: SequenceRecord> {
     pub read_dict: PositionKey<T>,
     pub read_count: u64,
     // pub update_method: fn(read: T),
 }
 
-impl<T: Record> BottomHashMap<T> {
+impl<T: SequenceRecord> BottomHashMap<T> {
     pub fn update_dict(
         &mut self,
         position: i64,

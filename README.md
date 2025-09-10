@@ -5,7 +5,7 @@
 
 ## RUMINA - Rust-based Unique Molecular Identifier Network Analysis
 
-RUMINA is a performant pipeline for error correction of Next-Generation Sequencing (NGS) data using Unique Molecular Identifiers (UMIs), fit for shotgun-based and amplicon-based methodologies. 
+RUMINA is a performant pipeline for error correction of Next-Generation Sequencing (NGS) data using Unique Molecular Identifiers (UMIs), fit for shotgun-based and amplicon-based methodologies.
 
 RUMINA deduplicates reads associated with a single template molecule, using the coordinates of read alignment and UMI barcode sequence to perform correction of PCR and sequencing errors. The above strategy also allows for correction of errors in UMI sequences (directional clustering). 
 
@@ -57,14 +57,16 @@ an example command:<br>
 ```rumina example.bam -g directional -s : -x 100 -t 8``` 
 
 ---
+RUMINA takes BAM files as input. **BAM files must be sorted and indexed in order to be processed**.
 The `input` to `rumina` can be a file or a directory; if a directory, all BAM files within (excluding pipeline products) are processed.
 
-RUMINA will write output BAM files and reports to an output directory (`rumina_output` by default), which can be specified with `--outdir`. Output BAM files will be sorted and indexed.
-
+RUMINA will write output BAM files and reports to an output directory (`rumina_output` by default), which can be specified with `--outdir`.
 ###  Arguments 
-:small_blue_diamond: = mandatory, no default
 
-##### `input` :small_blue_diamond:
+
+#### Required
+
+##### `input`
 The input file or directory. If a file, it must be: 
 
 - in BAM format
@@ -74,14 +76,14 @@ The input file or directory. If a file, it must be:
 
 If the input is a directory, all BAM files within (excluding pipeline products) will be processed per the other arguments specified. 
 
-##### `-g, --grouping_method` :small_blue_diamond:
+##### `-g, --grouping_method`
 
 Specifies how/if to merge UMIs based on edit distance, to account for PCR mutations and NGS errors in UMI sequence. Options are: 
 * **directional**: Merge UMIs via directional clustering. See *Amplicon* section for more details. This is the best option for amplicon sequencing data.
 * **acyclic**: Same as directional clustering, except UMI networks are limited to a depth of 1, i.e. UMIs that are predicted children cannot have UMIs as child nodes.
-* **raw**: Treat each UMI as genuine; UMIs are not merged. This is the best option for metagenomics/shotgun sequencing data.
+* **raw**: Treat each UMI as genuine; UMIs are not merged. This is the best option if you suspect UMI errors are not present, or are concerned about UMI over-grouping.
 
-##### `-s, --separator` :small_blue_diamond:
+##### `-s, --separator`
 Specifies the character in the read QNAME delimiting the UMI barcode from the rest of the string. This is usually `_` or `:`.<br>
 
 <p align="center">
@@ -89,6 +91,8 @@ Specifies the character in the read QNAME delimiting the UMI barcode from the re
     <img src="imgs/barcode_dark.png#gh-dark-mode-only" width=75% height=75%>
 </p>
 
+
+#### Performance
 
 ##### `-x, --split_window` (default = None)
 dictates how to split input BAM files into subfiles (for avoiding memory overflow). <br><br> This is usually necessary for BAM files with high sequencing depth that would otherwise cause the program to overuse available memory.
@@ -105,27 +109,57 @@ Specifies the number of threads RUMINA is allowed to use. Threads are used to pa
 
 By default, RUMINA will attempt to use all available threads.
 
+#####  `--strict-threads` (optional)
+
+Restrict BAM reading and writing operations to use the same number of threads as `--threads`. May slow down IO operations if using fewer threads than available on your machine, but makes CPU usage more predictable.
+
+##### `--ensure-sorted` (optional)
+
+Only relevant if using nonzero `-x` / `--split_window`. Retains all window output reads in a buffer before writing, to ensure output file is sorted. 
+
+#### Grouping - general
+
 ##### `-l, --length` (optional)
 if used, groups reads by length as well as coordinate. This is recommended for metagenomics data with high read depth, as this will group reads more stringently and likely produce more singleton groups. 
 
 ##### `--only-group` (optional)
 if used, reads will be grouped (assigned a group-specific "UG" tag), but not deduplicated or error-corrected. This is useful if you want to manually check how grouping works with a given file.
 
+
+#### Grouping - advanced
+
+##### `--percentage` (default = 0.5)
+The maximum fraction of reads one UMI (a) must have relative to another UMI (B) to be considered its offshoot, such that b -> a.
+
+##### `--max-edit` (default = 1)
+
+The maximum edit distance between two UMIs for them to be clustered. Should two UMIs meet this criterion, the parent will be the one with the higher count
+
+#### Miscellaneous
+
 ##### `--outdir` (default = rumina_output)
-The output directory, relative to the parent directory of the input files/directory, in which RUMINA's output will be stored.
+The output directory, inside the parent directory of the input files/directory, in which RUMINA's output will be stored. It will be created if it doesn't exist.
+
+Example: 
+```bash
+$INPUT_FILE=/home/stuff/test.bam
+$OUTDIR=temp
+# outfiles will be stored in /home/stuff/temp
+```
 
 #### Arguments for paired-end input
 
-using either of these arguments will automatically treat the input as paired-end.
 
-##### `--halve_pairs` (optional)
+##### `--paired` (optional)
 
-Use only R1 for deduplication, pairing deduplicated R1s with their associated R2s. This is similar to UMI-tools, in that R2 reads are not part of UMI clusters.
+Use only R1 for deduplication, pairing deduplicated R1s with their associated R2s in the final output. This is similar to UMI-tools, in that R2 reads are not part of UMI clusters.
 
-##### `--merge_pairs` (REF_FASTA, :small_blue_diamond:)
+##### `--merge_pairs` (optional)
 Use both R1 and R2 for deduplication, and merge overlapping forward/reverse reads with the same barcode after initial deduplication. Merged reads are then realigned to the reference genome, which should be supplied in FASTA format. This is untested with segmented genomes or eukaryotic genomes, and is under active development.
 
 Forward/reverse pairs are merged only if they contain a minimum number of overlapping bases, which is controlled by the `--min_overlap_bp` argument. Forward/reverse pairs identified to have discordant sequences are discarded, and reads unable to be merged for other reasons are still written to output.
+
+This option is currently only compatible with single-reference BAM files (you can only specify one reference for this argument), and this mode uses more memory than `--paired`.
 
 ##### `--min_overlap_bp` (default = 3)
 The minimum number of bases shared by two reads at the same reference coordinates for merging to occur in `--merge_pairs`. Reads not discordant in sequence but not meeting this threshold will not be merged, and instead both be written to the output file.

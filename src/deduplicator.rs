@@ -2,7 +2,7 @@ use crate::group_report::GroupReport;
 use crate::processor::UmiHistogram;
 use crate::read_picker::{correct_errors, get_counts, push_all_reads};
 use crate::read_store::{ReadStore, SeqMap};
-use crate::record::Record;
+use crate::record::SequenceRecord;
 use crate::IndexMap;
 use indexmap::IndexSet;
 
@@ -56,7 +56,7 @@ impl GroupHandler {
     // push them to a list of tagged records awaiting writing to an output bamfile
 
     // driver function of grouping
-    pub fn tag_records<T: Record>(
+    pub fn tag_records<T: SequenceRecord>(
         &mut self,
         // mut final_umis: Vec<Vec<&str>>,
         final_umis: impl Iterator<Item = IndexSet<smol_str::SmolStr>>,
