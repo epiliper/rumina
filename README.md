@@ -242,3 +242,8 @@ number of reads to buffer before writing.
 
 ##### `-t/--threads` (default = # of system threads)
 number of threads to use for compression/parallel extraction.
+
+## TODO:
+- Support reading from STDIN and writing to STDOUT
+- Asynchronous write/read for `rumina dedup`
+- (Maybe) explore parallel-friendly BK-tree?

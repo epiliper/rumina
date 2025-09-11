@@ -194,6 +194,6 @@ arguments:
 
     [[misc]]
     -o, --outdir: directory (relative to parent of input) in which to store output files.
-    -q, --progress: show progress bar, prints to standard error.
+    -q, --progress: show progress bar, prints to stdout.
 
 "#;
