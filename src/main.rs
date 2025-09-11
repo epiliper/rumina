@@ -41,7 +41,7 @@ fn main() -> Result<(), Error> {
     let args = Args::parse();
 
     match args.command {
-        Command::Dedup(args) | Command::Group(args) => {
+        Command::Dedup(args) => {
             let input_file = &args.input;
 
             print_logo();

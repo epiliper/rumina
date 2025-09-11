@@ -8,7 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use gzp::{deflate::Gzip, BgzfSyncReader, ZBuilder, ZWriter};
+use gzp::{deflate::Gzip, ZBuilder, ZWriter};
 
 use crate::record::FastqRecord;
 

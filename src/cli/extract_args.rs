@@ -24,6 +24,7 @@ impl std::fmt::Display for FastqQualEncoding {
 }
 
 #[derive(Parser, Debug)]
+#[clap(override_help = EXTRACT_HELP)]
 pub struct ExtractArgs {
     #[arg(short = 'i')]
     pub in1: PathBuf,
@@ -64,3 +65,49 @@ pub struct ExtractArgs {
     #[arg(short = 't', long = "threads", default_value_t = num_cpus::get())]
     pub threads: usize,
 }
+
+const EXTRACT_HELP: &str = r#"
+RUMINA Extract - add UMIs from FASTQ read sequence into read headers
+
+Usage: 
+    Single-end:
+        rumina extract -i <FASTQ> -p <PATTERN> -o <OUTPUT> [OPTIONS]
+
+    Paired-end:
+        rumina extract -i <FASTQ> -p <PATTERN> -o <OUTPUT1>
+            -I <FASTQ2> -P <PATTERN2> -O <OUTPUT2>
+
+    All FASTQ files must end with either .fastq, or .fastq.gz.
+
+    If both R1 and R2 input FASTQs are provided, you must also specify a pattern for each (-p and -P).
+
+Options:
+    misc:
+        --version: show version
+
+    extract:
+        -i: first FASTQ input. Must end in .fastq or .fastq.gz
+        -I: second FASTQ input. Must end in .fastq or .fastq.gz
+        -o: first FASTQ output. Must end in .fastq or .fastq.gz
+        -O: second FASTQ output. Must end in .fastq. or .fastq.gz
+
+        -p: extraction pattern for file given with -i
+        -P: extraction pattern for file given with -I.
+
+        -s: character to use to delimit barcodes from each other and read header ['_']
+
+        --retain-seq: don't remove barcode bases from read sequences during extraction.
+        Barcode sequence will be in both the read header and sequence.
+
+        --mask-qual: replace any UMI barcode bases below this quality with 'N'
+
+        --quality-filter: don't output reads with UMIs with base(s) below this quality.
+        In paired-end data, if one mate fails this filter, the other will be removed.
+
+        -e/--qual-encoding: quality encoding to use for filtering/masking. 
+        Choose from "phred33", "phred64", or "solexa".
+
+        -b/--batch-size: number of reads to buffer before writing [10000]
+
+        -t/--threads: number of threads to use for compression/parallel extraction. [Number of system threads]
+"#;
