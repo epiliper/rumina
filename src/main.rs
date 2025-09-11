@@ -42,6 +42,7 @@ fn main() -> Result<(), Error> {
 
     match args.command {
         Command::Dedup(args) => {
+            args.validate()?;
             let input_file = &args.input;
 
             print_logo();

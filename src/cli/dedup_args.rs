@@ -1,3 +1,4 @@
+use anyhow::Error;
 use clap::{Parser, ValueEnum};
 use colored::Colorize;
 
@@ -16,6 +17,7 @@ pub enum GroupingMethod {
 #[derive(Parser, Debug)]
 #[command(version, about, override_help = DEDUP_HELP)]
 pub struct DedupArgs {
+    #[clap(short = 'i')]
     pub input: String,
 
     #[arg(short = 'g', long = "grouping_method")]
@@ -71,6 +73,18 @@ pub struct DedupArgs {
 
     #[arg(short = 'q', long = "progress", default_value_t = false)]
     pub progress: bool,
+}
+
+impl DedupArgs {
+    pub fn validate(&self) -> Result<(), Error> {
+        if self.percentage < 0.01 || self.percentage > 1.0 {
+            anyhow::bail!(
+            "Invalid value {} for -p/--percentage! Choose a value between (inclusive) 0.01 and 1.0",
+            self.percentage
+        )
+        }
+        Ok(())
+    }
 }
 
 impl std::fmt::Display for DedupArgs {
@@ -131,14 +145,14 @@ const DEDUP_HELP: &str = r#"
 RUMINA dedup: cluster and deduplicate or group reads by UMI barcodes
 
 usage:
-    rumina dedup [*.bam|*.fastq|*.fastq.gz] -g {directional, acyclic, raw} -s <UMI SEPARATOR> [OPTIONS] -o [OUTDIR]
+    rumina dedup -i [*.bam|*.fastq|*.fastq.gz] -g {directional, acyclic, raw} -s <UMI SEPARATOR> [OPTIONS] -o [OUTDIR]
 
     The input can be one or more BAM or FASTQ files; RUMINA will processall input files sequentially.
 
 arguments:
 
     [[required]]:
-    INPUT: the first argument. BAM files must be sorted and indexed
+    -i: input files: BAMs must be sorted and indexed.
 
     -g, --grouping-method: Specifies UMI clustering method. Choose from:
         - directional: as in UMI-tools: predict mutant UMIs based on hamming distance and frequency 
