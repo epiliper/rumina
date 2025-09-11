@@ -1,6 +1,5 @@
 <p align="center">
-    <img src="imgs/RUMINA_LOGO_light.png#gh-light-mode-only" width=50% height=50%>
-    <img src="imgs/RUMINA_LOGO_dark.png#gh-dark-mode-only" width=50% height=50%>
+    <img src="imgs/RUMINA_LOGO.png" alt="logo" width=50%/>
 </p>
 
 ## RUMINA - Rust-based Unique Molecular Identifier Network Analysis
@@ -15,8 +14,7 @@ This pipeline is tested for processing ~600 million reads in ~5 hours, at a rate
 ### Workflow:
 
 <p align="center">
-    <img src="imgs/workflow_light.png#gh-light-mode-only" width=100% height=100%>
-    <img src="imgs/workflow_dark.png#gh-dark-mode-only" width=100% height=100%>
+    <img src="imgs/rumina_workflow.png" alt="logo" width=100%/>
 </p>
 
 
@@ -51,32 +49,36 @@ It's recommended to move the binary to someplace in your `$PATH` for convenience
 
 
 ### Usage: 
-```rumina <input (file or directory)> -g <grouping_method> -s <separator> <optional args>```
 
-an example command:<br>
-```rumina example.bam -g directional -s : -x 100 -t 8``` 
+RUMINA currently has two subcommands: 
+
+#### `dedup`
+Deduplicate an input FASTQ or BAM file:  
+`rumina dedup -i [*.bam|*.fastq|*.fastq.gz] -g {directional, acyclic, raw} -s <UMI SEPARATOR> [OPTIONS] -o [OUTDIR]`
+
+`dedup` will write output BAM files and reports to an output directory (`rumina_output` by default), which can be specified with `--outdir`.
+
+#### `extract`
+
+Analogous to `umi_tools extract`, extract cell and UMI barcodes in FASTQ read sequence to read headers, given a pattern to look for.  
+`rumina extract -i <FASTQ> -p <PATTERN> -o <OUTPUT> [OPTIONS]`
+
+Run `rumina extract -h` for paired-end options.
 
 ---
-RUMINA takes BAM files as input. **BAM files must be sorted and indexed in order to be processed**.
-The `input` to `rumina` can be a file or a directory; if a directory, all BAM files within (excluding pipeline products) are processed.
-
-RUMINA will write output BAM files and reports to an output directory (`rumina_output` by default), which can be specified with `--outdir`.
-###  Arguments 
+###  Arguments - `dedup`
 
 
 #### Required
 
-##### `input`
-The input file or directory. If a file, it must be: 
+##### `-i`
+The input file or directory. If a file, it must be either BAM or FASTQ format (plaintext or gzipped): 
 
-- in BAM format
-    - The UMI should be in the read QNAME field (see image under `--separator`). Illumina data base-called by [BCL Convert](https://www.illumina.com/products/by-type/informatics-products/basespace-sequence-hub/apps/bcl-convert.html) should be formatted this way by default.
-    - sorted and indexed with `samtools sort` and `samtools index` beforehand.
+BAMs should have the UMI in the read QNAME field (see image under --separator, `rumina extract`). Illumina data base-called by BCL convert should be formatted this way by default. BAMs must also be sorted and indexed.
 
+If the input is a directory, all BAM/FASTQ files within (excluding pipeline products) will be processed per the other arguments specified. 
 
-If the input is a directory, all BAM files within (excluding pipeline products) will be processed per the other arguments specified. 
-
-##### `-g, --grouping_method`
+##### `-g, --grouping-method`
 
 Specifies how/if to merge UMIs based on edit distance, to account for PCR mutations and NGS errors in UMI sequence. Options are: 
 * **directional**: Merge UMIs via directional clustering. See *Amplicon* section for more details. This is the best option for amplicon sequencing data.
@@ -87,15 +89,15 @@ Specifies how/if to merge UMIs based on edit distance, to account for PCR mutati
 Specifies the character in the read QNAME delimiting the UMI barcode from the rest of the string. This is usually `_` or `:`.<br>
 
 <p align="center">
-    <img src="imgs/barcode_light.png#gh-light-mode-only" width=75% height=75%>
-    <img src="imgs/barcode_dark.png#gh-dark-mode-only" width=75% height=75%>
+    <img src="imgs/barcode.png" width=75% \>
 </p>
 
 
 #### Performance
 
-##### `-x, --split_window` (default = None)
-dictates how to split input BAM files into subfiles (for avoiding memory overflow). <br><br> This is usually necessary for BAM files with high sequencing depth that would otherwise cause the program to overuse available memory.
+##### `-x, --split-window` (default = None)
+Dictates how to split input BAM files into subfiles (for avoiding memory overflow). 
+This is usually necessary for BAM files with high sequencing depth that would otherwise cause the program to overuse available memory.
 
 Splitting happens along coordinates of the reference genome in the specified BAM file; If `--split_window 100` was used, reads for every 100bp stretch of the reference would be processed in separate batches, prior to being written to output. This applies to every reference genome present in the input alignment.
 
@@ -154,12 +156,89 @@ $OUTDIR=temp
 
 Use only R1 for deduplication, pairing deduplicated R1s with their associated R2s in the final output. This is similar to UMI-tools, in that R2 reads are not part of UMI clusters.
 
-##### `--merge_pairs` (optional)
+##### `--merge-pairs` (optional)
 Use both R1 and R2 for deduplication, and merge overlapping forward/reverse reads with the same barcode after initial deduplication. Merged reads are then realigned to the reference genome, which should be supplied in FASTA format. This is untested with segmented genomes or eukaryotic genomes, and is under active development.
 
 Forward/reverse pairs are merged only if they contain a minimum number of overlapping bases, which is controlled by the `--min_overlap_bp` argument. Forward/reverse pairs identified to have discordant sequences are discarded, and reads unable to be merged for other reasons are still written to output.
 
 This option is currently only compatible with single-reference BAM files (you can only specify one reference for this argument), and this mode uses more memory than `--paired`.
 
-##### `--min_overlap_bp` (default = 3)
+##### `--min-overlap-bp` (default = 3)
 The minimum number of bases shared by two reads at the same reference coordinates for merging to occur in `--merge_pairs`. Reads not discordant in sequence but not meeting this threshold will not be merged, and instead both be written to the output file.
+
+### Arguments - `extract`
+
+Note: extraction works by supplying a pattern of bases to recognize and copy from the read. Currently only extraction from the 5' end is supported.
+
+Patterns are much like their counterparts in `umi-tools extract`, comprised solely of three characters:
+- C: base is part of cell barcode
+- X: base is irrelevant (don't extract it, leave it as is)
+- N: base is part of UMI barcode
+
+For example, given a read header and sequence:
+```
+@SRR29694476.1 VH01584:30:AAFKFNKM5:1:1101:41863:1000 length=151
+GTTCCCGACCGTGCGCATGAAGATGGAAGCCGGTAACGGCTCCACCGAAGACTTGACCGGTCGTGTGATCGATCTCTGCGCTCCGATCGGCAAAGGCCAGCGTGGCCTGATCGTCGCACCGCCGAAAGCCGGCAAGACCATCATGCTGCAG
+```
+
+Say you supply a pattern `NNXXXXNNCC` (2 UMI bases, followed by 4 misc bases, then 2 UMI bases, then 2 cell barcode bases):
+
+The read after being processed with `rumina extract` will be (note the header):
+```
+@SRR29694476.1_CC_GTGA VH01584:30:AAFKFNKM5:1:1101:41863:1000 length=151
+TCCCGTGCGCATGAAGATGGAAGCCGGTAACGGCTCCACCGAAGACTTGACCGGTCGTGTGATCGATCTCTGCGCTCCGATCGGCAAAGGCCAGCGTGGCCTGATCGTCGCACCGCCGAAAGCCGGCAAGACCATCATGCTGCAG
+```
+
+The two bases of the cell barcode come first (CC), followed by the 4 bases of the UMI barcode (GTGA):
+
+```
+first 10 bases of read: GTTCCCGACC
+selected by pattern:    NN....NNCC
+=====
+UMI:                    GT....GA.. = GTGA
+Cell barcode:           ........CC = CC
+```
+
+Note that selected UMI and cell barcode bases were removed from the read sequence. These bases can be preserved by using `--retain-seq`.
+
+
+##### `-i` 
+first FASTQ input. Must end in .fastq or .fastq.gz.
+##### `-I`
+second FASTQ input. Must end in .fastq or .fastq.gz.
+
+##### `-o`
+first FASTQ output. Must end in .fastq or .fastq.gz.
+
+##### `-O` 
+second FASTQ output. Must end in .fastq. or .fastq.gz.
+
+##### `-p` 
+extraction pattern for file given with -i.
+
+##### `-P` 
+extraction pattern for file given with -I.
+
+##### `-s` (default = '_') 
+character to use to delimit barcodes from each other and read header.
+
+##### `--retain-seq` 
+don't remove barcode bases from read sequences during extraction.
+Barcode sequence will be in both the read header and sequence.
+
+##### `--mask-qual` 
+replace any UMI barcode bases below this quality with 'N'.
+
+##### `--quality-filter` 
+don't output reads with UMIs with base(s) below this quality.
+In paired-end data, if one mate fails this filter, the other will be removed.
+
+##### `-e/--qual-encoding`
+quality encoding to use for filtering/masking.
+Choose from "phred33", "phred64", or "solexa".
+
+##### `-b/--batch-size` (default = 10,000)
+number of reads to buffer before writing.
+
+##### `-t/--threads` (default = # of system threads)
+number of threads to use for compression/parallel extraction.

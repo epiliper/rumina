@@ -35,6 +35,7 @@ anyhow = "1.0.98"
 smol_str = "0.3.2"
 gzp = "1.0.1"
 flate2 = "1.1.2"
+idna = "1.1.0"
  
 [profile.release]
 codegen-units = 1
