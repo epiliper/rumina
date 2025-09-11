@@ -1,5 +1,3 @@
-// use crate::fastq_output::FastqOutput;
-// use crate::fastqio::{FastqInput, IntakeOrdered, ReadPair};
 use crate::io::{
     fastq_output::FastqOutput,
     fastqio::{FastqInput, IntakeOrdered, ReadPair},

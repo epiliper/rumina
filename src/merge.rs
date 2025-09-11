@@ -1,4 +1,4 @@
-use crate::record::record::BamRecord;
+use crate::record::BamRecord;
 use indexmap::IndexMap;
 use log::{debug, warn};
 use parking_lot::Mutex;
@@ -214,7 +214,7 @@ pub fn attempt_merge(read_a: &BamRecord, read_b: &BamRecord, min_overlap_bp: usi
 mod tests {
 
     use super::*;
-    use crate::record::record::BamRecord;
+    use crate::record::BamRecord;
     use bio::alignment::pairwise::banded::Aligner;
     use bio::scores::blosum62;
     use crossbeam::channel::{bounded, Receiver, Sender};

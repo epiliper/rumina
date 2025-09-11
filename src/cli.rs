@@ -1,36 +1,7 @@
-use crate::args::Args;
-use colored::Colorize;
+pub mod dedup_args;
+pub mod extract_args;
+pub mod misc;
 
-const LOGO: &str = r#"
-
-██████╗ ██╗   ██╗███╗   ███╗██╗███╗   ██╗ █████╗ 
-██╔══██╗██║   ██║████╗ ████║██║████╗  ██║██╔══██╗
-██████╔╝██║   ██║██╔████╔██║██║██╔██╗ ██║███████║
-██╔══██╗██║   ██║██║╚██╔╝██║██║██║╚██╗██║██╔══██║
-██║  ██║╚██████╔╝██║ ╚═╝ ██║██║██║ ╚████║██║  ██║
-╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝
-
-"#;
-
-const DIVIDER: &str = "=========================";
-
-pub fn print_logo() {
-    println!("{}", LOGO.bright_blue())
-}
-
-pub fn print_init(args: &Args) {
-    println!("{}", "INIT".purple());
-    println!("{}", DIVIDER.purple());
-    println!("{args}");
-}
-
-pub fn print_file_info(file_name: &String, cur_file_num: usize, num_files: usize) {
-    println!(
-        "{} {} {}: {}",
-        format!("File {}", cur_file_num).cyan(),
-        "of".cyan(),
-        format!("{}", num_files).cyan(),
-        file_name
-    );
-    println!("{}", DIVIDER.cyan());
-}
+pub use crate::dedup_args::{DedupArgs, GroupingMethod};
+pub use crate::extract_args::*;
+pub use crate::misc::*;

@@ -1,12 +1,12 @@
-use crate::args::Args;
+use crate::cli::DedupArgs;
 use crate::io::fastq_dedup_io::FastqIO;
-use crate::io::fastqio::FastqRecord;
 use crate::io::FileIO;
 use crate::process::file_process::FileProcess;
 use crate::processor::Processor;
 use crate::progbars::ProgressTracker;
 use crate::read_store::BottomHashMap;
 use crate::readkey::ReadKey;
+use crate::record::FastqRecord;
 use crate::record::SequenceRecord;
 use crate::utils::gen_outfile_name;
 use anyhow::{Context, Error};
@@ -25,7 +25,7 @@ pub struct FastQFileProcess {
 }
 
 impl FileProcess for FastQFileProcess {
-    fn init_from_args(args: &Args, file_path: &str, file_name: &str) -> Result<Self, Error> {
+    fn init_from_args(args: &DedupArgs, file_path: &str, file_name: &str) -> Result<Self, Error> {
         let outfile = gen_outfile_name(Some(&args.outdir), ".fastq.gz", "RUMINA", file_name)?;
         let io = FastqIO::init_from_args(args, file_path, &outfile)?;
 

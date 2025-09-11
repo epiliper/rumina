@@ -8,9 +8,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub type FastqRecord = Record;
+use gzp::{deflate::Gzip, BgzfSyncReader, ZBuilder, ZWriter};
 
-// a wrapper over the read type to track in what order it was read.
+use crate::record::FastqRecord;
+
+/// Used to impose order on reads otherwise unordered. Used right now in channels where reads are inbound from multiple threads.
 pub struct IntakeOrdered {
     pub pair: ReadPair,
     pub order: u32,
@@ -20,8 +22,6 @@ pub struct ReadPair {
     pub r1: Option<Record>,
     pub r2: Option<Record>,
 }
-
-use gzp::{deflate::Gzip, ZBuilder, ZWriter};
 
 /// An interface for iterating over bam records from a gzipped or plaintext fastq.
 pub trait FastqRecordIterator {

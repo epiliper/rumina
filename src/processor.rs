@@ -1,9 +1,9 @@
-use crate::args::Args;
 use crate::deduplicator::GroupHandler;
 use crate::grouper::Grouper;
 use crate::read_store::bottomhash::BottomHashMap;
 use crate::readkey::ReadKey;
 use crate::record::SequenceRecord;
+use crate::DedupArgs;
 use crate::GroupReport;
 use crate::GroupingMethod;
 use anyhow::Error;
@@ -60,7 +60,7 @@ impl Processor {
         }
     }
 
-    pub fn init_from_args(args: &Args, seed: u64) -> Self {
+    pub fn init_from_args(args: &DedupArgs, seed: u64) -> Self {
         let min_depth = if args.singletons {
             1
         } else {

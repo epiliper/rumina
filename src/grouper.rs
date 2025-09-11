@@ -1,4 +1,4 @@
-use crate::group::bktree::NGramBKTree;
+use crate::bktree::NGramBKTree;
 use crate::ngram::NgramMaker;
 use crate::processor::UmiHistogram;
 use crate::GroupingMethod;

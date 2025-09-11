@@ -1,4 +1,4 @@
-use crate::args::Args;
+use crate::cli::DedupArgs;
 use crate::io::{FileIO, WindowedBamReader};
 use crate::record::BamRecord;
 use crate::utils::{make_bam_reader, make_bam_writer};
@@ -52,7 +52,7 @@ impl BamIO {
         }
     }
 
-    pub fn init_from_args(args: &Args, infile_path: &str, outfile_path: &str) -> Self {
+    pub fn init_from_args(args: &DedupArgs, infile_path: &str, outfile_path: &str) -> Self {
         Self::new(
             infile_path,
             outfile_path,

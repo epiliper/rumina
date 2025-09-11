@@ -1,4 +1,3 @@
-use crate::io::fastqio::FastqRecord;
 use crate::readkey::ReadKey;
 use anyhow::{Context, Error};
 use core::str;
@@ -59,6 +58,7 @@ pub trait SequenceRecord {
 
 /// A wrapper around [rust_htslib::bam::Record]
 pub type BamRecord = bam::Record;
+pub type FastqRecord = bio::io::fastq::Record;
 
 impl SequenceRecord for BamRecord {
     fn _seq(&self) -> String {

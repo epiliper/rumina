@@ -1,4 +1,4 @@
-use crate::args::Args;
+use crate::cli::DedupArgs;
 use crate::io::bam_io::BamIO;
 use crate::io::file_io::FileIO;
 use crate::pair_merger::PairMerger;
@@ -29,7 +29,7 @@ pub struct BamFileProcess {
 }
 
 impl FileProcess for BamFileProcess {
-    fn init_from_args(args: &Args, file_path: &str, file_name: &str) -> Result<Self, Error> {
+    fn init_from_args(args: &DedupArgs, file_path: &str, file_name: &str) -> Result<Self, Error> {
         let outfile = gen_outfile_name(Some(&args.outdir), ".bam", "RUMINA", file_name)?;
         let bam_io = BamIO::init_from_args(args, file_path, &outfile);
 

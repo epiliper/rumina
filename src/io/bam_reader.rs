@@ -1,4 +1,4 @@
-use crate::record::record::BamRecord;
+use crate::record::BamRecord;
 use crate::utils::{get_windows, make_bam_reader, Window};
 use anyhow::{Context, Error};
 use rust_htslib::bam::{Header, HeaderView, IndexedReader, Read};

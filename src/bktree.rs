@@ -1,8 +1,6 @@
-// #![allow(dead_code)]
-
-use crate::ngram::ngram;
+use crate::ngram;
 use crate::processor::UmiHistogram;
-use crate::record::record::reverse_complement;
+use crate::record::reverse_complement;
 use anyhow::Context;
 use indexmap::IndexSet;
 use smol_str::SmolStr;
@@ -238,7 +236,7 @@ impl NGramBKTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ngram::ngram;
+    use crate::ngram;
     use std::collections::HashMap;
 
     #[test]

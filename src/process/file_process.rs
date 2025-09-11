@@ -1,8 +1,12 @@
-use crate::args::Args;
+use crate::cli::DedupArgs;
 use anyhow::Error;
 
 pub trait FileProcess {
-    fn init_from_args(args: &Args, bam_file_path: &str, bam_file_name: &str) -> Result<Self, Error>
+    fn init_from_args(
+        args: &DedupArgs,
+        bam_file_path: &str,
+        bam_file_name: &str,
+    ) -> Result<Self, Error>
     where
         Self: Sized;
 

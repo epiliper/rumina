@@ -1,5 +1,5 @@
-use crate::args::Args;
 use crate::cli::print_file_info;
+use crate::cli::DedupArgs;
 use crate::process::{BamFileProcess, FastQFileProcess, FileProcess};
 use crate::record::SequenceRecord;
 use crate::utils::{identify_file_type, FileType};
@@ -51,7 +51,7 @@ pub fn gather_files(input_file: &str) -> Result<Vec<FileType>, anyhow::Error> {
     }
 }
 
-pub fn process_all(args: &Args, file_map: Vec<FileType>) -> Vec<Result<(), Error>> {
+pub fn process_all(args: &DedupArgs, file_map: Vec<FileType>) -> Vec<Result<(), Error>> {
     let num_files = file_map.len();
     let mut results = vec![];
 

@@ -30,12 +30,11 @@ pub fn create_writer_from_file(
         Some((_pre, end)) => end == "gz",
     };
 
-    let writer: Box<dyn WritesFastqRecords>;
-    if is_gzip {
-        writer = Box::new(fastq_create_writer_compressed(infile, threads)?);
+    let writer: Box<dyn WritesFastqRecords> = if is_gzip {
+        Box::new(fastq_create_writer_compressed(infile, threads)?)
     } else {
-        writer = Box::new(fastq_create_writer_decompressed(infile, threads)?);
-    }
+        Box::new(fastq_create_writer_decompressed(infile, threads)?)
+    };
 
     Ok(writer)
 }

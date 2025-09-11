@@ -1,6 +1,7 @@
-use crate::args::Args;
-use crate::io::fastqio::{FastqInput, FastqRecord, WritesFastqRecords};
+use crate::cli::DedupArgs;
+use crate::io::fastqio::{FastqInput, WritesFastqRecords};
 use crate::io::FileIO;
+use crate::record::FastqRecord;
 use anyhow::Error;
 
 use std::path::Path;
@@ -46,7 +47,7 @@ impl FastqIO {
     }
 
     pub fn init_from_args(
-        args: &Args,
+        args: &DedupArgs,
         infile_path: &str,
         outfile_path: &str,
     ) -> Result<Self, Error> {
