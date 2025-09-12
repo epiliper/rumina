@@ -1,4 +1,10 @@
-on: [push, pull_request]
+on:
+  pull_request:
+    branches: [main, experimental]
+
+  push:
+    branches:
+      main
 
 name: Rust CI
 
@@ -12,14 +18,14 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         rust:
-          - nightly
+          - stable
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
 
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
 

@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="imgs/RUMINA_LOGO.png" alt="logo" width=50%/>
+    <img src="https://github.com/epiliper/rumina/blob/experimental/imgs/RUMINA_LOGO.png?raw=true" alt="logo" width=50%/>
 </p>
 
 ## RUMINA - Rust-based Unique Molecular Identifier Network Analysis
@@ -14,7 +14,7 @@ This pipeline is tested for processing ~600 million reads in ~5 hours, at a rate
 ### Workflow:
 
 <p align="center">
-    <img src="imgs/rumina_workflow.png" alt="logo" width=100%/>
+    <img src="https://github.com/epiliper/rumina/blob/experimental/imgs/rumina_workflow.png?raw=true" alt="logo" width=100%/>
 </p>
 
 
@@ -89,7 +89,7 @@ Specifies how/if to merge UMIs based on edit distance, to account for PCR mutati
 Specifies the character in the read QNAME delimiting the UMI barcode from the rest of the string. This is usually `_` or `:`.<br>
 
 <p align="center">
-    <img src="imgs/barcode.png" width=75% \>
+    <img src="https://github.com/epiliper/rumina/blob/experimental/imgs/barcode.png?raw=true" width=75% \>
 </p>
 
 

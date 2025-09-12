@@ -1,47 +1,47 @@
 name: release
+
 on:
   push:
     tags:
-      - "[0-9]+.[0-9]+.[0-9]+"
+      - '*.*.*'  # Matches semantic version tags like 1.2.3 or v1.2.3
 
 permissions:
   contents: write
-  
+
 jobs:
-  bump_version:
+  extract_version:
+    name: Extract version from Cargo.toml
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.get_version.outputs.version }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Get the release version from the tag
-        id: get_version
-        shell: bash
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(grep '^version =' Cargo.toml | head -1 | cut -d '"' -f 2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
   publish_crate:
-    name: publish_crate
+    name: Publish crate to Cargo
     runs-on: ubuntu-latest
-    needs: bump_version
+    needs: extract_version
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-      - name: Update version in Cargo.toml
-        shell: bash
-        run: sed -i.bak 's/0.0.0/${{ needs.bump_version.outputs.version }}/g' Cargo.toml && rm Cargo.toml.bak
-      - uses: katyo/publish-crates@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Publish to Cargo
+        uses: katyo/publish-crates@v2
         with:
           registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           args: --allow-dirty
 
   build-and-upload:
-    name: Build and upload
+    name: Build and upload release assets
     runs-on: ${{ matrix.job.os }}
-    needs: [bump_version, publish_crate]
+    needs: [extract_version, publish_crate]
     strategy:
       fail-fast: false
       matrix:
@@ -56,34 +56,27 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.job.target }}
-      - name: Update clang
+      - name: Install clang for Ubuntu
         if: startsWith(matrix.job.os, 'ubuntu')
-        shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang 
-      - name: Update version in Cargo.toml
-        shell: bash
-        run: |
-          sed -i.bak 's/0.0.0/${{ needs.bump_version.outputs.version }}/g' Cargo.toml && rm Cargo.toml.bak
-      - name: Build with cargo
-        shell: bash
+          sudo apt-get install -y clang
+      - name: Build with Cargo
         run: |
           cargo build --release --target=${{ matrix.job.target }}
-      - name: Package the project into a zip file
+      - name: Package release
         id: package
-        shell: bash
         run: |
-          PKG_BASENAME="rumina-${{ needs.bump_version.outputs.version }}-${{ matrix.job.target }}"
+          PKG_BASENAME="rumina-${{ needs.extract_version.outputs.version }}-${{ matrix.job.target }}"
           PKG_NAME="${PKG_BASENAME}.zip"
           mkdir -p "${PKG_BASENAME}"
-          mv README.md LICENSE cov_reporter.py "${PKG_BASENAME}"
-          mv target/${{ matrix.job.target }}/release/rumina "${PKG_BASENAME}/"
-          mv *.nix "${PKG_BASENAME}/"
+          cp README.md LICENSE cov_reporter.py "${PKG_BASENAME}/" || true
+          cp target/${{ matrix.job.target }}/release/rumina "${PKG_BASENAME}/"
           zip -r "${PKG_NAME}" "${PKG_BASENAME}"
           echo "ASSET=${PKG_NAME}" >> $GITHUB_ENV
-      - name: Release
+      - name: Upload to release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ github.ref_name }}
           files: |
             ${{ env.ASSET }}
