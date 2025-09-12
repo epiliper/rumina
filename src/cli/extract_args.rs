@@ -67,19 +67,20 @@ pub struct ExtractArgs {
 }
 
 const EXTRACT_HELP: &str = r#"
-RUMINA Extract - add UMIs from FASTQ read sequence into read headers
+rumina extract - add UMIs from FASTQ read sequence into read headers
 
 Usage: 
-    Single-end:
+    single-end:
         rumina extract -i <FASTQ> -p <PATTERN> -o <OUTPUT> [OPTIONS]
 
-    Paired-end:
+    paired-end:
         rumina extract -i <FASTQ> -p <PATTERN> -o <OUTPUT1>
             -I <FASTQ2> -P <PATTERN2> -O <OUTPUT2>
 
-    All FASTQ files must end with either .fastq, or .fastq.gz.
+    All FASTQ files must end with either .fastq or .fastq.gz.
 
-    If both R1 and R2 input FASTQs are provided, you must also specify a pattern for each (-p and -P).
+    Barcodes are only extracted from a mate file if an accompanying pattern (-p or -P) is provided,
+    e.g., barcodes are not extracted from R2 if -P is not set.
 
 Options:
     misc:
@@ -92,22 +93,22 @@ Options:
         -O: second FASTQ output. Must end in .fastq. or .fastq.gz
 
         -p: extraction pattern for file given with -i
-        -P: extraction pattern for file given with -I.
+        -P: extraction pattern for file given with -I
 
         -s: character to use to delimit barcodes from each other and read header ['_']
 
         --retain-seq: don't remove barcode bases from read sequences during extraction.
-        Barcode sequence will be in both the read header and sequence.
+        Barcode sequence will be in both the read header and sequence
 
-        --mask-qual: replace any UMI barcode bases below this quality with 'N'
+        --mask-qual: replace any UMI barcode bases below this quality with 'N' [0]
 
         --quality-filter: don't output reads with UMIs with base(s) below this quality.
-        In paired-end data, if one mate fails this filter, the other will be removed.
+        In paired-end data, if one mate fails this filter, the other will be removed [0]
 
-        -e/--qual-encoding: quality encoding to use for filtering/masking. 
-        Choose from "phred33", "phred64", or "solexa".
+        -e/--qual-encoding: quality encoding to use for filtering/masking.
+        Choose from "phred33", "phred64", or "solexa"
 
         -b/--batch-size: number of reads to buffer before writing [10000]
 
-        -t/--threads: number of threads to use for compression/parallel extraction. [Number of system threads]
+        -t/--threads: number of threads to use for compression/parallel extraction [Number of system threads]
 "#;

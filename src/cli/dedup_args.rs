@@ -141,17 +141,17 @@ impl std::fmt::Display for DedupArgs {
 }
 
 const DEDUP_HELP: &str = r#"
-
 RUMINA dedup: cluster and deduplicate or group reads by UMI barcodes
 
 usage:
     rumina dedup -i [*.bam|*.fastq|*.fastq.gz] -g {directional, acyclic, raw} -s <UMI SEPARATOR> [OPTIONS] -o [OUTDIR]
 
-    The input can be one or more BAM or FASTQ files; RUMINA will processall input files sequentially.
+    The input can be either one FASTQ/BAM file or a folder containing FASTQ/BAM files. 
+    In the latter case, RUMINA will process all FASTQ/BAM files sequentially.
 
 arguments:
 
-    [[required]]:
+    [[required]]
     -i: input files: BAMs must be sorted and indexed.
 
     -g, --grouping-method: Specifies UMI clustering method. Choose from:
@@ -161,39 +161,39 @@ arguments:
 
     -s, --separator: Last character in read QNAME immediately before UMI barcode 
 
-    [[clustering]]:
-    -l, --length: stratify reads additionally by sequence length (including soft-clipped bases). 
+    [[clustering]]
+    -l, --length: stratify reads additionally by sequence length (including soft-clipped bases)
     -u, --rev: search for reverse complements of UMIs when clustering
-    -v, --only-group: do not deduplicate clusters; instead annotate reads with cluster ID in BX tag
+    -v, --only-group: do not deduplicate clusters; instead annotate reads with cluster ID in UG tag
     -d, --min-depth: minimum number of reads in a cluster for it to be output [3]
     -f, --singletons: remove minimum depth limit for clusters. Identical to --min_depth 1
 
     [[grouping - advanced]]
-    -p, --percentage: The fraction of a parent UMI's read count an offshoot's count must be [3]
-    -m, --max-edit: The maximum edit distance delta between two reads for direct linkage 
+    -p, --percentage: The fraction of a parent UMI's read count an offshoot's count must be [0.5]
+    -m, --max-edit: The maximum edit distance delta between two UMIs for direct linkage [1] 
     
     [[performance, memory]]
-    -t, --threads: number of threads to parallelize coordinate processing. Defaults to # sys threads.
-    -c, --strict-threads: restrict IO reading to the number specified in --threads. 
+    -t, --threads: number of threads to parallelize coordinate processing. Defaults to # sys threads
+    -c, --strict-threads: restrict IO operations to the number specified in --threads 
 
     -x, --split-window: Process an input reference alignment by x coordinates at at time.
     Not using this option will process the entire alignment at once. 
-    This is recommended when dealing with extreme depth and limited memory.
+    This is recommended when dealing with extreme depth and limited memory
 
     -s, --ensure-sorted: only relevant when --split_window is used.
-    Ensure output is sorted by buffering all outbound reads until all windows have completed.
+    Ensure output is sorted by buffering all outbound reads until all windows have completed
 
     [[paired-end]]
-    -l, --paired: Use only R1 for deduplication, and pair output R1 with R2, similar to UMI-tools.
+    -l, --paired: Use only R1 for deduplication, and pair output R1 with R2, similar to UMI-tools
 
     -m, --merge-pairs: Use a ref fasta to merge overlapping forward/reverse reads with the same UMI.
-    Only supports single-reference bams currently. See -b/--min-overlap-bp. 
+    Only supports single-reference bams currently. See -b/--min-overlap-bp 
 
     -b, --min-overlap-bp: Minimum number of overlapping, matching bases for merging two reads.
-    Reads not meeting this criterion will both be discarded. Only relevant with -m/--merge-pairs. 
+    Reads not meeting this criterion will both be discarded. Only relevant with -m/--merge-pairs
 
     [[misc]]
-    -o, --outdir: directory (relative to parent of input) in which to store output files.
-    -q, --progress: show progress bar, prints to stdout.
+    -o, --outdir: directory (relative to parent of input) in which to store output files
+    -q, --progress: show progress bar, prints to stdout
 
 "#;
