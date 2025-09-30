@@ -26,6 +26,9 @@ impl std::fmt::Display for FastqQualEncoding {
 #[derive(Parser, Debug)]
 #[clap(author, version, override_help = EXTRACT_HELP)]
 pub struct ExtractArgs {
+    #[clap(long = "test")]
+    pub test: bool,
+
     #[arg(short = 'i')]
     pub in1: PathBuf,
 

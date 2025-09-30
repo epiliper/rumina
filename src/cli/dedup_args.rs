@@ -20,6 +20,9 @@ pub struct DedupArgs {
     #[clap(short = 'i')]
     pub input: String,
 
+    #[clap(long = "test")]
+    pub test: bool,
+
     #[arg(short = 'g', long = "grouping_method")]
     pub grouping_method: GroupingMethod,
 

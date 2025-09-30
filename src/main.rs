@@ -5,7 +5,9 @@ use crate::args::{Args, Command};
 use crate::cli::*;
 use crate::group_report::GroupReport;
 use crate::io::file_io::{gather_files, process_all};
+use crate::test::{run_dedup_tests, run_extract_tests};
 use clap::Parser;
+use colored::Colorize;
 use indexmap::IndexMap;
 use std::fs::create_dir;
 use std::path::Path;
@@ -35,6 +37,7 @@ mod read_store;
 mod readkey;
 mod realign;
 mod record;
+mod test;
 mod utils;
 
 fn main() -> Result<(), Error> {
@@ -74,6 +77,13 @@ fn main() -> Result<(), Error> {
         }
 
         Command::Extract(args) => run_extract(&args)?,
+
+        Command::Test => {
+            run_extract_tests();
+            run_dedup_tests();
+
+            println! {"{}", "All tests completed without failure! Developers: check unit tests with `cargo test` (run from RUMINA source directory)".green()}
+        }
     }
 
     Ok(())

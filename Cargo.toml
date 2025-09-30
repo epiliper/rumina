@@ -1,8 +1,8 @@
 [package]
 name = "rumina"
 description = "High-throughput UMI-aware deduplication of next-generation sequencing data"
-version = "0.99.2"
-authors = ["Eli Piliper <epiliper@outlook.com>"]
+version = "0.99.3"
+authors = ["Eli Piliper <epiliper@outlook.com>, Stephanie Goya (sgoya@uw.edu), Alex Greninger (agrening@uw.edu)"]
 edition = "2021"
 repository = "https://github.com/epiliper/rumina"
 license-file = "LICENSE"
@@ -10,6 +10,15 @@ homepage = "https://github.com/epiliper/rumina"
 readme = "README.md"
 keywords = ["bioinformatics", "barcodes", "sequencing", "bam", "deduplication"]
 categories = ["science", "command-line-utilities"]
+
+include = [
+  "src/**",
+  "test/*.fastq.gz",
+  "test/*.bam",
+  "test/*.sh",
+  "Cargo.toml",
+  "README.md"
+]
 
 [badges]
 maintenance = { status = "actively_developed" }
@@ -36,7 +45,7 @@ smol_str = "0.3.2"
 gzp = "1.0.1"
 flate2 = "1.1.2"
 idna = "1.1.0"
- 
+
 [profile.release]
 codegen-units = 1
 lto = "fat"
