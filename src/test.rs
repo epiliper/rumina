@@ -1,3 +1,4 @@
+use std::env;
 use std::path::PathBuf;
 use std::process::{exit, Command};
 
@@ -12,32 +13,47 @@ fn get_test_dir() -> PathBuf {
 }
 
 fn get_test_file(filename: &str) -> PathBuf {
-    let mut testpath = PathBuf::new();
+    let mut testpath = get_test_dir();
     testpath.push(filename);
     testpath
 }
 
-fn run_tests(runner: &str) {
-    let test_runner = get_test_file(runner);
+pub fn run_dedup_tests() {
+    let cwd = std::env::current_dir().unwrap();
+    let cwd = std::fs::canonicalize(cwd).unwrap();
+    let test_runner = get_test_file("test_dedup.sh");
 
     let status = Command::new("sh")
         .current_dir(get_test_dir())
         .arg(test_runner)
+        .arg(cwd.to_str().unwrap())
         .status()
         .expect("Failed to execute test file");
 
     if !status.success() {
-        eprintln!("Test script failed with status: {status}");
+        eprintln!("Dedup test failed with status: {status}");
         exit(status.code().unwrap_or(1));
     } else {
         println! {"Tests completed!"}
     }
 }
 
-pub fn run_dedup_tests() {
-    run_tests("test_dedup.sh");
-}
-
 pub fn run_extract_tests() {
-    run_tests("test_extract.sh");
+    let cwd = std::env::current_dir().unwrap();
+    let cwd = std::fs::canonicalize(cwd).unwrap();
+    let test_runner = get_test_file("test_extract.sh");
+
+    let status = Command::new("sh")
+        .current_dir(get_test_dir())
+        .arg(test_runner)
+        .arg(cwd.to_str().unwrap())
+        .status()
+        .expect("Failed to execute test file");
+
+    if !status.success() {
+        eprintln!("Dedup test failed with status: {status}");
+        exit(status.code().unwrap_or(1));
+    } else {
+        println! {"Tests completed!"}
+    }
 }

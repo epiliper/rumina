@@ -2,6 +2,8 @@
 
 **NOTE:** The first part of this test (going from raw FASTQ to BAM) uses the [mm9 reference genome](https://genome.ucsc.edu/cgi-bin/hgGateway?db=mm9) and [minimap2 2.29-r1283](https://github.com/lh3/minimap2). If you don't wish to perform these steps, the output BAM (`SRR2057564_sub_ext.bam`) is already provided; skip to step 4 to avoid dependencies.
 
+Running `rumina test` with RUMINA 0.99.5+ or later will run the tests on included files and store outputs and inputs in the `./RUMINA_TEST` folder for inspection.
+
 ---
 Test file: SRR2057564 sub-sampled to the first 12000 reads. The sub-sampled file (SRR2057564_sub.fastq.gz) is already provided.
 
