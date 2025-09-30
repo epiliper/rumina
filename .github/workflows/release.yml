@@ -72,6 +72,10 @@ jobs:
           mkdir -p "${PKG_BASENAME}"
           cp README.md LICENSE cov_reporter.py "${PKG_BASENAME}/" || true
           cp target/${{ matrix.job.target }}/release/rumina "${PKG_BASENAME}/"
+
+          mkdir -p "${PKG_BASENAME}/test"
+          cp -r test "${PKG_BASENAME}/test/"
+
           zip -r "${PKG_NAME}" "${PKG_BASENAME}"
           echo "ASSET=${PKG_NAME}" >> $GITHUB_ENV
       - name: Upload to release

@@ -5,20 +5,20 @@
 ---
 Test file: SRR2057564 sub-sampled to the first 12000 reads. The sub-sampled file (SRR2057564_sub.fastq.gz) is already provided.
 
-0. If you don't wish to redownload the original SRA FASTQ, then clone this repository and use the included FASTQ and BAM files, skipping to step 2.
+0. If you don't want to download the original SRA FASTQ, then clone this repository and use the included FASTQ and BAM files (already sub-sampled), skipping to step 2.
 
-1. Sub-sampling was performed below:
+1. Perform sub-sampling (this is only included to show how the test file was made):
 ```bash
 gzcat SRR2057564.fastq.gz | head -n 48000 | pigz > SRR2057564_sub.fastq.gz
 ```
 
-2. We next want to extract barcodes from the reads according to the layout specified in the [UMI-tools publication](https://pmc.ncbi.nlm.nih.gov/articles/PMC5340976/)
+2. Next, extract barcodes from the reads according to the layout specified in the [UMI-tools publication](https://pmc.ncbi.nlm.nih.gov/articles/PMC5340976/):
 ```bash
 rumina extract -i SRR2057564_sub.fastq.gz \
   -p NNNXXXXNN -o SRR2057564_sub_ext.fastq.gz
 ```
 
-3. We next want to map to the mm9 reference genome to generate a BAM:
+3. Map to the mm9 reference genome to generate a BAM:
 ```bash
 minimap2 -t 10 -L --secondary no -ax splice:sr \
   mm9.fa.gz SRR2057564_sub_ext.fastq.gz | samtools view -bS -F 2052 > SRR2057564_sub_ext
