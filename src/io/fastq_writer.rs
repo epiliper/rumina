@@ -62,19 +62,20 @@ impl InnerFastqWriter {
             std::thread::spawn(move || -> Result<u32, Error> {
                 let mut writer: Box<dyn WritesFastqRecords>;
                 if is_gzip {
-                    writer = Box::new(fastq_create_writer_compressed(outfile.as_path(), threads)?);
+                    writer = Box::new(
+                        fastq_create_writer_compressed(outfile.as_path(), threads).unwrap(),
+                    );
                 } else {
-                    writer = Box::new(fastq_create_writer_decompressed(
-                        outfile.as_path(),
-                        threads,
-                    )?);
+                    writer = Box::new(
+                        fastq_create_writer_decompressed(outfile.as_path(), threads).unwrap(),
+                    );
                 }
                 let mut num_written = 0;
                 while let Ok(r) = r.recv() {
                     buffer.push(r);
                     if buffer.len() >= chunk_size {
                         buffer.drain(..).for_each(|r| {
-                            writer.write_record(r).expect("bad read write");
+                            writer.write_record(r).unwrap();
                             num_written += 1;
                         })
                     }
@@ -83,7 +84,7 @@ impl InnerFastqWriter {
                 // Sender dropped. Time to wrap-up and go home.
                 buffer
                     .drain(..)
-                    .for_each(|r| writer.write_record(r).expect("bad read write"));
+                    .for_each(|r| writer.write_record(r).unwrap());
 
                 Ok(num_written)
             }),
