@@ -24,6 +24,11 @@ pub fn gather_files(input_file: &str) -> Result<Vec<FileType>, anyhow::Error> {
                 let entry = entry.ok()?;
                 let path = entry.path();
 
+                // Ignore BAM indexes
+                if path.to_string_lossy().ends_with(".bai") {
+                    return None;
+                }
+
                 if !path.is_dir() {
                     if let Some(ftype) = identify_file_type(&path) {
                         Some(ftype)
