@@ -10,7 +10,7 @@ use anyhow::{Context, Error};
 use bio::io::fastq::Record;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 enum ExtractBaseType {
     Umi,
     CellBarcode,
@@ -22,6 +22,14 @@ const UMI_CHAR: char = 'N';
 const MISC_CHAR: char = 'X';
 
 fn parse_detect_string(dstring: &str) -> Result<Vec<ExtractBaseType>, Error> {
+    if dstring.chars().into_iter().any(|c| c.is_ascii_digit()) {
+        parse_detect_string_alphanumeric(dstring)
+    } else {
+        parse_detect_string_alphabetic(dstring)
+    }
+}
+
+fn parse_detect_string_alphabetic(dstring: &str) -> Result<Vec<ExtractBaseType>, Error> {
     let mut out = vec![];
     for c in dstring.chars() {
         match c.to_ascii_uppercase() {
@@ -32,6 +40,38 @@ fn parse_detect_string(dstring: &str) -> Result<Vec<ExtractBaseType>, Error> {
                 "Illegal character specified for pattern {dstring}: {e}; Choose from C, N, or X."
             ),
         }
+    }
+
+    Ok(out)
+}
+
+fn parse_detect_string_alphanumeric(dstring: &str) -> Result<Vec<ExtractBaseType>, Error> {
+    let mut out = vec![];
+    let mut intbuf: String = String::with_capacity(4);
+    for c in dstring.chars() {
+        if c.is_ascii_digit() {
+            intbuf.push(c);
+        } else {
+            if intbuf.is_empty() {
+                anyhow::bail!("Pattern character specified before count: {dstring}!\nSpecify count before character, e.g. 4N")
+            }
+            let n = intbuf.parse::<u32>()?;
+            let b = match c.to_ascii_uppercase() {
+                CELL_BARCODE_CHAR => ExtractBaseType::CellBarcode,
+                UMI_CHAR => ExtractBaseType::Umi,
+                MISC_CHAR => ExtractBaseType::Misc,
+                e => anyhow::bail!(
+                "Illegal character specified for pattern {dstring}: {e}; Choose from C, N, or X."
+            ),
+            };
+
+            (0..n).for_each(|_| out.push(b.clone()));
+            intbuf.clear();
+        }
+    }
+
+    if !intbuf.is_empty() {
+        anyhow::bail!("Trailing integer in pattern string: {intbuf}\nSpecify count before characater, e.g. 4N")
     }
 
     Ok(out)
@@ -359,7 +399,8 @@ fn process_pair2(mut pair: ReadPair, ecache: &mut ExtractionCache) -> Result<Rea
             let header = remake_read_header(&cell, &umi, ecache.separator, r1)?;
             pair.r1 = Some(modify_read(
                 &header,
-                r1.desc(),
+                // r1.desc(),
+                None,
                 &ecache.e1.seq,
                 &ecache.e1.seq_qual,
             )?);
@@ -374,7 +415,8 @@ fn process_pair2(mut pair: ReadPair, ecache: &mut ExtractionCache) -> Result<Rea
             let header = remake_read_header(&cell, &umi, ecache.separator, r2)?;
             pair.r2 = Some(modify_read(
                 &header,
-                r2.desc(),
+                // r2.desc(),
+                None,
                 &ecache.e2.seq,
                 &ecache.e2.seq_qual,
             )?);
@@ -529,4 +571,38 @@ pub fn run_extract(args: &ExtractArgs) -> Result<(), Error> {
     pool.end()?;
     fio.terminate()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_numerical_detect_string1() {
+        let dstring = "4N7C";
+        let out = parse_detect_string_alphanumeric(dstring);
+
+        let expected = std::iter::repeat_n(ExtractBaseType::Umi, 4)
+            .chain(std::iter::repeat_n(ExtractBaseType::CellBarcode, 7))
+            .collect::<Vec<ExtractBaseType>>();
+
+        assert!(out.is_ok());
+        assert_eq!(out.unwrap(), expected)
+    }
+
+    #[test]
+    fn test_numerical_detect_string2() {
+        let dstring = "N47C";
+        let out = parse_detect_string_alphanumeric(dstring);
+
+        assert!(out.is_err());
+    }
+
+    #[test]
+    fn test_numerical_detect_string3() {
+        let dstring = "4N7C8";
+        let out = parse_detect_string_alphanumeric(dstring);
+
+        assert!(out.is_err());
+    }
 }

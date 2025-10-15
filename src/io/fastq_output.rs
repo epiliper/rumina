@@ -27,21 +27,9 @@ impl FastqOutput {
         out2: &Option<PathBuf>,
         batch_size: usize,
     ) -> Result<Self, Error> {
-        if !Path::exists(Path::parent(out1).context("Unable to resolve path for R1 output")?) {
-            anyhow::bail!(
-                "At least one level of output directory for R1 does not exist in file system: {:?}",
-                out1
-            );
-        }
         let r1 = ChanneledFastqWriter::create_from_outfile(out1, Some(batch_size))?;
 
         let r2 = if let Some(out2) = out2 {
-            if !Path::exists(Path::parent(out2).context("Unable to resolve path for R2 output")?) {
-                anyhow::bail!(
-                    "At least one level of output directory for R2 does not exist in file system: {:?}",
-                    out1
-                );
-            }
             Some(ChanneledFastqWriter::create_from_outfile(
                 out2,
                 Some(batch_size),
