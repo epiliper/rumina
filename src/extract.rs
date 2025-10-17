@@ -358,14 +358,14 @@ fn process_pair2(mut pair: ReadPair, ecache: &mut ExtractionCache) -> Result<Rea
 
             umi.extend(&ecache.e1.umi_seq);
             cell.extend(&ecache.e1.cell_seq);
+
+            if ecache.e1.below_quality {
+                pair.r1 = None;
+                pair.r2 = None;
+                return Ok(pair);
+            };
         }
     }
-
-    if ecache.e1.below_quality {
-        pair.r1 = None;
-        pair.r2 = None;
-        return Ok(pair);
-    };
 
     match (&ecache.layout2, pair.r2.as_ref()) {
         // we either have no pattern or no r2, so do nothing
@@ -384,26 +384,28 @@ fn process_pair2(mut pair: ReadPair, ecache: &mut ExtractionCache) -> Result<Rea
 
             umi.extend(&ecache.e2.umi_seq);
             cell.extend(&ecache.e2.cell_seq);
+
+            if ecache.e2.below_quality {
+                pair.r1 = None;
+                pair.r2 = None;
+                return Ok(pair);
+            };
         }
     }
-
-    if ecache.e2.below_quality {
-        pair.r1 = None;
-        pair.r2 = None;
-        return Ok(pair);
-    };
 
     // Re-header R1 if it exists
     if let Some(r1) = pair.r1.as_mut() {
         if !ecache.e1.below_quality {
             let header = remake_read_header(&cell, &umi, ecache.separator, r1)?;
-            pair.r1 = Some(modify_read(
-                &header,
-                // r1.desc(),
-                None,
-                &ecache.e1.seq,
-                &ecache.e1.seq_qual,
-            )?);
+
+            // modify sequence if we actually extracted from R1
+            let (seq, qual) = if ecache.layout1.is_some() {
+                (ecache.e1.seq.as_slice(), ecache.e1.seq_qual.as_slice())
+            } else {
+                (r1.seq(), r1.qual())
+            };
+
+            pair.r1 = Some(modify_read(&header, r1.desc(), seq, qual)?);
         } else {
             pair.r1 = None;
         }
@@ -413,13 +415,15 @@ fn process_pair2(mut pair: ReadPair, ecache: &mut ExtractionCache) -> Result<Rea
     if let Some(r2) = pair.r2.as_mut() {
         if !ecache.e2.below_quality {
             let header = remake_read_header(&cell, &umi, ecache.separator, r2)?;
-            pair.r2 = Some(modify_read(
-                &header,
-                // r2.desc(),
-                None,
-                &ecache.e2.seq,
-                &ecache.e2.seq_qual,
-            )?);
+
+            // modify sequence if we actually extracted from R2
+            let (seq, qual) = if ecache.layout2.is_some() {
+                (ecache.e2.seq.as_slice(), ecache.e2.seq_qual.as_slice())
+            } else {
+                (r2.seq(), r2.qual())
+            };
+
+            pair.r2 = Some(modify_read(&header, r2.desc(), seq, qual)?);
         } else {
             pair.r2 = None;
         }
