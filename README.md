@@ -10,6 +10,10 @@ RUMINA deduplicates reads associated with a single template molecule, using the 
 
 This pipeline is tested for processing ~600 million reads in ~5 hours, at a rate of 120 million reads processed per hour (tested on 10-core M1 Max Mac Studio).
 
+### Paper:
+The repository below contains the code used for RUMINA's publication and accompanying instructions.
+https://github.com/greninger-lab/rumina_paper
+
 
 ### Workflow:
 
