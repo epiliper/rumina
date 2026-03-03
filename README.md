@@ -17,7 +17,7 @@ Piliper E., Goya S.‡, Greninger A. L.‡ (2026)
 **RUMINA: high-throughput UMI deduplication for amplicon and whole-genome sequencing with enhanced error correction.**  
 Published 24 February 2026.  
 https://doi.org/10.1093/bioinformatics/btag097
-‡ These authors contributed equally
+‡These authors contributed equally
 
 ### Workflow:
 
