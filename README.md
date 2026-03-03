@@ -10,6 +10,14 @@ RUMINA deduplicates reads associated with a single template molecule, using the 
 
 This pipeline is tested for processing ~600 million reads in ~5 hours, at a rate of 120 million reads processed per hour (tested on 10-core M1 Max Mac Studio).
 
+## More details
+
+For more information about this project, please refer to our publication:
+Piliper E., Goya S.‡, Greninger A. L.‡ (2026) 
+**RUMINA: high-throughput UMI deduplication for amplicon and whole-genome sequencing with enhanced error correction.**  
+Published 24 February 2026.  
+https://doi.org/10.1093/bioinformatics/btag097
+‡ These authors contributed equally
 
 ### Workflow:
 
