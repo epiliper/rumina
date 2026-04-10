@@ -153,14 +153,8 @@ The maximum edit distance between two UMIs for them to be clustered. Should two 
 #### Miscellaneous
 
 ##### `--outdir` (default = rumina_output)
-The output directory, inside the parent directory of the input files/directory, in which RUMINA's output will be stored. It will be created if it doesn't exist.
+The output directory, relative to the current directory, in which RUMINA's output will be stored. It will be created if it doesn't exist. Note that nested directories cannot be created this way: you will need to `mkdir out` if you want to specify `--outdir out/folder/`.
 
-Example: 
-```bash
-$INPUT_FILE=/home/stuff/test.bam
-$OUTDIR=temp
-# outfiles will be stored in /home/stuff/temp
-```
 
 #### Arguments for paired-end input
 
