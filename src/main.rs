@@ -56,16 +56,22 @@ fn main() -> Result<(), Error> {
                 .build_global()
                 .with_context(|| "Thread pool building failed")?;
 
-            simple_logging::log_to_file("rumina_group.log", LevelFilter::Info)?;
-
-            if args.merge_pairs.is_some() {
-                simple_logging::log_to_file("rumina_merge.log", LevelFilter::Info)?;
-            }
-
             if !Path::exists(Path::new(&args.outdir)) {
                 create_dir(&args.outdir).with_context(|| {
                     format!("Unable to create output directory {}", &args.outdir)
                 })?;
+            }
+
+            simple_logging::log_to_file(
+                Path::new(&args.outdir).join("rumina_group.log"),
+                LevelFilter::Info,
+            )?;
+
+            if args.merge_pairs.is_some() {
+                simple_logging::log_to_file(
+                    Path::new(&args.outdir).join("rumina_merge.log"),
+                    LevelFilter::Info,
+                )?;
             }
 
             let infiles = gather_files(input_file)?;

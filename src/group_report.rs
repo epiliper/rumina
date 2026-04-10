@@ -1,9 +1,9 @@
 use colored::Colorize;
+use num_format::{Locale, ToFormattedString};
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-
-use num_format::{Locale, ToFormattedString};
+use std::path;
 
 const LOCALE: Locale = Locale::en;
 
@@ -65,8 +65,21 @@ impl GroupReport {
     // once deduplication of the file is complete, only list UMIs that were observed more than
     // once.
     pub fn write_to_report_file(&mut self, output_file: &str) {
-        let outname = output_file.split_once(".").unwrap().0;
-        let report_file = format!("{}_rumina_report.tsv", outname);
+        let outdir = path::Path::parent(path::Path::new(output_file))
+            .unwrap_or(path::Path::new("."))
+            .to_str()
+            .unwrap_or(".");
+
+        let outname = path::Path::new(output_file)
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap_or("1.")
+            .split_once(".")
+            .unwrap_or(("1", ""))
+            .0;
+
+        let report_file = format!("{}/{}_rumina_report.tsv", outdir, outname);
 
         let _ = File::create(&report_file);
 

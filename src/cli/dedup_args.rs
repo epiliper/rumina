@@ -196,7 +196,7 @@ arguments:
     Reads not meeting this criterion will both be discarded. Only relevant with -m/--merge-pairs
 
     [[misc]]
-    -o, --outdir: directory (relative to parent of input) in which to store output files
+    -o, --outdir: directory relative to $(pwd) in which to store output files
     -q, --progress: show progress bar, prints to stdout
 
 "#;
