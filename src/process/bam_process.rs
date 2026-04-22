@@ -156,7 +156,9 @@ impl FileProcess for BamFileProcess {
         }
 
         drop(self.io.writer); // dropping to avoid vague samtools warning
-        let idx = index_bam(&self.outfile, self.io.num_threads).context("Note: failed to index bam due to unsorted order. The output file should be manually sorted with samtools sort. Exiting early...")?;
+
+        eprintln!("Processing done. Attempting to index...");
+        let idx = index_bam(&self.outfile, self.io.num_threads).context("Note: failed to index bam due to unsorted order, and could not sort manually with samtools. Exiting early...")?;
 
         if let Some(mut pair_merger) = self.pair_merger {
             info!("{:?}", pair_merger);

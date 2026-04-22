@@ -1,6 +1,7 @@
 use anyhow::{Context, Error};
 use rust_htslib::bam::{index, Header, IndexedReader, Read, Writer};
 use std::path::Path;
+use std::process::Command;
 
 pub struct RecordFile {
     pub fname: String,
@@ -109,8 +110,8 @@ pub fn make_bam_reader(input_file: &str, num_threads: usize) -> (Header, Indexed
     (header, bam_reader)
 }
 
-pub fn index_bam(
-    bam_name: &String,
+pub fn _index_bam(
+    bam_name: &str,
     num_threads: usize,
 ) -> Result<String, rust_htslib::errors::Error> {
     // this function will return an error if the input bam is not sorted.
@@ -126,4 +127,46 @@ pub fn index_bam(
         Ok(_) => Ok(idx_name),
         Err(e) => Err(e),
     }
+}
+
+pub fn index_bam(bam_name: &str, num_threads: usize) -> Result<String, Error> {
+    let idx = match _index_bam(bam_name, num_threads) {
+        Err(_) => {
+            eprintln!("=======================");
+            eprintln!(
+                "Original output file unsorted. Attempting to resort with samtools in $PATH..."
+            );
+            try_sort_bam(bam_name, num_threads)?;
+            let _idx = index_bam(bam_name, num_threads)?;
+            eprintln!("Sort successful. Index built.");
+            _idx
+        }
+        Ok(_idx) => _idx,
+    };
+
+    Ok(idx)
+}
+
+pub fn try_sort_bam(bam_name: &str, num_threads: usize) -> Result<(), Error> {
+    let tempname = format!("{bam_name}_PRE_SORT");
+    let threads_str = num_threads.to_string();
+
+    let c = Command::new("samtools")
+        .arg("sort")
+        .arg("-o")
+        .arg(&tempname)
+        .arg(bam_name)
+        .arg("-@")
+        .arg(&threads_str)
+        .spawn()
+        .expect("Failed to start samtools")
+        .wait()?;
+
+    if !c.success() {
+        anyhow::bail!("Failed to sort bam file")
+    }
+
+    std::fs::rename(tempname, bam_name)?;
+
+    Ok(())
 }

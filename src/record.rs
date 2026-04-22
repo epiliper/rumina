@@ -53,6 +53,7 @@ pub trait SequenceRecord {
     fn get_umi(&self, separator: &str) -> Result<SmolStr, Error>;
     fn get_pos_key(&self, group_by_length: bool) -> (i64, ReadKey);
     fn mark_group(&mut self, umi: &[u8], group_tag: &[u8]);
+    #[allow(dead_code)]
     fn qname(&self) -> &[u8];
 }
 
